@@ -1,0 +1,60 @@
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: datebud-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpw}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-datebud}
+      MYSQL_USER: ${MYSQL_USER:-datebud}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:-datebud}
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    ports:
+      - '${MYSQL_PORT:-3306}:3306'
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ['CMD', 'mysqladmin', 'ping', '-h', 'localhost', '-p${MYSQL_ROOT_PASSWORD:-rootpw}']
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: datebud-app
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      APP_TZ: ${APP_TZ:-Asia/Jakarta}
+      TZ: ${APP_TZ:-Asia/Jakarta}
+      DATABASE_URL: mysql://${MYSQL_USER:-datebud}:${MYSQL_PASSWORD:-datebud}@mysql:3306/${MYSQL_DATABASE:-datebud}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
+      REFRESH_TTL_DAYS: ${REFRESH_TTL_DAYS:-30}
+      STORAGE_DRIVER: local
+      STORAGE_ROOT: /app/storage
+      MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
+      MAX_RECEIPTS_PER_EXPENSE: ${MAX_RECEIPTS_PER_EXPENSE:-5}
+      SEED_USER_EMAIL: ${SEED_USER_EMAIL:-}
+      SEED_USER_PASSWORD: ${SEED_USER_PASSWORD:-}
+      SEED_USER_NAME: ${SEED_USER_NAME:-}
+    ports:
+      - '${PORT:-3000}:3000'
+    volumes:
+      - ./storage:/app/storage
+    healthcheck:
+      test: ['CMD', 'node', '-e', "require('http').get('http://localhost:3000/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+volumes:
+  mysql_data:
