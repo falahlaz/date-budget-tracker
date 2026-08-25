@@ -1,0 +1,185 @@
+# datebud — Date Budget Tracker
+
+Weekend spending, made explicitly dependent on weekday discipline.
+
+Weekdays get a flat daily allowance. Whatever is left of that allowance **becomes** the
+weekend budget, and whatever is left at the end of the week rolls into the next one — and
+at the end of the month, into the next month. Save on Tuesday and Saturday gets roomier;
+overspend on Tuesday and Saturday tightens on its own.
+
+Built from `PRDdatebudgettracker.md`, which is the source of truth for this codebase.
+Sections 4 (business rules), 7 (data model) and 8 (API contract) are normative: on any
+disagreement between the code and those sections, the PRD wins.
+
+---
+
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Backend | NestJS 11 (Express), TypeScript |
+| ORM / DB | Prisma 6 · MySQL 8.0 (InnoDB, utf8mb4) |
+| Frontend | React 19 · Vite 6 · TypeScript, served by Nest in production |
+| State | TanStack Query v5 |
+| Styling | Tailwind CSS v4, mobile-first |
+| Charts | Recharts (lazy-loaded) |
+| Uploads | multer (memory) + sharp |
+| Auth | JWT HS256 + rotating refresh cookie + argon2id |
+| Dates | date-fns / date-fns-tz, everything in Asia/Jakarta |
+| Tests | Jest + supertest (server) · Vitest (client) |
+
+---
+
+## Quick start
+
+### With Docker (recommended)
+
+```bash
+cp .env.example .env
+# fill in JWT_SECRET (openssl rand -hex 32) and, optionally, the SEED_USER_* trio
+docker compose up --build
+```
+
+The app comes up on <http://localhost:3000>. Migrations run automatically on start, and if
+`SEED_USER_EMAIL` / `SEED_USER_PASSWORD` are set **and the users table is empty**, that
+account is created with the seven default categories.
+
+### Local development
+
+```bash
+cp .env.example .env          # then fill in JWT_SECRET
+docker compose up -d mysql    # or point DATABASE_URL at any MySQL 8
+npm install
+npm --prefix client install
+npx prisma migrate dev
+npm run cli -- user:create --email=you@example.com --password=your-password --name=You
+npm run dev                   # Nest on :3000, Vite on :5173
+```
+
+Open <http://localhost:5173>. The Vite dev server proxies `/api` to Nest.
+
+---
+
+## Scripts
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | Nest watch + Vite dev server together |
+| `npm run build` | Build the client, then the server |
+| `npm start` | Run the production build (`dist/main.js`) |
+| `npm test` | Server unit tests — no database needed |
+| `npm run test:e2e` | Full supertest suite — **needs a running MySQL** |
+| `npm --prefix client test` | Client unit tests |
+| `npm run cli -- user:create …` | Create a user + their default categories |
+| `npm run backup` | `mysqldump` + receipt storage into one dated tarball |
+| `npm run prisma:migrate` | Create/apply a migration in development |
+
+API docs are served at `/api/docs` in non-production environments only.
+
+---
+
+## How the calculation works
+
+The engine is a **pure function** — no database, no clock, no side effects — in
+`src/modules/reports/engine/compute-month.ts`. Everything else is CRUD and presentation.
+
+```
+weekday_count      = Mon–Fri days in the month
+dailyWeekdayRate   = FLOOR(monthlyBudget / weekday_count)
+roundingRemainder  = monthlyBudget − dailyWeekdayRate × weekday_count
+
+for each week segment w (Mon–Sun, clipped to the month):
+  weekBudget[w]    = dailyWeekdayRate × weekdayDays[w]
+  rolloverIn[1]    = carryIn + roundingRemainder
+  rolloverIn[w>1]  = weekRemaining[w−1]
+  weekendBudget[w] = weekBudget[w] − weekdaySpent[w] + rolloverIn[w]
+  weekRemaining[w] = weekendBudget[w] − weekendSpent[w]
+
+carryOut = weekRemaining[last]  →  becomes carryIn of the next budgeted month
+```
+
+Rules worth knowing before changing anything:
+
+- **Money is always an integer number of rupiah.** No floats anywhere on a money path.
+  Division uses `Math.floor` and the remainder is carried, never dropped.
+- **Negative is legal.** An expense is never rejected for exceeding a budget; deficits roll
+  forward exactly like surpluses. The UI marks them red *and* labels them `OVER` — colour
+  is never the only signal.
+- **Carry-in never raises the daily rate.** It enters as `rolloverIn[1]` so the daily
+  number stays stable and memorable month to month.
+- **Nothing derived is stored.** `carry_out_cached` is a pure optimisation; `NULL` means
+  "recompute". Any expense or budget change nulls it for that period *and every later one*.
+- **A month without a budget is skipped in the carry-over chain**, so a gap month passes
+  the carry-over through to the next budgeted month instead of swallowing it.
+- **Every date is Asia/Jakarta.** `spent_on` is a bare `DATE`; "today" comes from
+  `ClockService`, never from `new Date()` in domain code.
+
+The invariant `carryOut == monthlyBudget + carryIn − totalSpent` is asserted on **every**
+call and property-tested over 1000 random distributions. If it ever fails, the
+implementation is wrong.
+
+---
+
+## Project layout
+
+```
+src/
+  common/            clock, errors, filters, pipes, utils (money, merchant, dates)
+  config/            zod env schema — the app refuses to boot if it is not satisfied
+  modules/
+    auth/            login, refresh rotation, guards, rate limit
+    users/           user creation + default category seed
+    categories/      CRUD, archive instead of delete
+    budgets/         budget CRUD, carry-over resolution, cache invalidation
+    expenses/        CRUD, filters, merchant autocomplete
+    receipts/        upload, sharp normalisation, storage abstraction
+    reports/
+      engine/        calendar.ts · compute-month.ts · aggregate.ts  ← the heart
+  cli/               user:create
+client/src/
+  components/        UI primitives and the app shell
+  features/          auth · expenses · reports · budget · categories
+  lib/               api client, formatting, query keys, WIB date helpers
+```
+
+---
+
+## Testing
+
+```bash
+npm test                       # 111 unit tests, no database
+npm run test:e2e               # E1–E15 from PRD 12.2, needs MySQL
+npm --prefix client test       # formatting and date helpers
+```
+
+The unit suite covers T1–T13 from PRD 12.1, including all three golden fixtures, the
+1000-case invariant property test, and 24 months of week-segment continuity. It also boots
+the whole Nest application against a stubbed database to prove every route in PRD section 8
+registers and resolves.
+
+---
+
+## Security notes
+
+- Every endpoint except login, refresh and health requires a bearer token, and **every
+  query is scoped by `user_id`**.
+- Refresh tokens are stored only as SHA-256 digests, rotated on every use, and revoked
+  wholesale when the password changes. The cookie is httpOnly and scoped to `/api/auth`.
+- The access token lives in memory on the client only — never in `localStorage`.
+- Uploads are validated by **magic bytes**, not the `Content-Type` header, then re-encoded
+  to WebP with EXIF (including GPS) stripped. The original filename is never used as a path.
+- Receipt images are streamed through an authenticated, ownership-checked endpoint. They are
+  never exposed via static middleware.
+- Login is rate limited to 5 attempts per 15 minutes per IP.
+
+---
+
+## Not in v1
+
+Multi-user or shared budgets, public sign-up, national holiday handling (red dates are
+ordinary weekdays), bank/e-wallet integration, receipt OCR, non-date budget categories,
+multi-currency, push reminders, and PDF/Excel export. Offline **reads** work; offline
+writes are deliberately out of scope — a queued expense replayed later would corrupt the
+carry-over chain invisibly.
+
+See PRD section 14 for the full v1.1 backlog.
