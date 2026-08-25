@@ -3,7 +3,9 @@ import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'node:path';
 import { ConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { AuthModule } from './modules/auth/auth.module';
 import { HealthModule } from './modules/health/health.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { HealthModule } from './modules/health/health.module';
         fallthrough: true,
       },
     }),
+    AuthModule,
+    UsersModule,
     HealthModule,
   ],
 })
