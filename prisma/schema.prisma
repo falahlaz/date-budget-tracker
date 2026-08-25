@@ -1,0 +1,150 @@
+// Prisma schema for datebud.
+// NORMATIVE SOURCE: PRD section 7.2 (DDL, MySQL 8.0). This schema is a derivation of
+// that DDL and must match it exactly -- on any conflict, the DDL wins.
+//
+// Money is always `Int` (signed 32-bit, whole rupiah). Never Decimal, Float or BigInt.
+// `spentOn` is a bare DATE (no time) to sidestep the entire timezone bug class.
+// `createdAt` / `updatedAt` are DATETIME stored in UTC.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum PaymentMethod {
+  CASH
+  QRIS
+  DEBIT
+  CREDIT
+  TRANSFER
+  EWALLET
+  OTHER
+}
+
+model User {
+  id           Int      @id @default(autoincrement()) @db.UnsignedInt
+  email        String   @db.VarChar(191)
+  passwordHash String   @map("password_hash") @db.VarChar(255)
+  displayName  String   @map("display_name") @db.VarChar(100)
+  createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  refreshTokens  RefreshToken[]
+  categories     Category[]
+  monthlyBudgets MonthlyBudget[]
+  expenses       Expense[]
+  receipts       Receipt[]
+
+  @@unique([email], map: "uq_users_email")
+  @@map("users")
+}
+
+model RefreshToken {
+  id        Int       @id @default(autoincrement()) @db.UnsignedInt
+  userId    Int       @map("user_id") @db.UnsignedInt
+  /// sha256 hex of the refresh token -- the raw token is never stored
+  tokenHash String    @map("token_hash") @db.Char(64)
+  expiresAt DateTime  @map("expires_at") @db.DateTime(0)
+  revokedAt DateTime? @map("revoked_at") @db.DateTime(0)
+  userAgent String?   @map("user_agent") @db.VarChar(255)
+  createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_refresh_user")
+
+  @@unique([tokenHash], map: "uq_refresh_token_hash")
+  @@index([userId], map: "idx_refresh_user")
+  @@map("refresh_tokens")
+}
+
+model Category {
+  id         Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId     Int      @map("user_id") @db.UnsignedInt
+  name       String   @db.VarChar(50)
+  /// hex colour used by the dashboard charts
+  color      String   @default("#64748B") @db.Char(7)
+  /// lucide-react icon name
+  icon       String?  @db.VarChar(40)
+  sortOrder  Int      @default(0) @map("sort_order") @db.SmallInt
+  isArchived Boolean  @default(false) @map("is_archived")
+  createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_category_user")
+  expenses Expense[]
+
+  @@unique([userId, name], map: "uq_category_user_name")
+  @@map("categories")
+}
+
+model MonthlyBudget {
+  id             Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId         Int      @map("user_id") @db.UnsignedInt
+  /// 'YYYY-MM'
+  period         String   @db.Char(7)
+  /// whole rupiah, >= 1
+  amount         Int
+  /// cached carryOut; NULL means "needs recompute"
+  carryOutCached Int?     @map("carry_out_cached")
+  note           String?  @db.VarChar(255)
+  createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_budget_user")
+
+  @@unique([userId, period], map: "uq_budget_user_period")
+  @@map("monthly_budgets")
+}
+
+model Expense {
+  id            Int           @id @default(autoincrement()) @db.UnsignedInt
+  userId        Int           @map("user_id") @db.UnsignedInt
+  categoryId    Int?          @map("category_id") @db.UnsignedInt
+  /// WIB calendar date, no time component
+  spentOn       DateTime      @map("spent_on") @db.Date
+  /// whole rupiah, >= 1
+  amount        Int
+  /// place name, stored verbatim as the user typed it -- this is what the UI shows
+  merchant      String?       @db.VarChar(120)
+  /// normalizeMerchant(merchant); the ONLY column allowed for grouping/dedupe/matching
+  merchantKey   String?       @map("merchant_key") @db.VarChar(120)
+  paymentMethod PaymentMethod @default(CASH) @map("payment_method")
+  note          String?       @db.VarChar(500)
+  createdAt     DateTime      @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt     DateTime?     @map("deleted_at") @db.DateTime(0)
+
+  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_expense_user")
+  category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull, map: "fk_expense_category")
+  receipts Receipt[]
+
+  @@index([userId, spentOn, deletedAt], map: "idx_expense_user_date")
+  @@index([categoryId], map: "idx_expense_category")
+  @@index([userId, merchantKey, deletedAt], map: "idx_expense_merchant")
+  @@map("expenses")
+}
+
+model Receipt {
+  id           Int       @id @default(autoincrement()) @db.UnsignedInt
+  expenseId    Int       @map("expense_id") @db.UnsignedInt
+  userId       Int       @map("user_id") @db.UnsignedInt
+  /// relative path, e.g. 'receipts/2026/09/uuid.webp'
+  storageKey   String    @map("storage_key") @db.VarChar(255)
+  thumbKey     String?   @map("thumb_key") @db.VarChar(255)
+  mimeType     String    @map("mime_type") @db.VarChar(60)
+  sizeBytes    Int       @map("size_bytes") @db.UnsignedInt
+  width        Int?      @db.UnsignedSmallInt
+  height       Int?      @db.UnsignedSmallInt
+  originalName String?   @map("original_name") @db.VarChar(255)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  deletedAt    DateTime? @map("deleted_at") @db.DateTime(0)
+
+  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade, map: "fk_receipt_expense")
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_receipt_user")
+
+  @@index([expenseId], map: "idx_receipt_expense")
+  @@map("receipts")
+}
