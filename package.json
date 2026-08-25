@@ -1,0 +1,28 @@
+{
+  "name": "datebud",
+  "version": "1.0.0",
+  "description": "Date Budget Tracker - weekend budget earned from weekday discipline",
+  "private": true,
+  "license": "UNLICENSED",
+  "scripts": {
+    "build": "npm run build:client && npm run build:server",
+    "build:client": "npm --prefix client run build",
+    "build:server": "nest build",
+    "dev": "concurrently -n api,web -c blue,magenta \"npm:dev:server\" \"npm:dev:client\"",
+    "dev:server": "nest start --watch",
+    "dev:client": "npm --prefix client run dev",
+    "start": "node dist/main.js",
+    "cli": "ts-node -r tsconfig-paths/register src/cli/main.ts",
+    "cli:prod": "node dist/cli/main.js",
+    "backup": "bash scripts/backup.sh",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:cov": "jest --coverage",
+    "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
+    "lint": "eslint \"{src,test}/**/*.ts\" --fix",
+    "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\""
+  }
+}
