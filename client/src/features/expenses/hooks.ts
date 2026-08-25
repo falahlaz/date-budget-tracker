@@ -1,9 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, queryString } from '@/lib/api';
 import { invalidateReports, queryKeys } from '@/lib/query';
 import type { Expense, ExpenseList, MerchantSuggestion, PaymentMethod, Receipt } from '@/types/api';
 
-export interface ExpenseFilters {
+export type ExpenseFilters = {
   period?: string;
   from?: string;
   to?: string;
@@ -15,7 +15,7 @@ export interface ExpenseFilters {
   limit?: number;
   offset?: number;
   sort?: string;
-}
+};
 
 export interface ExpenseInput {
   spentOn: string;
@@ -29,7 +29,21 @@ export interface ExpenseInput {
 export function useExpenses(filters: ExpenseFilters) {
   return useQuery({
     queryKey: queryKeys.expenses(filters as Record<string, unknown>),
-    queryFn: () => api.get<ExpenseList>(`/expenses${queryString(filters as Record<string, string>)}`),
+    queryFn: () => api.get<ExpenseList>(`/expenses${queryString(filters)}`),
+  });
+}
+
+/** Paged list for the history screen; pages are stitched together by infinite scroll. */
+export function useInfiniteExpenses(filters: ExpenseFilters, pageSize = 30) {
+  return useInfiniteQuery({
+    queryKey: queryKeys.expenses({ ...filters, pageSize } as Record<string, unknown>),
+    initialPageParam: 0,
+    queryFn: ({ pageParam }) =>
+      api.get<ExpenseList>(`/expenses${queryString({ ...filters, limit: pageSize, offset: pageParam })}`),
+    getNextPageParam: (lastPage, allPages) => {
+      const loaded = allPages.reduce((count, page) => count + page.items.length, 0);
+      return loaded < lastPage.total ? loaded : undefined;
+    },
   });
 }
 
