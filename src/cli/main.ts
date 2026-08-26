@@ -1,4 +1,3 @@
-import { Logger } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { UsersService } from '@/modules/users/users.service';
 import { CliModule } from './cli.module';
@@ -51,7 +50,6 @@ async function run(): Promise<void> {
   }
 
   const context = await NestFactory.createApplicationContext(CliModule, { logger: ['error', 'warn'] });
-  const logger = new Logger('cli');
 
   try {
     switch (command) {
@@ -65,7 +63,9 @@ async function run(): Promise<void> {
           displayName: require_(flags, 'name'),
         });
 
-        logger.log(`Created user #${user.id} <${user.email}> with default categories`);
+        // stdout, not a Logger: the context is created with the 'log' level switched off,
+        // and a CLI's result belongs on stdout where it can be piped, not in framework noise.
+        process.stdout.write(`Created user #${user.id} <${user.email}> with default categories\n`);
         break;
       }
 
