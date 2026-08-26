@@ -7,6 +7,7 @@ import { AllExceptionsFilter } from '@/common/filters/all-exceptions.filter';
 import { buildValidationPipe } from '@/common/pipes/validation.pipe';
 import { PrismaService } from '@/prisma/prisma.service';
 import { UsersService } from '@/modules/users/users.service';
+import { ClockService } from '@/common/clock/clock.service';
 
 export interface Harness {
   app: INestApplication;
@@ -16,6 +17,35 @@ export interface Harness {
   userId: number;
   http: () => request.Agent;
   close: () => Promise<void>;
+}
+
+/**
+ * A ClockService pinned to one date.
+ *
+ * The PRD's fixtures are tied to the calendar shape of a specific month -- Fixture B only
+ * splits into five week segments because of how September 2026 falls -- so those dates
+ * cannot drift with the wall clock. But they are also rejected outright once they sit in
+ * the future (PRD 6.9). Pinning the clock is the only way to have both: the fixture keeps
+ * its calendar, and the future-date rule stays switched on rather than being worked around.
+ */
+class FixedClock {
+  constructor(private readonly fixed: string) {}
+
+  get timeZone(): string {
+    return 'Asia/Jakarta';
+  }
+
+  now(): Date {
+    return new Date(`${this.fixed}T12:00:00+07:00`);
+  }
+
+  today(): string {
+    return this.fixed;
+  }
+
+  currentPeriod(): string {
+    return this.fixed.slice(0, 7);
+  }
 }
 
 export const TEST_USER = {
@@ -31,8 +61,16 @@ export const TEST_USER = {
  * reports, carry-over invalidation across months, ownership checks on file streams -- only
  * mean anything against actual SQL.
  */
-export async function createHarness(options: { login?: boolean } = {}): Promise<Harness> {
-  const moduleRef = await Test.createTestingModule({ imports: [AppModule] }).compile();
+export async function createHarness(
+  options: { login?: boolean; today?: string } = {},
+): Promise<Harness> {
+  const builder = Test.createTestingModule({ imports: [AppModule] });
+
+  if (options.today) {
+    builder.overrideProvider(ClockService).useValue(new FixedClock(options.today));
+  }
+
+  const moduleRef = await builder.compile();
 
   const app = moduleRef.createNestApplication();
   app.use(cookieParser());

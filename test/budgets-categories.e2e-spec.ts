@@ -1,10 +1,13 @@
 import { createHarness, firstCategoryId, Harness, yesterdayWib } from './app-harness';
 
+// Pinned so the 2026-09/2026-10 periods below stay in the past (PRD 6.9).
+const FIXED_TODAY = '2026-12-01';
+
 describe('Budgets and categories (PRD 8.3, 8.7)', () => {
   let harness: Harness;
 
   beforeAll(async () => {
-    harness = await createHarness();
+    harness = await createHarness({ today: FIXED_TODAY });
   });
 
   afterAll(async () => {

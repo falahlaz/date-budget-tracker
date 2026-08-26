@@ -3,9 +3,12 @@ import { createHarness, firstCategoryId, Harness } from './app-harness';
 /**
  * Fixture B from PRD 5.2, driven end to end through the HTTP API.
  *
- * September 2026 is in the past, so every date is accepted and the numbers are stable
- * forever -- the expected table can be compared against the PRD line by line.
+ * The clock is pinned to FIXED_TODAY so September 2026 always reads as a completed month:
+ * the dates stay accepted under the future-date rule (PRD 6.9) and the numbers stay stable
+ * forever, so the expected table can be compared against the PRD line by line.
  */
+const FIXED_TODAY = '2026-12-01';
+
 const FIXTURE_B_EXPENSES = [
   { spentOn: '2026-09-02', amount: 150_000 },
   { spentOn: '2026-09-05', amount: 250_000 },
@@ -23,7 +26,7 @@ describe('Reports (PRD 8.6)', () => {
   let categoryId: number;
 
   beforeAll(async () => {
-    harness = await createHarness();
+    harness = await createHarness({ today: FIXED_TODAY });
     categoryId = await firstCategoryId(harness);
   });
 
