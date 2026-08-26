@@ -29,7 +29,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-cert
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
-COPY --from=deps /app/node_modules ./node_modules
+# node_modules comes from `build`, not `deps`: `prisma generate` runs there, and it writes
+# the generated client into node_modules/.prisma. Copying the deps stage's copy instead
+# ships an ungenerated client, whose enums are all undefined -- the app then dies on boot
+# reading PaymentMethod.CASH off it, long after migrations have already succeeded.
+COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/client/dist ./client/dist
 COPY prisma ./prisma
