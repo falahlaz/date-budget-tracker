@@ -2,6 +2,7 @@ import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import compression from 'compression';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { AppModule } from './app.module';
@@ -20,6 +21,9 @@ async function bootstrap(): Promise<void> {
   // The app renders its own SPA and serves receipt images, so the default CSP would
   // block them; everything else helmet hardens stays on.
   app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: false }));
+  // The JS bundle is 418 kB on the wire and 130 kB gzipped -- on the 3G-ish connection
+  // PRD 11 targets, that difference is most of the time to first render.
+  app.use(compression());
   app.use(cookieParser());
 
   app.setGlobalPrefix('api');
