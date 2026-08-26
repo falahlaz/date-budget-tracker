@@ -149,7 +149,7 @@ export function ExpenseListPage() {
           <button
             type="button"
             onClick={() => setParam('merchantKey', undefined)}
-            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand"
+            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-text"
           >
             <Filter className="h-3.5 w-3.5" />
             Tempat: {merchantKey}

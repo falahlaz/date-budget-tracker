@@ -158,7 +158,7 @@ function DayTable({ days }: { days: DayRow[] }) {
 
           return (
             <li key={day.date} className="flex items-center gap-3 py-2.5">
-              <span className={cn('w-16 shrink-0 text-xs', day.isToday ? 'font-bold text-brand' : 'text-ink-muted')}>
+              <span className={cn('w-16 shrink-0 text-xs', day.isToday ? 'font-bold text-brand-text' : 'text-ink-muted')}>
                 {formatWeekdayShort(day.date)} {formatDayShort(day.date)}
               </span>
 

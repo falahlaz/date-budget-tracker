@@ -17,7 +17,16 @@
   --color-surface-raised: #ffffff;
   --color-line: #e2e8f0;
 
+  /*
+   * --color-brand is the accent *surface* (button fills, rings): it carries
+   * --color-brand-ink on top, so it has to stay dark enough for that text.
+   * --color-brand-text is the accent applied *as* text or an icon on a page
+   * surface, so it has to stay light enough to read against it. In light mode
+   * both pull the same way and the values coincide; in dark mode they pull
+   * apart, which is why they are separate tokens rather than one.
+   */
   --color-brand: #4f46e5;
+  --color-brand-text: #4f46e5;
   --color-brand-soft: #eef2ff;
   --color-brand-ink: #ffffff;
 
@@ -42,7 +51,10 @@
     --color-surface-raised: #1e293b;
     --color-line: #1e293b;
 
-    --color-brand: #6366f1;
+    /* white on #6366f1 is only 4.47:1 -- just under AA. */
+    --color-brand: #5558e8;
+    /* indigo-300: 7.3:1 on the raised surface, where #6366f1 managed 3.3:1. */
+    --color-brand-text: #a5b4fc;
     --color-brand-soft: #1e1b4b;
 
     --color-safe: #34d399;

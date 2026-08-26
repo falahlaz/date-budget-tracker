@@ -170,7 +170,7 @@ function WeekStrip({ days, weekIndex }: { days: DayRow[]; weekIndex: number }) {
       <CardHeader
         title={`Minggu ke-${weekIndex}`}
         action={
-          <Link to="/week" className="inline-flex items-center gap-1 text-xs font-semibold text-brand">
+          <Link to="/week" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text">
             Detail <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         }
@@ -226,7 +226,7 @@ function RecentExpenses() {
       <CardHeader
         title="Pengeluaran terakhir"
         action={
-          <Link to="/expenses" className="inline-flex items-center gap-1 text-xs font-semibold text-brand">
+          <Link to="/expenses" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text">
             Semua <ArrowRight className="h-3.5 w-3.5" />
           </Link>
         }

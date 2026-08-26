@@ -72,7 +72,7 @@ function TabItem({
         className={({ isActive }) =>
           cn(
             'flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors',
-            isActive ? 'text-brand' : 'text-ink-muted',
+            isActive ? 'text-brand-text' : 'text-ink-muted',
           )
         }
       >
