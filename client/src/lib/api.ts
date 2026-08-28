@@ -28,6 +28,7 @@ export class ApiError extends Error {
  */
 let accessToken: string | null = null;
 let onSessionLost: (() => void) | null = null;
+let inFlightRefresh: Promise<boolean> | null = null;
 
 export function setAccessToken(token: string | null): void {
   accessToken = token;
@@ -58,8 +59,7 @@ async function toApiError(response: Response): Promise<ApiError> {
   );
 }
 
-/** Attempts a token refresh; returns true when a new access token was obtained. */
-async function refreshSession(): Promise<boolean> {
+async function performRefresh(): Promise<boolean> {
   const response = await fetch(`${BASE}/auth/refresh`, {
     method: 'POST',
     credentials: 'include',
@@ -73,6 +73,22 @@ async function refreshSession(): Promise<boolean> {
   const body = (await response.json()) as { accessToken: string };
   accessToken = body.accessToken;
   return true;
+}
+
+/**
+ * Attempts a token refresh; returns true when a new access token was obtained.
+ *
+ * Concurrent callers share one request. Refresh tokens are single-use and rotated on the
+ * server, so if the dashboard's queries all hit a 401 at once and each fired its own
+ * refresh, exactly one would succeed and the rest would 401 -- clearing the very token the
+ * winner had just stored and signing the user out mid-session.
+ */
+function refreshSession(): Promise<boolean> {
+  inFlightRefresh ??= performRefresh().finally(() => {
+    inFlightRefresh = null;
+  });
+
+  return inFlightRefresh;
 }
 
 interface RequestOptions {
