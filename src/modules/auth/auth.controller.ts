@@ -108,12 +108,19 @@ export class AuthController {
   /**
    * The refresh token is httpOnly so no script can read it, and scoped to /api/auth so it
    * is only ever sent to the two endpoints that consume it.
+   *
+   * Secure defaults to on in production but stays overridable, because it is a property of
+   * how the app is *served*, not of NODE_ENV: a production build reached over plain HTTP
+   * (a LAN deploy with no TLS terminator) would have this cookie silently dropped by the
+   * browser, and the only visible symptom is that every reload lands back on /login.
    */
   private cookieOptions(): CookieOptions {
+    const explicitSecure = this.config.get('COOKIE_SECURE', { infer: true });
+
     return {
       httpOnly: true,
       sameSite: 'lax',
-      secure: this.config.get('NODE_ENV', { infer: true }) === 'production',
+      secure: explicitSecure ?? this.config.get('NODE_ENV', { infer: true }) === 'production',
       path: '/api/auth',
     };
   }

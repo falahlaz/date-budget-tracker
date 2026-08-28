@@ -19,6 +19,18 @@ export const envSchema = z.object({
   JWT_ACCESS_TTL: z.string().default('15m'),
   REFRESH_TTL_DAYS: z.coerce.number().int().min(1).default(30),
 
+  /**
+   * Whether the refresh cookie carries the Secure flag. Defaults to on in production.
+   *
+   * Set this false only when the app is genuinely served over plain HTTP (a LAN deploy with
+   * no TLS terminator) -- a Secure cookie sent over http:// is silently discarded by the
+   * browser, which leaves login working but every reload bouncing back to the login screen.
+   */
+  COOKIE_SECURE: z
+    .enum(['true', 'false'])
+    .optional()
+    .transform((value) => (value === undefined ? undefined : value === 'true')),
+
   STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_ROOT: z.string().min(1).default('./storage'),
   MAX_UPLOAD_MB: z.coerce.number().int().min(1).default(10),

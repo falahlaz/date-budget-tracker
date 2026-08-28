@@ -33,6 +33,21 @@ describe('validateEnv', () => {
     expect(() => validateEnv({ ...base, JWT_SECRET: 'short' })).toThrow(/JWT_SECRET/);
   });
 
+  it('leaves COOKIE_SECURE unset so the NODE_ENV-derived default applies', () => {
+    expect(validateEnv(base).COOKIE_SECURE).toBeUndefined();
+  });
+
+  // The string 'false' is truthy, so a naive z.coerce.boolean() would turn an operator
+  // explicitly disabling the Secure flag into enabling it.
+  it('reads COOKIE_SECURE as a real boolean, not a truthy string', () => {
+    expect(validateEnv({ ...base, COOKIE_SECURE: 'false' }).COOKIE_SECURE).toBe(false);
+    expect(validateEnv({ ...base, COOKIE_SECURE: 'true' }).COOKIE_SECURE).toBe(true);
+  });
+
+  it('throws when COOKIE_SECURE is neither true nor false', () => {
+    expect(() => validateEnv({ ...base, COOKIE_SECURE: 'yes' })).toThrow(/COOKIE_SECURE/);
+  });
+
   it('reports every problem in one message', () => {
     expect(() => validateEnv({})).toThrow(/DATABASE_URL[\s\S]*JWT_SECRET/);
   });

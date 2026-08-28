@@ -38,6 +38,10 @@ services:
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
       JWT_ACCESS_TTL: ${JWT_ACCESS_TTL:-15m}
       REFRESH_TTL_DAYS: ${REFRESH_TTL_DAYS:-30}
+      # This file publishes plain HTTP on :3000 with no TLS terminator, and a Secure cookie
+      # over http:// is silently discarded by the browser -- which breaks session resume on
+      # reload for anyone reaching the app by LAN IP. Set true once TLS is in front.
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       STORAGE_DRIVER: local
       STORAGE_ROOT: /app/storage
       MAX_UPLOAD_MB: ${MAX_UPLOAD_MB:-10}
