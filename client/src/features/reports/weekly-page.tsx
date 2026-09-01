@@ -147,6 +147,14 @@ function Divider() {
   return <div className="my-1 border-t border-dashed border-line" />;
 }
 
+/**
+ * The per-day breakdown (PRD 9.4).
+ *
+ * Two lines per day rather than four columns: at 360px four full-precision rupiah figures
+ * cannot share a row inside the card, and the ones that did not fit used to push the whole
+ * page sideways. The day and its allowance stack on the left, what was spent and what is
+ * left on the right, so a row still reads day -> jatah -> terpakai -> sisa.
+ */
 function DayTable({ days }: { days: DayRow[] }) {
   return (
     <Card>
@@ -157,26 +165,26 @@ function DayTable({ days }: { days: DayRow[] }) {
           const tone = day.dayType === 'WEEKEND' ? 'neutral' : toneFor(day.remaining, day.dayBudget);
 
           return (
-            <li key={day.date} className="flex items-center gap-3 py-2.5">
-              <span className={cn('w-16 shrink-0 text-xs', day.isToday ? 'font-bold text-brand-text' : 'text-ink-muted')}>
-                {formatWeekdayShort(day.date)} {formatDayShort(day.date)}
-              </span>
+            <li key={day.date} className="flex items-start justify-between gap-3 py-2.5">
+              <div className="min-w-0">
+                <span className={cn('block text-sm', day.isToday ? 'font-bold text-brand-text' : 'text-ink')}>
+                  {formatWeekdayShort(day.date)} {formatDayShort(day.date)}
+                </span>
+                <span className="tabular block text-xs text-ink-subtle">
+                  {day.dayType === 'WEEKEND' ? 'Weekend' : `jatah ${formatRupiah(day.dayBudget)}`}
+                </span>
+              </div>
 
-              <span className="flex-1 text-xs text-ink-subtle">
-                {day.dayType === 'WEEKEND' ? 'Weekend' : formatRupiah(day.dayBudget)}
-              </span>
-
-              <span className="tabular w-24 shrink-0 text-right text-sm text-ink">
-                {formatRupiah(day.spent)}
-              </span>
-
-              <span className="w-24 shrink-0 text-right text-sm">
-                {day.dayType === 'WEEKEND' ? (
-                  <span className="text-ink-subtle">—</span>
-                ) : (
-                  <Money amount={day.remaining} tone={tone} showOverBadge={false} />
-                )}
-              </span>
+              <div className="shrink-0 text-right">
+                <span className="tabular block text-sm text-ink">{formatRupiah(day.spent)}</span>
+                <span className="block text-sm">
+                  {day.dayType === 'WEEKEND' ? (
+                    <span className="text-ink-subtle">—</span>
+                  ) : (
+                    <Money amount={day.remaining} tone={tone} showOverBadge={false} />
+                  )}
+                </span>
+              </div>
             </li>
           );
         })}
