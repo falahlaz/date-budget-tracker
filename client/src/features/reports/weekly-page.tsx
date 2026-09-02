@@ -8,9 +8,9 @@ import { ExpenseRow } from '@/features/expenses/expense-row';
 import { useExpenses } from '@/features/expenses/hooks';
 import { cn } from '@/lib/cn';
 import { formatDateRange, formatDayShort, formatRupiah, formatWeekdayShort } from '@/lib/format';
-import { currentPeriod, shiftPeriod } from '@/lib/today';
+import { currentPeriod } from '@/lib/today';
 import type { DayRow, WeekReport } from '@/types/api';
-import { useCurrentWeekReport, useMonthReport, useWeekReport } from './hooks';
+import { useCurrentWeekReport, useWeekReport } from './hooks';
 
 /** S3 Weekly Dashboard (PRD 9.4). */
 export function WeeklyPage() {
@@ -18,7 +18,6 @@ export function WeeklyPage() {
   const [selection, setSelection] = useState<{ period: string; weekIndex: number } | null>(null);
 
   const period = selection?.period ?? current.data?.period ?? currentPeriod();
-  const month = useMonthReport(period);
   const weekIndex = selection?.weekIndex ?? current.data?.weekIndex ?? 1;
   const week = useWeekReport(period, weekIndex);
 
@@ -26,23 +25,14 @@ export function WeeklyPage() {
   if (week.error) return <ErrorState message={(week.error as Error).message} onRetry={() => week.refetch()} />;
   if (!week.data) return null;
 
-  const weekCount = month.data?.weeks.length ?? 5;
+  const data = week.data;
 
-  const step = (delta: number) => {
-    const next = weekIndex + delta;
-
-    if (next < 1) {
-      const previousPeriod = shiftPeriod(period, -1);
-      setSelection({ period: previousPeriod, weekIndex: 6 });
-      return;
-    }
-    if (next > weekCount) {
-      setSelection({ period: shiftPeriod(period, 1), weekIndex: 1 });
-      return;
-    }
-
-    setSelection({ period, weekIndex: next });
-  };
+  /**
+   * A month holds between 4 and 6 segments (PRD 4.2), so where W1's "previous" lands depends
+   * on the shape of the month before it. The report carries both neighbours already resolved
+   * rather than having the page guess an index the engine would reject.
+   */
+  const step = (delta: number) => setSelection(delta < 0 ? data.prevWeek : data.nextWeek);
 
   return (
     <>
@@ -53,7 +43,7 @@ export function WeeklyPage() {
           ‹
         </Button>
         <span className="flex-1 text-center text-sm font-semibold text-ink">
-          W{week.data.weekIndex} · {formatDateRange(week.data.startDate, week.data.endDate)}
+          W{data.weekIndex} · {formatDateRange(data.startDate, data.endDate)}
         </span>
         <Button variant="secondary" size="icon" onClick={() => step(1)} aria-label="Minggu berikutnya">
           ›
@@ -61,10 +51,10 @@ export function WeeklyPage() {
       </div>
 
       <div className="flex flex-col gap-3">
-        {week.data.weekdayDays === 0 ? <NoWeekdayBanner /> : null}
-        <BreakdownCard week={week.data} />
-        <DayTable days={week.data.days} />
-        <WeekExpenses period={week.data.period} weekIndex={week.data.weekIndex} />
+        {data.weekdayDays === 0 ? <NoWeekdayBanner /> : null}
+        <BreakdownCard week={data} />
+        <DayTable days={data.days} />
+        <WeekExpenses period={data.period} weekIndex={data.weekIndex} />
       </div>
     </>
   );

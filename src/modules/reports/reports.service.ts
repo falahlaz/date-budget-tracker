@@ -16,7 +16,15 @@ import {
   aggregateByPaymentMethod,
   topExpenses,
 } from './engine/aggregate';
-import { DayType, addDaysTo, buildWeekSegments, dayTypeOf, periodOf } from './engine/calendar';
+import {
+  DayType,
+  addDaysTo,
+  buildWeekSegments,
+  dayTypeOf,
+  nextPeriod,
+  periodOf,
+  previousPeriod,
+} from './engine/calendar';
 import { DayReport, ExpenseInput, MonthReport, WeekReport, buildDayReports } from './engine/compute-month';
 
 export interface MonthReportResponse extends MonthReport {
@@ -26,10 +34,25 @@ export interface MonthReportResponse extends MonthReport {
   topExpenses: TopExpense[];
 }
 
+/** Where the week navigation controls land, resolved against the real segment count. */
+export interface WeekNeighbour {
+  period: string;
+  weekIndex: number;
+}
+
 export interface WeekReportResponse extends WeekReport {
   period: string;
   dailyWeekdayRate: number;
   days: DayReport[];
+  /**
+   * The adjacent segments, month boundaries already crossed.
+   *
+   * A month yields between 4 and 6 segments (PRD 4.2), so a client cannot know where W1's
+   * "previous" lands without knowing the shape of the month before it. The engine does, so
+   * it says, rather than leaving the caller to guess an index that may not exist.
+   */
+  prevWeek: WeekNeighbour;
+  nextWeek: WeekNeighbour;
   projection: {
     weekendBudgetIfNoMoreWeekdaySpend: number;
     remainingWeekdayDays: number;
@@ -121,6 +144,8 @@ export class ReportsService {
       period,
       dailyWeekdayRate: report.dailyWeekdayRate,
       days: buildDayReports(week, report.dailyWeekdayRate, expenses, today),
+      prevWeek: previousWeekOf(period, weekIndex),
+      nextWeek: nextWeekOf(period, weekIndex, report.weeks.length),
       projection: {
         // "If nothing more is spent on weekdays" is exactly the weekend budget as it
         // already stands: weekBudget - weekdaySpent so far + rolloverIn.
@@ -163,6 +188,26 @@ function sumOnDate(expenses: readonly ExpenseInput[], date: string): number {
   return expenses
     .filter((expense) => expense.spentOn === date)
     .reduce((total, expense) => total + expense.amount, 0);
+}
+
+/**
+ * The segment before this one, stepping into the previous month when there is no W0.
+ *
+ * `buildWeekSegments` is pure calendar arithmetic, so resolving the neighbouring month
+ * costs no query.
+ */
+function previousWeekOf(period: string, weekIndex: number): WeekNeighbour {
+  if (weekIndex > 1) return { period, weekIndex: weekIndex - 1 };
+
+  const earlier = previousPeriod(period);
+  return { period: earlier, weekIndex: buildWeekSegments(earlier).length };
+}
+
+/** The segment after this one, stepping into the next month past the last one. */
+function nextWeekOf(period: string, weekIndex: number, weekCount: number): WeekNeighbour {
+  if (weekIndex < weekCount) return { period, weekIndex: weekIndex + 1 };
+
+  return { period: nextPeriod(period), weekIndex: 1 };
 }
 
 /** Weekday days left in this segment, today included. Zero once the segment is over. */

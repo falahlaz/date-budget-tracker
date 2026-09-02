@@ -50,6 +50,9 @@ describe('Reports (PRD 8.6)', () => {
   const monthReport = (period: string) =>
     harness.http().get(`/api/reports/month/${period}`).set('Authorization', auth());
 
+  const weekReport = (period: string, weekIndex: number) =>
+    harness.http().get(`/api/reports/week/${period}/${weekIndex}`).set('Authorization', auth());
+
   // E1
   it('reports correct numbers after a budget and three expenses', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
@@ -224,6 +227,37 @@ describe('Reports (PRD 8.6)', () => {
     expect(week.body.days).toHaveLength(week.body.weekdayDays + week.body.weekendDays);
     // The projection is the weekend budget as it stands, given what has been spent so far.
     expect(week.body.projection.weekendBudgetIfNoMoreWeekdaySpend).toBe(week.body.weekendBudget);
+  });
+
+  /**
+   * Week navigation used to hardcode "previous month, W6" on the client, which 404s for every
+   * month that has fewer segments -- September 2026 has five, so stepping back from October W1
+   * died. The neighbours are resolved by the engine now, so they always name a real week.
+   */
+  it('names the neighbouring weeks, crossing month and year boundaries', async () => {
+    await setBudget('2026-09', 2_200_000).expect(200);
+
+    const october = await weekReport('2026-10', 1).expect(200);
+    expect(october.body.prevWeek).toEqual({ period: '2026-09', weekIndex: 5 });
+    expect(october.body.nextWeek).toEqual({ period: '2026-10', weekIndex: 2 });
+
+    // Walking back must land on a week the API actually serves.
+    await weekReport(october.body.prevWeek.period, october.body.prevWeek.weekIndex).expect(200);
+
+    const september = await weekReport('2026-09', 5).expect(200);
+    expect(september.body.nextWeek).toEqual({ period: '2026-10', weekIndex: 1 });
+    expect(september.body.prevWeek).toEqual({ period: '2026-09', weekIndex: 4 });
+
+    // August 2026 is one of the rare months that does hold six segments.
+    const septemberW1 = await weekReport('2026-09', 1).expect(200);
+    expect(septemberW1.body.prevWeek).toEqual({ period: '2026-08', weekIndex: 6 });
+
+    // December 2026 also holds five segments, so the year rollover is not special-cased.
+    const january = await weekReport('2027-01', 1).expect(200);
+    expect(january.body.prevWeek).toEqual({ period: '2026-12', weekIndex: 5 });
+
+    // A month with no budget is still navigable (monthlyBudget = 0).
+    await weekReport('2026-12', 5).expect(200);
   });
 
   it('rejects a malformed period', async () => {

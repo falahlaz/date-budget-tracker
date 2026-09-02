@@ -194,10 +194,18 @@ export interface DayRow {
   expenseCount: number;
 }
 
+/** Where the week navigation controls land; the server resolves month boundaries. */
+export interface WeekNeighbour {
+  period: string;
+  weekIndex: number;
+}
+
 export interface WeekReport extends WeekRow {
   period: string;
   dailyWeekdayRate: number;
   days: DayRow[];
+  prevWeek: WeekNeighbour;
+  nextWeek: WeekNeighbour;
   projection: {
     weekendBudgetIfNoMoreWeekdaySpend: number;
     remainingWeekdayDays: number;
