@@ -22,7 +22,23 @@ export function WeeklyPage() {
   const week = useWeekReport(period, weekIndex);
 
   if (current.isLoading || week.isLoading) return <LoadingBlock />;
-  if (week.error) return <ErrorState message={(week.error as Error).message} onRetry={() => week.refetch()} />;
+  if (week.error) {
+    return (
+      <ErrorState
+        message={(week.error as Error).message}
+        onRetry={() => week.refetch()}
+        // Retrying cannot help if the week itself is unreachable, and the arrows are not
+        // rendered in this branch, so offer the way back to a week that is known to exist.
+        action={
+          selection ? (
+            <button type="button" onClick={() => setSelection(null)} className="underline">
+              Kembali ke minggu ini
+            </button>
+          ) : null
+        }
+      />
+    );
+  }
   if (!week.data) return null;
 
   const data = week.data;

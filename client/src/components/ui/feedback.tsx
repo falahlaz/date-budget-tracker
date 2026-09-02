@@ -40,15 +40,29 @@ export function EmptyState({
   );
 }
 
-export function ErrorState({ message, onRetry }: { message: string; onRetry?: () => void }) {
+export function ErrorState({
+  message,
+  onRetry,
+  action,
+}: {
+  message: string;
+  onRetry?: () => void;
+  /** An escape route for when retrying the same request cannot help. */
+  action?: ReactNode;
+}) {
   return (
     <div className="rounded-2xl border border-over/30 bg-over-soft p-4 text-sm text-over" role="alert">
       <p className="font-medium">Gagal memuat data</p>
       <p className="mt-1 text-xs opacity-90">{message}</p>
-      {onRetry ? (
-        <button type="button" onClick={onRetry} className="mt-3 text-xs font-semibold underline">
-          Coba lagi
-        </button>
+      {onRetry || action ? (
+        <div className="mt-3 flex items-center gap-4 text-xs font-semibold">
+          {onRetry ? (
+            <button type="button" onClick={onRetry} className="underline">
+              Coba lagi
+            </button>
+          ) : null}
+          {action}
+        </div>
       ) : null}
     </div>
   );
