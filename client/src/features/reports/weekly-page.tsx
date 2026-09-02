@@ -95,6 +95,13 @@ function NoWeekdayBanner() {
  * leftovers, equals the weekend budget.
  */
 function BreakdownCard({ week }: { week: WeekReport }) {
+  // On the last segment of a month the remainder becomes the month's carryOut, which feeds
+  // next month's W1 -- so naming "W{weekIndex + 1}" there points at a week that never exists.
+  const rolloverTarget =
+    week.nextWeek.period === week.period
+      ? `jadi rollover W${week.nextWeek.weekIndex}`
+      : 'jadi carry-over ke bulan depan';
+
   return (
     <Card>
       <CardHeader title="Alur budget minggu ini" />
@@ -113,7 +120,7 @@ function BreakdownCard({ week }: { week: WeekReport }) {
 
         <Divider />
         <Line
-          label={`Sisa minggu ini (jadi rollover W${week.weekIndex + 1})`}
+          label={`Sisa minggu ini (${rolloverTarget})`}
           value={week.weekRemaining}
           emphasis
         />
