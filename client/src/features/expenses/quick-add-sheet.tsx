@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Chip, ChipRow } from '@/components/ui/chip';
 import { Field, Input, Textarea } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
-import { useCategories } from '@/features/categories/hooks';
+import { CategoryPicker } from '@/features/categories/category-picker';
 import { useCurrentWeekReport } from '@/features/reports/hooks';
 import { ApiError } from '@/lib/api';
 import { formatAmountInput, formatRupiah, parseAmountInput } from '@/lib/format';
@@ -24,7 +24,6 @@ const MAX_RECEIPTS = 5;
  * that is the whole reason the field earns its position (goal G3, under 20 seconds).
  */
 export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const categories = useCategories();
   const week = useCurrentWeekReport();
   const createExpense = useCreateExpense();
   const uploadReceipts = useUploadReceipts();
@@ -192,21 +191,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
           ) : null}
         </Field>
 
-        <Field label="Kategori" hint="opsional">
-          <ChipRow>
-            {(categories.data ?? []).map((category) => (
-              <Chip
-                key={category.id}
-                className="h-10"
-                accent={category.color}
-                selected={categoryId === category.id}
-                onClick={() => setCategoryId(categoryId === category.id ? null : category.id)}
-              >
-                {category.name}
-              </Chip>
-            ))}
-          </ChipRow>
-        </Field>
+        <CategoryPicker value={categoryId} onChange={setCategoryId} />
 
         <Field label="Tanggal" required>
           <ChipRow>

@@ -8,7 +8,7 @@ import { Chip, ChipRow } from '@/components/ui/chip';
 import { ErrorState, LoadingBlock } from '@/components/ui/feedback';
 import { Field, Input, Textarea } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
-import { useCategories } from '@/features/categories/hooks';
+import { CategoryPicker } from '@/features/categories/category-picker';
 import { formatAmountInput, formatDateLong, formatRupiah, parseAmountInput } from '@/lib/format';
 import { todayInJakarta } from '@/lib/today';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/types/api';
@@ -145,7 +145,6 @@ function EditSheet({
   };
   onClose: () => void;
 }) {
-  const categories = useCategories();
   const update = useUpdateExpense();
 
   const [amountText, setAmountText] = useState(formatAmountInput(String(initial.amount)));
@@ -197,21 +196,7 @@ function EditSheet({
           <Input value={merchant} maxLength={120} onChange={(event) => setMerchant(event.target.value)} />
         </Field>
 
-        <Field label="Kategori">
-          <ChipRow>
-            {(categories.data ?? []).map((category) => (
-              <Chip
-                key={category.id}
-                className="h-10"
-                accent={category.color}
-                selected={categoryId === category.id}
-                onClick={() => setCategoryId(categoryId === category.id ? null : category.id)}
-              >
-                {category.name}
-              </Chip>
-            ))}
-          </ChipRow>
-        </Field>
+        <CategoryPicker value={categoryId} onChange={setCategoryId} />
 
         <Field label="Metode bayar">
           <ChipRow>
