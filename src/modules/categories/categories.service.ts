@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { Category, Prisma } from '@prisma/client';
 import { AppException } from '@/common/errors';
 import { PrismaService } from '@/prisma/prisma.service';
+import { pickCategoryColor } from './default-categories';
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { UpdateCategoryDto } from './dto/update-category.dto';
 
@@ -28,16 +29,23 @@ export class CategoriesService {
   }
 
   async create(userId: number, dto: CreateCategoryDto): Promise<Category> {
-    const nextSortOrder = await this.prisma.category.count({ where: { userId } });
+    // Archived categories count too: they still own their colour and their slot in the
+    // order, and un-archiving one must not collide with whatever was added meanwhile.
+    const existing = await this.prisma.category.findMany({
+      where: { userId },
+      select: { color: true },
+    });
 
     try {
       return await this.prisma.category.create({
         data: {
           userId,
           name: dto.name.trim(),
-          color: dto.color ?? '#64748B',
+          // Quick-add creates categories mid-expense and never asks for a colour, so one is
+          // chosen here rather than letting every such category default to the same grey.
+          color: dto.color ?? pickCategoryColor(existing.map((category) => category.color)),
           icon: dto.icon ?? null,
-          sortOrder: nextSortOrder,
+          sortOrder: existing.length,
         },
       });
     } catch (error) {
