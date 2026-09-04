@@ -117,7 +117,7 @@ export function BudgetPage() {
           <EmptyState title="Belum ada budget tersimpan" />
         ) : (
           <div className="-mx-5 overflow-x-auto px-5 pb-1">
-            <table className="tabular w-full min-w-[24rem] border-collapse text-right font-mono text-[11.5px]">
+            <table className="tabular w-full min-w-[26rem] border-collapse text-right font-mono text-[11.5px] whitespace-nowrap">
               <thead>
                 <tr className="border-b border-line-strong">
                   {['Bulan', 'Budget', 'Terpakai', 'Sisa'].map((heading, index) => (

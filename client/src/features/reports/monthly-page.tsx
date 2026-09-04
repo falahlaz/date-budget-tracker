@@ -185,7 +185,7 @@ function WeeklyTable({ report }: { report: MonthReport }) {
             'linear-gradient(to right, #000 0, #000 calc(100% - 26px), transparent 100%)',
         }}
       >
-        <table className="tabular w-full min-w-[30rem] border-collapse text-right font-mono text-[11.5px]">
+        <table className="tabular w-full min-w-[34rem] border-collapse text-right font-mono text-[11.5px] whitespace-nowrap">
           <thead>
             <tr className="border-b border-line-strong">
               {['W', 'Budget', 'Weekday', 'Rollover', 'Weekend', 'Kepakai', 'Sisa'].map(

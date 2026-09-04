@@ -124,7 +124,8 @@ function Breakdown({ week }: { week: WeekReport }) {
     <div className="mb-7">
       <ReceiptCard caption="Alur budget minggu ini">
         <ReceiptLine
-          label={`Budget minggu (${week.weekdayDays} × ${formatRupiah(week.dailyWeekdayRate)})`}
+          label="Budget minggu"
+          detail={`${week.weekdayDays} hari weekday × ${formatRupiah(week.dailyWeekdayRate)}`}
           amount={week.weekBudget}
         />
         <ReceiptLine label="Terpakai di weekday" amount={week.weekdaySpent} tone="neg" signed="minus" />

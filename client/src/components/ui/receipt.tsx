@@ -20,10 +20,7 @@ export function ReceiptCard({
 }) {
   return (
     <div
-      className={cn(
-        'tabular rounded-lg border border-line bg-surface p-5 font-mono',
-        className,
-      )}
+      className={cn('tabular rounded-lg border border-line bg-surface p-5 font-mono', className)}
     >
       <div className="label-micro mb-3.5 border-b border-dashed border-line-strong pb-3.5 text-[10px] tracking-[0.14em]">
         {caption}
@@ -35,12 +32,21 @@ export function ReceiptCard({
 
 export function ReceiptLine({
   label,
+  detail,
   amount,
   tone = 'neutral',
   strong,
   signed,
 }: {
   label: string;
+  /**
+   * The arithmetic behind the label, on its own line.
+   *
+   * It lives here rather than inside `label` because a wrapped label breaks the leader:
+   * the dots end mid-row and the figure drifts off the last line. Keeping the leader row
+   * to one line is what makes the column of figures readable at all.
+   */
+  detail?: string;
   amount: number;
   tone?: 'neutral' | 'pos' | 'neg';
   /** The subtotal lines a rule introduces: the label reads at full ink. */
@@ -58,29 +64,32 @@ export function ReceiptLine({
     : formatRupiah(amount);
 
   return (
-    <div className="flex items-baseline gap-2 py-1.5 text-[12.5px] text-ink-2">
-      <span className={cn(strong && 'text-ink')}>{label}</span>
-      <span aria-hidden className="-translate-y-[3px] flex-1 border-b border-dotted border-line-strong" />
-      <span
-        className={cn(
-          'shrink-0 font-medium',
-          tone === 'pos' ? 'text-pos' : tone === 'neg' ? 'text-neg' : 'text-ink',
-        )}
-      >
-        {text}
-      </span>
+    <div className="py-1.5 text-[12.5px] text-ink-2">
+      <div className="flex items-baseline gap-2">
+        <span className={cn('min-w-0 shrink truncate', strong && 'text-ink')} title={label}>
+          {label}
+        </span>
+        <span
+          aria-hidden
+          className="min-w-4 -translate-y-[3px] flex-1 border-b border-dotted border-line-strong"
+        />
+        <span
+          className={cn(
+            'shrink-0 font-medium whitespace-nowrap',
+            tone === 'pos' ? 'text-pos' : tone === 'neg' ? 'text-neg' : 'text-ink',
+          )}
+        >
+          {text}
+        </span>
+      </div>
+      {detail ? <div className="mt-0.5 text-[10.5px] text-ink-3">{detail}</div> : null}
     </div>
   );
 }
 
 export function ReceiptRule({ double }: { double?: boolean }) {
   if (double) {
-    return (
-      <div
-        aria-hidden
-        className="my-3 h-[3px] border-t border-b border-line-strong"
-      />
-    );
+    return <div aria-hidden className="my-3 h-[3px] border-t border-b border-line-strong" />;
   }
 
   return <div aria-hidden className="my-2.5 h-px bg-line-strong" />;
@@ -98,8 +107,13 @@ export function ReceiptTotal({
   return (
     <>
       <div className="flex items-baseline justify-between gap-3 pt-1">
-        <span className="label-micro text-[11px] tracking-[0.1em]">{label}</span>
-        <span className={cn('amount-display text-[26px]', amount < 0 ? 'text-neg' : 'text-ink')}>
+        <span className="label-micro min-w-0 truncate text-[11px] tracking-[0.1em]">{label}</span>
+        <span
+          className={cn(
+            'amount-display shrink-0 text-[26px] whitespace-nowrap',
+            amount < 0 ? 'text-neg' : 'text-ink',
+          )}
+        >
           {formatRupiah(amount)}
         </span>
       </div>
