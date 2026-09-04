@@ -14,7 +14,7 @@ import {
 import { PageHeader } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Card, CardHeader } from '@/components/ui/card';
-import { EmptyState, ErrorState, LoadingBlock, ProgressBar } from '@/components/ui/feedback';
+import { EmptyState, ErrorState, LoadingBlock, Meter } from '@/components/ui/feedback';
 import { Money, OverBadge } from '@/components/ui/money';
 import { cn } from '@/lib/cn';
 import {
@@ -104,11 +104,12 @@ function SummaryCard({ report }: { report: MonthReport }) {
       </div>
 
       <div className="mt-4">
-        <ProgressBar
+        <Meter
           value={report.totalSpent}
           max={available}
           markerRatio={paceRatio}
-          tone={report.isOverspent ? 'over' : 'brand'}
+          size="lg"
+          fillClassName={report.isOverspent ? 'bg-neg' : 'bg-accent'}
         />
         <div className="mt-1.5 flex justify-between text-[11px] text-ink-muted">
           <span>{formatRupiah(report.totalSpent)} terpakai</span>

@@ -16,10 +16,18 @@ export function toneFor(remaining: number, total: number): MoneyTone {
 }
 
 const TONE_TEXT: Record<MoneyTone, string> = {
-  safe: 'text-safe',
+  safe: 'text-pos',
   warn: 'text-warn',
-  over: 'text-over',
+  over: 'text-neg',
   neutral: 'text-ink',
+};
+
+/** The same four tones as a fill, for meters and day bars. */
+export const TONE_FILL: Record<MoneyTone, string> = {
+  safe: 'bg-pos',
+  warn: 'bg-warn',
+  over: 'bg-neg',
+  neutral: 'bg-accent',
 };
 
 export interface MoneyProps {
@@ -49,10 +57,54 @@ export function Money({ amount, tone, compact, showOverBadge = true, className }
   );
 }
 
+/**
+ * The big figure: Fraunces, tabular, sitting on the ground rather than inside a card.
+ *
+ * Serif on the money is the whole point of the type system -- it makes an amount read as
+ * something personal rather than a line in a corporate report.
+ */
+export function MoneyHero({
+  amount,
+  tone,
+  compact,
+  className,
+}: Omit<MoneyProps, 'showOverBadge'>) {
+  const resolved: MoneyTone = tone ?? (amount < 0 ? 'over' : 'neutral');
+
+  return (
+    <div className={cn('flex items-baseline gap-3', className)}>
+      <span className={cn('amount-hero text-[46px]', TONE_TEXT[resolved])}>
+        {compact ? formatCompactRupiah(amount) : formatRupiah(amount)}
+      </span>
+      {amount < 0 ? <OverBadge /> : null}
+    </div>
+  );
+}
+
 export function OverBadge() {
   return (
-    <span className="rounded bg-over-soft px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-over uppercase">
+    <span className="inline-flex shrink-0 items-center rounded-xs bg-neg-soft px-2 py-0.5 font-mono text-[9.5px] font-medium tracking-[0.1em] text-neg uppercase">
       Over
+    </span>
+  );
+}
+
+/** The receipt-card status pill: over / running / settled. */
+export function StatusBadge({ tone, children }: { tone: 'over' | 'run' | 'ok'; children: string }) {
+  const styles = {
+    over: 'bg-neg-soft text-neg',
+    run: 'bg-accent-soft text-accent-ink',
+    ok: 'bg-pos-soft text-pos',
+  } as const;
+
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center rounded-xs px-2 py-0.5 font-mono text-[9.5px] font-medium tracking-[0.1em] uppercase',
+        styles[tone],
+      )}
+    >
+      {children}
     </span>
   );
 }
