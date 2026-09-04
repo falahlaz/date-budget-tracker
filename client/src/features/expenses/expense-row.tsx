@@ -17,17 +17,18 @@ export function ExpenseRow({ expense, showDate = true }: { expense: Expense; sho
       <Link
         to={`/expenses/${expense.id}`}
         data-tap
-        className="flex items-center gap-3 py-2.5 transition-colors active:bg-surface-sunken"
+        className="-mx-2 flex items-center gap-3 rounded-sm px-2 py-3 transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2"
       >
+        {/* A dot, not a bar: the category is a label on the row, not a rail beside it. */}
         <span
           aria-hidden
-          className="h-9 w-1 shrink-0 rounded-full"
-          style={{ backgroundColor: expense.category?.color ?? 'var(--color-ink-subtle)' }}
+          className="h-2 w-2 shrink-0 rounded-full"
+          style={{ backgroundColor: expense.category?.color ?? 'var(--text-3)' }}
         />
 
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-ink">{title}</span>
-          <span className="mt-0.5 flex items-center gap-1.5 text-xs text-ink-muted">
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-ink-3">
             {showDate ? <span>{formatDayShort(expense.spentOn)}</span> : null}
             {expense.merchant && expense.category ? (
               <>
@@ -43,7 +44,7 @@ export function ExpenseRow({ expense, showDate = true }: { expense: Expense; sho
           </span>
         </span>
 
-        <span className="tabular shrink-0 text-sm font-semibold text-ink">
+        <span className="tabular shrink-0 font-mono text-[13px] font-medium text-ink">
           {formatRupiah(expense.amount)}
         </span>
       </Link>

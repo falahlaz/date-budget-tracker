@@ -1,9 +1,16 @@
 import { useState } from 'react';
 import { PageHeader } from '@/components/app-shell';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
-import { EmptyState, ErrorState, LoadingBlock } from '@/components/ui/feedback';
-import { Money, OverBadge, toneFor } from '@/components/ui/money';
+import { StepButton } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
+import { EmptyState, ErrorState, LoadingBlock, Meter } from '@/components/ui/feedback';
+import { OverBadge, StatusBadge, TONE_FILL, toneFor } from '@/components/ui/money';
+import {
+  ReceiptCard,
+  ReceiptLine,
+  ReceiptRule,
+  ReceiptTotal,
+} from '@/components/ui/receipt';
+import { SectionHead } from '@/components/ui/section';
 import { ExpenseRow } from '@/features/expenses/expense-row';
 import { useExpenses } from '@/features/expenses/hooks';
 import { cn } from '@/lib/cn';
@@ -31,7 +38,11 @@ export function WeeklyPage() {
         // rendered in this branch, so offer the way back to a week that is known to exist.
         action={
           selection ? (
-            <button type="button" onClick={() => setSelection(null)} className="underline">
+            <button
+              type="button"
+              onClick={() => setSelection(null)}
+              className="min-h-0 underline"
+            >
               Kembali ke minggu ini
             </button>
           ) : null
@@ -52,26 +63,29 @@ export function WeeklyPage() {
 
   return (
     <>
-      <PageHeader title="Minggu ini" />
+      <PageHeader eyebrow="Rincian mingguan" title="Minggu" />
 
-      <div className="mb-3 flex items-center gap-2">
-        <Button variant="secondary" size="icon" onClick={() => step(-1)} aria-label="Minggu sebelumnya">
+      <div className="mb-6 flex items-center justify-between gap-2">
+        <StepButton onClick={() => step(-1)} aria-label="Minggu sebelumnya">
           ‹
-        </Button>
-        <span className="flex-1 text-center text-sm font-semibold text-ink">
-          W{data.weekIndex} · {formatDateRange(data.startDate, data.endDate)}
-        </span>
-        <Button variant="secondary" size="icon" onClick={() => step(1)} aria-label="Minggu berikutnya">
+        </StepButton>
+        <div className="min-w-0 text-center">
+          <div className="text-[15px] font-semibold text-ink">
+            W{data.weekIndex} · {formatDateRange(data.startDate, data.endDate)}
+          </div>
+          <div className="mt-0.5 text-[11.5px] text-ink-3">
+            {data.weekdayDays} hari weekday · {data.days.length - data.weekdayDays} hari weekend
+          </div>
+        </div>
+        <StepButton onClick={() => step(1)} aria-label="Minggu berikutnya">
           ›
-        </Button>
+        </StepButton>
       </div>
 
-      <div className="flex flex-col gap-3">
-        {data.weekdayDays === 0 ? <NoWeekdayBanner /> : null}
-        <BreakdownCard week={data} />
-        <DayTable days={data.days} />
-        <WeekExpenses period={data.period} weekIndex={data.weekIndex} />
-      </div>
+      {data.weekdayDays === 0 ? <NoWeekdayBanner /> : null}
+      <Breakdown week={data} />
+      <DayTable days={data.days} />
+      <WeekExpenses period={data.period} weekIndex={data.weekIndex} />
     </>
   );
 }
@@ -79,22 +93,23 @@ export function WeeklyPage() {
 /** PRD 6.1: the first week of a month that opens on a weekend has no allowance yet. */
 function NoWeekdayBanner() {
   return (
-    <Card className="border-warn/30 bg-warn-soft">
+    <Card className="mb-6 border-warn/30 bg-warn-soft">
       <p className="text-sm text-warn">
-        Minggu ini belum ada jatah weekday, budget weekend-nya minus dulu dan ketutup minggu depan.
+        Minggu ini belum ada jatah weekday, budget weekend-nya minus dulu dan ketutup minggu
+        depan.
       </p>
     </Card>
   );
 }
 
 /**
- * The receipt-style breakdown (PRD 9.4).
+ * The receipt (PRD 9.4).
  *
- * Laid out as a running total rather than a set of statistics, because the point is to
- * make the chain visible: weekday allowance, minus what was spent, plus last week's
- * leftovers, equals the weekend budget.
+ * A running total rather than a set of statistics, because the point is to make the chain
+ * visible: weekday allowance, minus what was spent, plus last week's leftovers, equals the
+ * weekend budget.
  */
-function BreakdownCard({ week }: { week: WeekReport }) {
+function Breakdown({ week }: { week: WeekReport }) {
   // On the last segment of a month the remainder becomes the month's carryOut, which feeds
   // next month's W1 -- so naming "W{weekIndex + 1}" there points at a week that never exists.
   const rolloverTarget =
@@ -102,126 +117,124 @@ function BreakdownCard({ week }: { week: WeekReport }) {
       ? `jadi rollover W${week.nextWeek.weekIndex}`
       : 'jadi carry-over ke bulan depan';
 
+  // A week that still contains today can still change; one that does not is final.
+  const isRunning = week.days.some((day) => day.isToday);
+
   return (
-    <Card>
-      <CardHeader title="Alur budget minggu ini" />
-
-      <dl className="tabular flex flex-col gap-2 text-sm">
-        <Line
-          label={`Budget minggu ini (${week.weekdayDays} weekday × ${formatRupiah(week.dailyWeekdayRate)})`}
-          value={week.weekBudget}
+    <div className="mb-7">
+      <ReceiptCard caption="Alur budget minggu ini">
+        <ReceiptLine
+          label={`Budget minggu (${week.weekdayDays} × ${formatRupiah(week.dailyWeekdayRate)})`}
+          amount={week.weekBudget}
         />
-        <Line label="Terpakai di weekday" value={-week.weekdaySpent} sign="−" />
-        <Line label="Rollover dari minggu lalu" value={week.rolloverIn} sign="+" />
-
-        <Divider />
-        <Line label="Budget weekend" value={week.weekendBudget} emphasis />
-        <Line label="Terpakai di weekend" value={-week.weekendSpent} sign="−" />
-
-        <Divider />
-        <Line
-          label={`Sisa minggu ini (${rolloverTarget})`}
-          value={week.weekRemaining}
-          emphasis
+        <ReceiptLine label="Terpakai di weekday" amount={-week.weekdaySpent} tone="neg" signed />
+        <ReceiptLine
+          label="Rollover dari minggu lalu"
+          amount={week.rolloverIn}
+          tone={week.rolloverIn < 0 ? 'neg' : 'pos'}
+          signed
         />
-      </dl>
-    </Card>
-  );
-}
 
-function Line({
-  label,
-  value,
-  sign,
-  emphasis,
-}: {
-  label: string;
-  value: number;
-  sign?: '−' | '+';
-  emphasis?: boolean;
-}) {
-  return (
-    <div className="flex items-baseline justify-between gap-3">
-      <dt className={cn('text-ink-muted', emphasis && 'font-semibold text-ink')}>{label}</dt>
-      <dd className={cn('shrink-0', emphasis && 'font-bold')}>
-        {sign && value !== 0 ? (
-          <span className="tabular">
-            {sign} {formatRupiah(Math.abs(value))}
-          </span>
-        ) : (
-          <Money amount={value} showOverBadge={emphasis} />
-        )}
-      </dd>
+        <ReceiptRule />
+
+        <ReceiptLine label="Budget weekend" amount={week.weekendBudget} strong />
+        <ReceiptLine label="Terpakai di weekend" amount={-week.weekendSpent} tone="neg" signed />
+
+        <ReceiptRule double />
+
+        <ReceiptTotal
+          label="Sisa minggu ini"
+          amount={week.weekRemaining}
+          note={
+            <span className="inline-flex flex-wrap items-center gap-1.5">
+              {week.weekRemaining < 0 ? (
+                <StatusBadge tone="over">Over</StatusBadge>
+              ) : isRunning ? (
+                <StatusBadge tone="run">Berjalan</StatusBadge>
+              ) : (
+                <StatusBadge tone="ok">Selesai</StatusBadge>
+              )}
+              <span>{rolloverTarget}.</span>
+            </span>
+          }
+        />
+      </ReceiptCard>
     </div>
   );
-}
-
-function Divider() {
-  return <div className="my-1 border-t border-dashed border-line" />;
 }
 
 /**
  * The per-day breakdown (PRD 9.4).
  *
- * Two lines per day rather than four columns: at 360px four full-precision rupiah figures
- * cannot share a row inside the card, and the ones that did not fit used to push the whole
- * page sideways. The day and its allowance stack on the left, what was spent and what is
- * left on the right, so a row still reads day -> jatah -> terpakai -> sisa.
+ * A label, a track and a figure: three columns fit at 360px where four full-precision
+ * rupiah figures never did. The bar carries the proportion, so the numbers only have to
+ * carry the amount.
  */
 function DayTable({ days }: { days: DayRow[] }) {
   return (
-    <Card>
-      <CardHeader title="Per hari" />
+    <section className="mb-7">
+      <SectionHead title="Per hari" />
 
       <ul className="divide-y divide-line">
         {days.map((day) => {
-          const tone = day.dayType === 'WEEKEND' ? 'neutral' : toneFor(day.remaining, day.dayBudget);
+          const isWeekend = day.dayType === 'WEEKEND';
+          const tone = toneFor(day.remaining, day.dayBudget);
 
           return (
-            <li key={day.date} className="flex items-start justify-between gap-3 py-2.5">
-              <div className="min-w-0">
-                <span className={cn('block text-sm', day.isToday ? 'font-bold text-brand-text' : 'text-ink')}>
-                  {formatWeekdayShort(day.date)} {formatDayShort(day.date)}
-                </span>
-                <span className="tabular block text-xs text-ink-subtle">
-                  {day.dayType === 'WEEKEND' ? 'Weekend' : `jatah ${formatRupiah(day.dayBudget)}`}
-                </span>
-              </div>
+            <li
+              key={day.date}
+              className="grid grid-cols-[3.25rem_1fr_auto] items-center gap-3 py-3"
+            >
+              <span
+                className={cn(
+                  'font-mono text-[10.5px] font-medium tracking-[0.06em] uppercase',
+                  day.isToday ? 'text-accent-ink' : 'text-ink-3',
+                )}
+              >
+                {formatWeekdayShort(day.date)} {formatDayShort(day.date).split(' ')[0]}
+              </span>
 
-              <div className="shrink-0 text-right">
-                <span className="tabular block text-sm text-ink">{formatRupiah(day.spent)}</span>
-                <span className="block text-sm">
-                  {day.dayType === 'WEEKEND' ? (
-                    <span className="text-ink-subtle">—</span>
-                  ) : (
-                    <Money amount={day.remaining} tone={tone} showOverBadge={false} />
-                  )}
-                </span>
-              </div>
+              <Meter
+                value={day.spent}
+                max={isWeekend ? Math.max(day.spent, 1) : day.dayBudget}
+                size="sm"
+                fillClassName={isWeekend ? 'bg-butter' : TONE_FILL[tone]}
+              />
+
+              <span className="tabular text-right font-mono text-[12.5px] font-medium">
+                {day.spent > 0 ? (
+                  <span className="text-ink">{formatRupiah(day.spent)}</span>
+                ) : isWeekend ? (
+                  <span className="text-ink-3">weekend</span>
+                ) : (
+                  <span className="text-ink-3">{formatRupiah(day.dayBudget)}</span>
+                )}
+              </span>
             </li>
           );
         })}
       </ul>
 
       {days.some((day) => day.dayType === 'WEEKDAY' && day.remaining < 0) ? (
-        <p className="mt-2 flex items-center gap-1.5 text-xs text-ink-muted">
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-ink-2">
           <OverBadge /> hari yang lewat dari jatah harian.
         </p>
       ) : null}
-    </Card>
+    </section>
   );
 }
 
 function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number }) {
-  const { data, isLoading } = useExpenses({ period, weekIndex, limit: 100, sort: 'spentOn:asc,id:asc' });
+  const { data, isLoading } = useExpenses({
+    period,
+    weekIndex,
+    limit: 100,
+    sort: 'spentOn:asc,id:asc',
+  });
 
   if (isLoading) return <LoadingBlock />;
   if (!data || data.items.length === 0) {
-    return (
-      <Card>
-        <EmptyState title="Belum ada pengeluaran minggu ini" />
-      </Card>
-    );
+    return <EmptyState title="Belum ada pengeluaran minggu ini" />;
   }
 
   const byDate = new Map<string, typeof data.items>();
@@ -230,13 +243,20 @@ function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number
   }
 
   return (
-    <Card>
-      <CardHeader title="Pengeluaran minggu ini" description={formatRupiah(data.sumAmount)} />
+    <section>
+      <SectionHead
+        title="Pengeluaran minggu ini"
+        action={
+          <span className="tabular font-mono text-xs text-ink-2">
+            {formatRupiah(data.sumAmount)}
+          </span>
+        }
+      />
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-5">
         {[...byDate.entries()].map(([date, expenses]) => (
           <section key={date}>
-            <h3 className="mb-1 text-xs font-semibold text-ink-subtle">
+            <h3 className="mb-1 font-mono text-[10px] font-medium tracking-[0.12em] text-ink-3 uppercase">
               {formatWeekdayShort(date)}, {formatDayShort(date)}
             </h3>
             <ul className="divide-y divide-line">
@@ -247,6 +267,6 @@ function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number
           </section>
         ))}
       </div>
-    </Card>
+    </section>
   );
 }
