@@ -1,14 +1,15 @@
-import { ArrowRight, Wallet } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Wallet } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { PageHeader } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
-import { EmptyState, ErrorState, LoadingBlock, Skeleton } from '@/components/ui/feedback';
-import { Money, OverBadge, toneFor } from '@/components/ui/money';
+import { ButterCard, Card } from '@/components/ui/card';
+import { EmptyState, ErrorState, LoadingBlock, Meter, Skeleton } from '@/components/ui/feedback';
+import { Money, MoneyHero, TONE_FILL, toneFor } from '@/components/ui/money';
+import { SectionHead, SectionLink } from '@/components/ui/section';
 import { useExpenses } from '@/features/expenses/hooks';
 import { ExpenseRow } from '@/features/expenses/expense-row';
 import { cn } from '@/lib/cn';
-import { formatPeriodLong, formatRupiah, formatWeekdayShort } from '@/lib/format';
+import { formatDateLong, formatPeriodLong, formatRupiah, formatWeekdayShort } from '@/lib/format';
 import type { DayRow, TodayReport, WeekReport } from '@/types/api';
 import { useCurrentWeekReport, useTodayReport } from './hooks';
 
@@ -24,7 +25,8 @@ export function HomePage() {
   const week = useCurrentWeekReport();
 
   if (today.isLoading || week.isLoading) return <LoadingBlock />;
-  if (today.error) return <ErrorState message={(today.error as Error).message} onRetry={() => today.refetch()} />;
+  if (today.error)
+    return <ErrorState message={(today.error as Error).message} onRetry={() => today.refetch()} />;
   if (!today.data || !week.data) return null;
 
   const period = today.data.date.slice(0, 7);
@@ -33,8 +35,8 @@ export function HomePage() {
   return (
     <>
       <PageHeader
+        eyebrow={formatDateLong(today.data.date)}
         title="Hari ini"
-        subtitle={formatPeriodLong(period)}
         action={
           hasBudget ? undefined : (
             <Button asChild size="md" variant="secondary">
@@ -46,190 +48,191 @@ export function HomePage() {
 
       {!hasBudget ? <NoBudgetNotice period={period} /> : null}
 
-      <div className="flex flex-col gap-3">
-        <HeroCard today={today.data} week={week.data} />
-        <WeekendProjectionCard today={today.data} week={week.data} />
-        <WeekStrip days={week.data.days} weekIndex={week.data.weekIndex} />
-        <RecentExpenses />
-      </div>
+      <Hero today={today.data} week={week.data} />
+      <WeekendProjection today={today.data} week={week.data} />
+      <WeekStrip days={week.data.days} weekIndex={week.data.weekIndex} />
+      <RecentExpenses />
     </>
   );
 }
 
 function NoBudgetNotice({ period }: { period: string }) {
   return (
-    <Card className="mb-3 border-brand/30 bg-brand-soft">
-      <p className="text-sm font-semibold text-ink">Belum ada budget buat {formatPeriodLong(period)}</p>
-      <p className="mt-1 text-xs text-ink-muted">
-        Pengeluaran tetap bisa dicatat, tapi angka jatah harian baru muncul setelah budget di-set.
+    <Card className="mb-6 border-accent-line bg-accent-soft">
+      <p className="text-sm font-semibold text-ink">
+        Belum ada budget buat {formatPeriodLong(period)}
       </p>
-      <Button asChild className="mt-3" size="md">
+      <p className="mt-1 text-xs text-ink-2">
+        Pengeluaran tetap bisa dicatat, tapi angka jatah harian baru muncul setelah budget
+        di-set.
+      </p>
+      <Button asChild className="mt-4" size="md">
         <Link to="/budget">Set budget bulan ini</Link>
       </Button>
     </Card>
   );
 }
 
-/** Weekdays show today's allowance; weekends show what is left of the weekend budget. */
-function HeroCard({ today, week }: { today: TodayReport; week: WeekReport }) {
+/**
+ * The number of the screen. No card, no border, no shadow -- it sits straight on the
+ * ground.
+ *
+ * That is deliberate: if every block gets a box then nothing outranks anything else, and
+ * this figure is the one thing the screen exists to say. Weekdays show today's allowance;
+ * weekends show what is left of the weekend budget.
+ */
+function Hero({ today, week }: { today: TodayReport; week: WeekReport }) {
   const isWeekend = today.dayType === 'WEEKEND';
   const value = isWeekend ? week.weekendBudget - week.weekendSpent : today.remaining;
   const total = isWeekend ? week.weekendBudget : today.dayBudget;
+  const spent = isWeekend ? week.weekendSpent : today.spent;
   const tone = toneFor(value, total);
 
   return (
-    <Card className="relative overflow-hidden">
-      <p className="text-xs font-medium text-ink-muted">
+    <section className="mb-7">
+      <div className="label-micro mb-2">
         {isWeekend ? `Sisa jatah weekend W${week.weekIndex}` : 'Sisa hari ini'}
-      </p>
-
-      <p
-        className={cn(
-          'tabular mt-1 text-4xl font-bold',
-          tone === 'over' ? 'text-over' : tone === 'warn' ? 'text-warn' : 'text-ink',
-        )}
-      >
-        {formatRupiah(value)}
-      </p>
-
-      <div className="mt-1 flex items-center gap-2">
-        <p className="text-sm text-ink-muted">
-          {isWeekend
-            ? `dari ${formatRupiah(week.weekendBudget)} buat weekend ini`
-            : `dari ${formatRupiah(today.dayBudget)} jatah hari ini`}
-        </p>
-        {value < 0 ? <OverBadge /> : null}
       </div>
 
-      <ProgressRing value={total > 0 ? Math.min(Math.max((total - value) / total, 0), 1) : 0} tone={tone} />
-    </Card>
-  );
-}
+      <MoneyHero amount={value} tone={tone} />
 
-function ProgressRing({ value, tone }: { value: number; tone: ReturnType<typeof toneFor> }) {
-  const stroke = tone === 'over' ? 'var(--color-over)' : tone === 'warn' ? 'var(--color-warn)' : 'var(--color-safe)';
-  const circumference = 2 * Math.PI * 26;
+      <Meter value={spent} max={total} fillClassName={TONE_FILL[tone]} className="mt-3.5" />
 
-  return (
-    <svg
-      viewBox="0 0 60 60"
-      className="absolute right-4 top-4 h-14 w-14 -rotate-90"
-      aria-hidden
-    >
-      <circle cx="30" cy="30" r="26" fill="none" stroke="var(--color-surface-sunken)" strokeWidth="7" />
-      <circle
-        cx="30"
-        cy="30"
-        r="26"
-        fill="none"
-        stroke={stroke}
-        strokeWidth="7"
-        strokeLinecap="round"
-        strokeDasharray={circumference}
-        strokeDashoffset={circumference * (1 - value)}
-      />
-    </svg>
+      <div className="mt-3 flex items-baseline justify-between gap-3 text-[13px] text-ink-2">
+        <span>
+          dari{' '}
+          <b className="tabular font-semibold text-ink">
+            {formatRupiah(total)}
+          </b>{' '}
+          {isWeekend ? 'jatah weekend' : 'jatah harian'}
+        </span>
+        <span>
+          terpakai <b className="tabular font-semibold text-ink">{formatRupiah(spent)}</b>
+        </span>
+      </div>
+    </section>
   );
 }
 
 /**
  * The discipline card (PRD 9.3, item 3).
  *
- * Phrased as a consequence rather than a statistic, because "spend nothing more today and
- * the weekend has X" is what actually changes behaviour.
+ * Butter, because a weekend is the only thing butter ever marks. Phrased as a consequence
+ * rather than a statistic: "spend nothing more today and the weekend has X" is what
+ * actually changes behaviour.
  */
-function WeekendProjectionCard({ today, week }: { today: TodayReport; week: WeekReport }) {
+function WeekendProjection({ today, week }: { today: TodayReport; week: WeekReport }) {
   if (today.dayType === 'WEEKEND') {
     return (
-      <Card>
-        <p className="text-sm text-ink">
-          Sisa minggu ini bakal jadi rollover ke minggu depan:{' '}
-          <Money amount={week.weekRemaining} className="font-semibold" />
+      <Card className="mb-7">
+        <div className="label-micro mb-2.5">Rollover ke minggu depan</div>
+        <p className="text-[13px] leading-snug text-ink-2">
+          Sisa minggu ini bakal jadi jatah tambahan minggu depan
         </p>
+        <div className="mt-1.5">
+          <Money amount={week.weekRemaining} className="amount-display text-3xl" />
+        </div>
       </Card>
     );
   }
 
   return (
-    <Card className="bg-brand-soft">
-      <p className="text-sm text-ink">
-        Kalau ga jajan lagi hari ini, weekend nanti dapet{' '}
-        <Money amount={week.projection.weekendBudgetIfNoMoreWeekdaySpend} className="font-bold" />
+    <ButterCard className="mb-7">
+      <div className="mb-2.5 font-mono text-[10px] font-medium tracking-[0.14em] text-butter-ink uppercase">
+        Proyeksi weekend
+      </div>
+      <p className="text-[13px] leading-snug text-ink-2">
+        Kalau ga jajan lagi hari ini, weekend nanti dapet
       </p>
-      <p className="mt-1 text-xs text-ink-muted">
+      <p className="amount-display mt-1.5 text-3xl text-ink">
+        {formatRupiah(week.projection.weekendBudgetIfNoMoreWeekdaySpend)}
+      </p>
+      <p className="mt-2 text-[11.5px] text-ink-3">
         Masih ada {week.projection.remainingWeekdayDays} hari kerja di minggu ini.
       </p>
-    </Card>
+    </ButterCard>
   );
 }
 
 /** The seven-day strip (PRD 9.3, item 4). */
 function WeekStrip({ days, weekIndex }: { days: DayRow[]; weekIndex: number }) {
+  const navigate = useNavigate();
+
   return (
-    <Card>
-      <CardHeader
-        title={`Minggu ke-${weekIndex}`}
-        action={
-          <Link to="/week" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text">
-            Detail <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        }
+    <section className="mb-7">
+      <SectionHead
+        title={`Minggu ini · W${weekIndex}`}
+        action={<SectionLink onClick={() => navigate('/week')}>Lihat rincian</SectionLink>}
       />
 
-      <ul className="grid grid-cols-7 gap-1">
+      {/* Figures are thousands of rupiah -- seven cells have no room for a full amount,
+          and the exact figure is one tap away on /week. */}
+      <ul className="grid grid-cols-7 gap-1.5">
         {days.map((day) => (
           <li key={day.date}>
-            <DayDot day={day} />
+            <DayCell day={day} />
           </li>
         ))}
       </ul>
-    </Card>
+    </section>
   );
 }
 
-function DayDot({ day }: { day: DayRow }) {
-  const tone = day.dayType === 'WEEKEND' ? 'neutral' : toneFor(day.remaining, day.dayBudget);
-  const usedNothing = day.spent === 0;
-
-  const background =
-    tone === 'over'
-      ? 'bg-over text-white'
-      : tone === 'warn'
-        ? 'bg-warn text-white'
-        : usedNothing
-          ? 'bg-surface-sunken text-ink-muted'
-          : 'bg-safe text-white';
+/**
+ * One day of the strip.
+ *
+ * Weekend days take the butter surface; the bar inside carries the safe/warn/over tone.
+ * The two never collide because butter is only ever the card and warn is only ever the
+ * fill -- one is the ground, the other is the reading.
+ */
+function DayCell({ day }: { day: DayRow }) {
+  const isWeekend = day.dayType === 'WEEKEND';
+  const tone = toneFor(day.remaining, day.dayBudget);
+  const spentNothing = day.spent === 0;
 
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="text-[10px] font-medium text-ink-subtle">{formatWeekdayShort(day.date)}</span>
+    <div
+      className={cn(
+        'flex flex-col items-center gap-1.5 rounded-md border px-0.5 py-2.5',
+        'transition-[background-color,border-color] duration-[var(--t-base)] ease-out',
+        isWeekend ? 'border-butter-line bg-butter-soft' : 'border-line bg-surface',
+        day.isToday && 'border-accent ring-2 ring-accent-soft',
+      )}
+      title={`${day.date}: ${formatRupiah(day.spent)} terpakai`}
+    >
+      <span className="font-mono text-[9px] font-medium tracking-[0.06em] text-ink-3 uppercase">
+        {formatWeekdayShort(day.date)}
+      </span>
       <span
         className={cn(
-          'grid h-8 w-8 place-items-center rounded-full text-[11px] font-semibold',
-          background,
-          day.isToday && 'ring-2 ring-brand ring-offset-2 ring-offset-[var(--color-surface-raised)]',
+          'tabular text-[13px] font-semibold',
+          spentNothing ? 'text-ink-3' : day.isToday ? 'text-ink' : 'text-ink-2',
         )}
-        title={`${day.date}: ${formatRupiah(day.spent)} terpakai`}
       >
-        {Number(day.date.slice(8))}
+        {spentNothing ? '—' : day.spent < 1000 ? '<1' : Math.round(day.spent / 1000)}
       </span>
-      {day.remaining < 0 ? <span className="text-[9px] font-bold text-over">OVER</span> : null}
+      <Meter
+        value={day.spent}
+        max={day.dayBudget}
+        size="sm"
+        fillClassName={isWeekend && day.remaining >= 0 ? 'bg-butter' : TONE_FILL[tone]}
+      />
+      {day.remaining < 0 ? (
+        <span className="font-mono text-[8px] font-semibold tracking-wide text-neg">OVER</span>
+      ) : null}
     </div>
   );
 }
 
 function RecentExpenses() {
+  const navigate = useNavigate();
   const { data, isLoading } = useExpenses({ limit: 5 });
 
   return (
-    <Card>
-      <CardHeader
-        title="Pengeluaran terakhir"
-        action={
-          <Link to="/expenses" className="inline-flex items-center gap-1 text-xs font-semibold text-brand-text">
-            Semua <ArrowRight className="h-3.5 w-3.5" />
-          </Link>
-        }
+    <section>
+      <SectionHead
+        title="Terakhir dicatat"
+        action={<SectionLink onClick={() => navigate('/expenses')}>Semua</SectionLink>}
       />
 
       {isLoading ? (
@@ -251,6 +254,6 @@ function RecentExpenses() {
           description="Tap tombol + buat catat pengeluaran pertama."
         />
       )}
-    </Card>
+    </section>
   );
 }
