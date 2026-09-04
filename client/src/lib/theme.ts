@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export type ThemePreference = 'light' | 'dark' | 'system';
+export type ResolvedTheme = 'light' | 'dark';
 
 /** Shared with the inline no-flash script in index.html. Changing it here changes it there. */
 const STORAGE_KEY = 'datebud-theme';
@@ -50,32 +51,68 @@ export function storeThemePreference(preference: ThemePreference): void {
 }
 
 /** The theme actually on screen, once the OS has had its say. */
-export function resolveTheme(preference: ThemePreference): 'light' | 'dark' {
+export function resolveTheme(preference: ThemePreference): ResolvedTheme {
   if (preference !== 'system') return preference;
 
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function useTheme() {
-  const [preference, setPreference] = useState<ThemePreference>(readThemePreference);
-  const [resolved, setResolved] = useState<'light' | 'dark'>(() => resolveTheme(preference));
+/**
+ * The theme is one value for the whole app, so it lives in a module-level store rather
+ * than in each caller's useState.
+ *
+ * Two components each holding their own copy is the bug this shape exists to prevent: the
+ * header toggle would stamp the attribute and persist the choice while the Segmented
+ * control in Settings went on rendering whatever it read at mount. There is exactly one
+ * <html> element, so there is exactly one source of truth for what is on it.
+ */
+type Snapshot = { preference: ThemePreference; resolved: ResolvedTheme };
 
-  // While the preference is "system" the OS can change under us, so the resolved value
-  // has to be watched rather than read once.
-  useEffect(() => {
-    const query = window.matchMedia('(prefers-color-scheme: dark)');
-    const sync = () => setResolved(resolveTheme(preference));
+let snapshot: Snapshot | null = null;
+const listeners = new Set<() => void>();
 
-    sync();
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
-  }, [preference]);
+function currentSnapshot(): Snapshot {
+  // Cached because useSyncExternalStore compares snapshots by identity: returning a fresh
+  // object on every read would re-render forever.
+  if (snapshot === null) {
+    const preference = readThemePreference();
+    snapshot = { preference, resolved: resolveTheme(preference) };
+  }
 
-  const setTheme = useCallback((next: ThemePreference) => {
-    applyThemePreference(next);
-    storeThemePreference(next);
-    setPreference(next);
-  }, []);
+  return snapshot;
+}
+
+function publish(preference: ThemePreference): void {
+  snapshot = { preference, resolved: resolveTheme(preference) };
+  listeners.forEach((listener) => listener());
+}
+
+function subscribe(listener: () => void): () => void {
+  listeners.add(listener);
+
+  // While the preference is "system" the OS can change under us, so the resolved value has
+  // to be watched rather than read once. One listener serves every subscriber.
+  const query = window.matchMedia('(prefers-color-scheme: dark)');
+  const onSystemChange = () => publish(currentSnapshot().preference);
+  query.addEventListener('change', onSystemChange);
+
+  return () => {
+    listeners.delete(listener);
+    query.removeEventListener('change', onSystemChange);
+  };
+}
+
+export function setTheme(next: ThemePreference): void {
+  applyThemePreference(next);
+  storeThemePreference(next);
+  publish(next);
+}
+
+export function useTheme(): Snapshot & { setTheme: typeof setTheme } {
+  const { preference, resolved } = useSyncExternalStore(subscribe, currentSnapshot, () => ({
+    preference: 'system' as const,
+    resolved: 'light' as const,
+  }));
 
   return { preference, resolved, setTheme };
 }

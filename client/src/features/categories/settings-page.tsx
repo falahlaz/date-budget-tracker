@@ -57,7 +57,7 @@ export function SettingsPage() {
     <>
       {/* The email goes in the subtitle, not the eyebrow: the eyebrow is a mono micro
           label and uppercases what it is given, which mangles an address. */}
-      <PageHeader title="Pengaturan" subtitle={user?.email} />
+      <PageHeader title="Pengaturan" subtitle={user?.email} chrome={false} />
 
       <section className="mb-7">
         <SectionHead

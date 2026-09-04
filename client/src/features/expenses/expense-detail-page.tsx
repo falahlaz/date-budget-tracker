@@ -2,6 +2,7 @@ import { ArrowLeft, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
+import { HeaderChrome } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Chip, ChipRow } from '@/components/ui/chip';
@@ -39,13 +40,16 @@ export function ExpenseDetailPage() {
 
   return (
     <>
-      <div className="-ml-2 mb-5 flex items-center gap-1">
+      {/* Its own bar rather than a PageHeader, because this screen leads with a back
+          arrow -- but it carries the same chrome, so "every screen" stays true. */}
+      <div className="-mx-2 mb-5 flex items-center gap-1">
         <Button asChild variant="ghost" size="icon" aria-label="Kembali">
           <Link to="/expenses">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <h1 className="title-display text-lg text-ink">Detail</h1>
+        <h1 className="title-display flex-1 text-lg text-ink">Detail</h1>
+        <HeaderChrome />
       </div>
 
       <Card className="mb-7">

@@ -1,7 +1,8 @@
-import { CalendarDays, Home, PieChart, Plus, Receipt } from 'lucide-react';
+import { CalendarDays, Home, Moon, PieChart, Plus, Receipt, Settings, Sun } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/cn';
+import { useTheme } from '@/lib/theme';
 
 const TABS = [
   { to: '/', label: 'Home', icon: Home, end: true },
@@ -98,11 +99,14 @@ export function PageHeader({
   subtitle,
   eyebrow,
   action,
+  chrome = true,
 }: {
   title: string;
   subtitle?: string;
   eyebrow?: string;
   action?: ReactNode;
+  /** Off on Settings itself, where both controls point at the screen you are on. */
+  chrome?: boolean;
 }) {
   return (
     <header className="mb-6 flex items-start justify-between gap-4">
@@ -111,7 +115,47 @@ export function PageHeader({
         <h1 className="title-display text-2xl text-ink">{title}</h1>
         {subtitle ? <p className="mt-1 text-sm text-ink-2">{subtitle}</p> : null}
       </div>
-      {action}
+      <div className="flex shrink-0 items-center gap-1">
+        {action}
+        {chrome ? <HeaderChrome /> : null}
+      </div>
     </header>
   );
 }
+
+/**
+ * The two controls every screen carries: flip the theme, or open Settings.
+ *
+ * Settings had a route and no way in -- the only way to reach it was to type the URL --
+ * so everything behind it, the theme control included, may as well not have existed.
+ */
+export function HeaderChrome() {
+  const { resolved, setTheme } = useTheme();
+  const next = resolved === 'dark' ? 'light' : 'dark';
+
+  return (
+    <>
+      <button
+        type="button"
+        // Flips against what is on screen rather than against the stored preference, so a
+        // tap while on "Sistem" pins a real choice instead of appearing to do nothing.
+        onClick={() => setTheme(next)}
+        aria-label={next === 'dark' ? 'Ganti ke mode gelap' : 'Ganti ke mode terang'}
+        className={ICON_BUTTON}
+      >
+        {resolved === 'dark' ? (
+          <Sun className="h-5 w-5" aria-hidden />
+        ) : (
+          <Moon className="h-5 w-5" aria-hidden />
+        )}
+      </button>
+
+      <Link to="/settings" aria-label="Pengaturan" data-tap className={ICON_BUTTON}>
+        <Settings className="h-5 w-5" aria-hidden />
+      </Link>
+    </>
+  );
+}
+
+const ICON_BUTTON =
+  'grid h-11 w-11 shrink-0 place-items-center rounded-sm text-ink-3 transition-colors duration-[var(--t-fast)] ease-out hover:bg-surface-2 hover:text-ink-2 active:scale-95';
