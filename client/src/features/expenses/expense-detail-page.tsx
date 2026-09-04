@@ -3,10 +3,11 @@ import { useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
+import { Card } from '@/components/ui/card';
 import { Chip, ChipRow } from '@/components/ui/chip';
 import { ErrorState, LoadingBlock } from '@/components/ui/feedback';
 import { Field, Input, Textarea } from '@/components/ui/input';
+import { SectionHead } from '@/components/ui/section';
 import { Sheet } from '@/components/ui/sheet';
 import { CategoryPicker } from '@/features/categories/category-picker';
 import { formatAmountInput, formatDateLong, formatRupiah, parseAmountInput } from '@/lib/format';
@@ -38,42 +39,47 @@ export function ExpenseDetailPage() {
 
   return (
     <>
-      <div className="mb-3 flex items-center gap-2">
+      <div className="-ml-2 mb-5 flex items-center gap-1">
         <Button asChild variant="ghost" size="icon" aria-label="Kembali">
           <Link to="/expenses">
             <ArrowLeft className="h-5 w-5" />
           </Link>
         </Button>
-        <h1 className="text-lg font-bold text-ink">Detail</h1>
+        <h1 className="title-display text-lg text-ink">Detail</h1>
       </div>
 
-      <Card className="mb-3">
-        <p className="text-xs font-medium text-ink-muted">
+      <Card className="mb-7">
+        <div className="label-micro mb-2 text-[10px] tracking-[0.14em]">
           {expense.dayType === 'WEEKEND' ? 'Weekend' : 'Hari kerja'} · Minggu ke-{expense.weekIndex}
-        </p>
-        <p className="tabular mt-1 text-3xl font-bold text-ink">{formatRupiah(expense.amount)}</p>
-        <p className="mt-1 text-sm text-ink-muted">{formatDateLong(expense.spentOn)}</p>
+        </div>
+        <p className="amount-display text-[32px] text-ink">{formatRupiah(expense.amount)}</p>
+        <p className="mt-1.5 text-[13px] text-ink-2">{formatDateLong(expense.spentOn)}</p>
 
-        <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
+        <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm">
           <Detail label="Tempat" value={expense.merchant ?? '—'} />
           <Detail label="Kategori" value={expense.category?.name ?? 'Tanpa kategori'} />
           <Detail label="Metode bayar" value={PAYMENT_METHOD_LABELS[expense.paymentMethod]} />
           <Detail label="Catatan" value={expense.note ?? '—'} />
         </dl>
 
-        <div className="mt-4 flex gap-2">
+        <div className="mt-5 flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
             Edit
           </Button>
-          <Button variant="danger" size="icon" onClick={() => setConfirmingDelete(true)} aria-label="Hapus">
+          <Button
+            variant="danger"
+            size="icon"
+            onClick={() => setConfirmingDelete(true)}
+            aria-label="Hapus"
+          >
             <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </Card>
 
       {expense.receipts.length > 0 ? (
-        <Card>
-          <CardHeader title={`Struk (${expense.receipts.length})`} />
+        <section>
+          <SectionHead title={`Struk · ${expense.receipts.length}`} />
           <ul className="grid grid-cols-3 gap-2">
             {expense.receipts.map((receipt) => (
               <li key={receipt.id} className="relative">
@@ -82,21 +88,21 @@ export function ExpenseDetailPage() {
                     src={receipt.thumbUrl ?? receipt.url}
                     alt={`Struk ${receipt.id}`}
                     loading="lazy"
-                    className="aspect-square w-full rounded-lg border border-line object-cover"
+                    className="aspect-square w-full rounded-md border border-line object-cover"
                   />
                 </a>
                 <button
                   type="button"
                   aria-label={`Hapus struk ${receipt.id}`}
                   onClick={() => deleteReceipt.mutate(receipt.id)}
-                  className="absolute right-1 top-1 grid h-7 w-7 min-h-0 place-items-center rounded-full bg-ink/80 text-surface"
+                  className="absolute top-1.5 right-1.5 grid h-7 w-7 min-h-0 place-items-center rounded-full bg-ink/80 text-bg"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </li>
             ))}
           </ul>
-        </Card>
+        </section>
       ) : null}
 
       {editing ? (
@@ -104,14 +110,19 @@ export function ExpenseDetailPage() {
       ) : null}
 
       <Sheet open={confirmingDelete} onOpenChange={setConfirmingDelete} title="Hapus pengeluaran?">
-        <p className="text-sm text-ink-muted">
+        <p className="text-sm text-ink-2">
           Angka minggu dan bulan ini bakal dihitung ulang otomatis.
         </p>
         <div className="mt-4 flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => setConfirmingDelete(false)}>
             Batal
           </Button>
-          <Button variant="danger" className="flex-1" onClick={remove} disabled={deleteExpense.isPending}>
+          <Button
+            variant="danger"
+            className="flex-1"
+            onClick={remove}
+            disabled={deleteExpense.isPending}
+          >
             Hapus
           </Button>
         </div>
@@ -123,8 +134,8 @@ export function ExpenseDetailPage() {
 function Detail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs text-ink-subtle">{label}</dt>
-      <dd className="mt-0.5 break-words font-medium text-ink">{value}</dd>
+      <dt className="label-micro text-[10px] tracking-[0.14em]">{label}</dt>
+      <dd className="mt-1.5 break-words font-medium text-ink">{value}</dd>
     </div>
   );
 }
@@ -179,7 +190,7 @@ function EditSheet({
             inputMode="numeric"
             value={amountText}
             onChange={(event) => setAmountText(formatAmountInput(event.target.value))}
-            className="tabular text-xl font-bold"
+            className="amount-display text-2xl"
           />
         </Field>
 
@@ -193,7 +204,11 @@ function EditSheet({
         </Field>
 
         <Field label="Tempat">
-          <Input value={merchant} maxLength={120} onChange={(event) => setMerchant(event.target.value)} />
+          <Input
+            value={merchant}
+            maxLength={120}
+            onChange={(event) => setMerchant(event.target.value)}
+          />
         </Field>
 
         <CategoryPicker value={categoryId} onChange={setCategoryId} />
@@ -203,7 +218,6 @@ function EditSheet({
             {PAYMENT_METHODS.map((method) => (
               <Chip
                 key={method}
-                className="h-10"
                 selected={paymentMethod === method}
                 onClick={() => setPaymentMethod(method)}
               >
@@ -214,7 +228,11 @@ function EditSheet({
         </Field>
 
         <Field label="Catatan">
-          <Textarea value={note} maxLength={500} onChange={(event) => setNote(event.target.value)} />
+          <Textarea
+            value={note}
+            maxLength={500}
+            onChange={(event) => setNote(event.target.value)}
+          />
         </Field>
 
         <Button size="lg" onClick={save} disabled={update.isPending}>

@@ -2,8 +2,7 @@ import { Filter, Search, Wallet, X } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { PageHeader } from '@/components/app-shell';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
+import { StepButton } from '@/components/ui/button';
 import { Chip, ChipRow } from '@/components/ui/chip';
 import { EmptyState, ErrorState, LoadingBlock, Spinner } from '@/components/ui/feedback';
 import { Input } from '@/components/ui/input';
@@ -79,51 +78,50 @@ export function ExpenseListPage() {
 
   return (
     <>
-      <PageHeader
-        title="Riwayat"
-        subtitle={`${total} pengeluaran · ${formatRupiah(sumAmount)}`}
-      />
+      <PageHeader eyebrow="Semua pengeluaran" title="Riwayat" />
 
-      <div className="mb-3 flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <Button variant="secondary" size="icon" onClick={() => setParam('period', shiftPeriod(period, -1))} aria-label="Bulan sebelumnya">
+      <div className="mb-5 flex flex-col gap-4">
+        <div className="flex items-center justify-between gap-2">
+          <StepButton
+            onClick={() => setParam('period', shiftPeriod(period, -1))}
+            aria-label="Bulan sebelumnya"
+          >
             ‹
-          </Button>
-          <span className="flex-1 text-center text-sm font-semibold text-ink">
-            {formatPeriodLong(period)}
-          </span>
-          <Button
-            variant="secondary"
-            size="icon"
+          </StepButton>
+          <div className="min-w-0 text-center">
+            <div className="text-[15px] font-semibold text-ink">{formatPeriodLong(period)}</div>
+            <div className="tabular mt-0.5 text-[11.5px] text-ink-3">
+              {total} pengeluaran · {formatRupiah(sumAmount)}
+            </div>
+          </div>
+          <StepButton
             onClick={() => setParam('period', shiftPeriod(period, 1))}
             disabled={period >= currentPeriod()}
             aria-label="Bulan berikutnya"
           >
             ›
-          </Button>
+          </StepButton>
         </div>
 
         <div className="relative">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink-subtle" />
+          <Search className="pointer-events-none absolute top-1/2 left-3.5 h-4 w-4 -translate-y-1/2 text-ink-3" />
           <Input
             value={searchText}
             onChange={(event) => setSearchText(event.target.value)}
             placeholder="Cari tempat atau catatan"
-            className="pl-9"
+            className="pl-10"
             aria-label="Cari pengeluaran"
           />
         </div>
 
         <ChipRow>
           <Chip
-            className="h-9"
             selected={dayType === 'WEEKDAY'}
             onClick={() => setParam('dayType', dayType === 'WEEKDAY' ? undefined : 'WEEKDAY')}
           >
             Hari kerja
           </Chip>
           <Chip
-            className="h-9"
             selected={dayType === 'WEEKEND'}
             onClick={() => setParam('dayType', dayType === 'WEEKEND' ? undefined : 'WEEKEND')}
           >
@@ -133,7 +131,6 @@ export function ExpenseListPage() {
           {(categories.data ?? []).map((category) => (
             <Chip
               key={category.id}
-              className="h-9"
               accent={category.color}
               selected={categoryId === category.id}
               onClick={() =>
@@ -149,45 +146,43 @@ export function ExpenseListPage() {
           <button
             type="button"
             onClick={() => setParam('merchantKey', undefined)}
-            className="inline-flex w-fit items-center gap-1.5 rounded-full bg-brand-soft px-3 py-1.5 text-xs font-semibold text-brand-text"
+            className="inline-flex w-fit items-center gap-1.5 rounded-sm border border-accent bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent-ink"
           >
-            <Filter className="h-3.5 w-3.5" />
+            <Filter className="h-3.5 w-3.5" aria-hidden />
             Tempat: {merchantKey}
-            <X className="h-3.5 w-3.5" />
+            <X className="h-3.5 w-3.5" aria-hidden />
           </button>
         ) : null}
       </div>
 
-      <Card>
-        {query.isLoading ? (
-          <LoadingBlock />
-        ) : query.error ? (
-          <ErrorState message={(query.error as Error).message} onRetry={() => query.refetch()} />
-        ) : items.length === 0 ? (
-          <EmptyState
-            icon={<Wallet className="h-8 w-8" />}
-            title={hasFilters ? 'Ga ada yang cocok' : 'Belum ada pengeluaran bulan ini'}
-            description={
-              hasFilters ? 'Coba longgarin filternya.' : 'Tap tombol + buat mulai mencatat.'
-            }
-          />
-        ) : (
-          <>
-            <ul className="divide-y divide-line">
-              {items.map((expense) => (
-                <ExpenseRow key={expense.id} expense={expense} />
-              ))}
-            </ul>
+      {query.isLoading ? (
+        <LoadingBlock />
+      ) : query.error ? (
+        <ErrorState message={(query.error as Error).message} onRetry={() => query.refetch()} />
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={<Wallet className="h-8 w-8" />}
+          title={hasFilters ? 'Ga ada yang cocok' : 'Belum ada pengeluaran bulan ini'}
+          description={
+            hasFilters ? 'Coba longgarin filternya.' : 'Tap tombol + buat mulai mencatat.'
+          }
+        />
+      ) : (
+        <>
+          <ul className="divide-y divide-line">
+            {items.map((expense) => (
+              <ExpenseRow key={expense.id} expense={expense} />
+            ))}
+          </ul>
 
-            <div ref={sentinel} className="h-8" />
-            {query.isFetchingNextPage ? (
-              <div className="flex justify-center py-2">
-                <Spinner />
-              </div>
-            ) : null}
-          </>
-        )}
-      </Card>
+          <div ref={sentinel} className="h-8" />
+          {query.isFetchingNextPage ? (
+            <div className="flex justify-center py-2">
+              <Spinner />
+            </div>
+          ) : null}
+        </>
+      )}
     </>
   );
 }
