@@ -30,3 +30,6 @@ coverage/
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Scratch worktrees created by Claude Code, never part of a commit.
+.claude/worktrees/

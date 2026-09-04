@@ -10,8 +10,8 @@ import {
   topExpenses,
 } from './aggregate';
 
-const MAKAN = { id: 1, name: 'Makan', color: '#EF4444' };
-const NGOPI = { id: 4, name: 'Ngopi', color: '#A16207' };
+const MAKAN = { id: 1, name: 'Makan', color: '#9D6DE4' };
+const NGOPI = { id: 4, name: 'Ngopi', color: '#B17C00' };
 
 let nextId = 1;
 
@@ -44,7 +44,7 @@ describe('aggregateByCategory', () => {
     expect(rows[0]).toEqual({
       categoryId: 1,
       name: 'Makan',
-      color: '#EF4444',
+      color: '#9D6DE4',
       amount: 400_000,
       share: 0.8,
       count: 2,

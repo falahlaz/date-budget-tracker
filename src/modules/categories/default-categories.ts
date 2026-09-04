@@ -1,28 +1,64 @@
 /**
+ * The datebud category palette.
+ *
+ * Every colour here is stored as a hex on a per-user row (PRD 7.4), which means one value
+ * has to work on *both* themes -- a stored hex cannot shift the way a CSS token does. So
+ * each was chosen to clear a 3:1 contrast ratio against the lightest surface (#FFFFFF) and
+ * the darkest one (#2C2F39) at the same time, which pins them all into a narrow luminance
+ * band, and then spread as far apart as that band allows: the closest pair sits at ΔE 19.8
+ * in CIE Lab, comfortably past the threshold where two slices of a donut stop being
+ * separable for a colourblind reader.
+ *
+ * Even so, colour is never the only signal -- the donut legend names every slice with its
+ * amount and share (PRD 11).
+ */
+
+/**
  * Default categories seeded for every new user (PRD 7.4).
  *
  * These are per-user rows, so they are created when a user is created rather than in a
  * migration -- a migration has no user to attach them to.
  */
 export const DEFAULT_CATEGORIES: ReadonlyArray<{ name: string; color: string; icon: string }> = [
-  { name: 'Makan', color: '#EF4444', icon: 'utensils' },
-  { name: 'Nonton', color: '#8B5CF6', icon: 'clapperboard' },
-  { name: 'Transport', color: '#3B82F6', icon: 'car' },
-  { name: 'Ngopi', color: '#A16207', icon: 'coffee' },
-  { name: 'Aktivitas', color: '#10B981', icon: 'ticket' },
-  { name: 'Gift', color: '#EC4899', icon: 'gift' },
-  { name: 'Lain-lain', color: '#64748B', icon: 'ellipsis' },
+  { name: 'Makan', color: '#9D6DE4', icon: 'utensils' },
+  { name: 'Nonton', color: '#5B9432', icon: 'clapperboard' },
+  { name: 'Transport', color: '#C557D9', icon: 'car' },
+  { name: 'Ngopi', color: '#B17C00', icon: 'coffee' },
+  { name: 'Aktivitas', color: '#E24D98', icon: 'ticket' },
+  { name: 'Gift', color: '#E25662', icon: 'gift' },
+  { name: 'Lain-lain', color: '#858499', icon: 'ellipsis' },
 ];
 
 /**
  * Colours offered to a category created without one.
  *
  * The six distinct seed colours come first so a fresh user's additions extend the palette
- * they already see, then six more. Slate #64748B is deliberately absent: it is the colour
- * of "Tanpa kategori" in the reports (UNCATEGORISED_COLOR), and a real category wearing it
- * would be indistinguishable from uncategorised spend in the donut.
+ * they already see, then six more. The neutral #858499 is deliberately absent: it is the
+ * colour of "Tanpa kategori" in the reports (UNCATEGORISED_COLOR), and a real category
+ * wearing it would be indistinguishable from uncategorised spend in the donut.
  */
 export const CATEGORY_PALETTE: readonly string[] = [
+  '#9D6DE4',
+  '#5B9432',
+  '#C557D9',
+  '#B17C00',
+  '#E24D98',
+  '#E25662',
+  '#329DB8',
+  '#947662',
+  '#4D94EB',
+  '#31A381',
+  '#9E6893',
+  '#D17E52',
+];
+
+/**
+ * The pre-revamp palette, kept only so `categories:recolour` can recognise a colour this
+ * app chose from one the user picked by hand.
+ *
+ * Positionally aligned with CATEGORY_PALETTE above: index i maps to index i.
+ */
+export const LEGACY_CATEGORY_PALETTE: readonly string[] = [
   '#EF4444',
   '#8B5CF6',
   '#3B82F6',
@@ -36,6 +72,9 @@ export const CATEGORY_PALETTE: readonly string[] = [
   '#84CC16',
   '#0EA5E9',
 ];
+
+/** The slate that used to be both "Lain-lain" and the uncategorised colour. */
+export const LEGACY_UNCATEGORISED_COLOR = '#64748B';
 
 /**
  * Picks a chart colour for a new category, preferring one the user is not already using.

@@ -1,14 +1,20 @@
 import { NestFactory } from '@nestjs/core';
+import { planRecolour } from '@/modules/categories/recolour';
 import { UsersService } from '@/modules/users/users.service';
+import { PrismaService } from '@/prisma/prisma.service';
 import { CliModule } from './cli.module';
 
 const USAGE = `datebud CLI
 
 Usage:
   npm run cli -- user:create --email=<email> --password=<password> --name=<name>
+  npm run cli -- categories:recolour [--email=<email>] [--dry-run]
 
 Commands:
-  user:create   Create a user with the seven default categories (PRD 7.4)
+  user:create          Create a user with the seven default categories (PRD 7.4)
+  categories:recolour  Move categories still wearing the pre-revamp palette onto the
+                       current one. Colours picked by hand in Settings are left alone.
+                       Idempotent; --dry-run prints the plan without writing.
 `;
 
 /** Parses `--key=value` and `--key value` pairs out of argv. */
@@ -49,7 +55,9 @@ async function run(): Promise<void> {
     return;
   }
 
-  const context = await NestFactory.createApplicationContext(CliModule, { logger: ['error', 'warn'] });
+  const context = await NestFactory.createApplicationContext(CliModule, {
+    logger: ['error', 'warn'],
+  });
 
   try {
     switch (command) {
@@ -66,6 +74,49 @@ async function run(): Promise<void> {
         // stdout, not a Logger: the context is created with the 'log' level switched off,
         // and a CLI's result belongs on stdout where it can be piped, not in framework noise.
         process.stdout.write(`Created user #${user.id} <${user.email}> with default categories\n`);
+        break;
+      }
+
+      case 'categories:recolour': {
+        const flags = parseFlags(rest);
+        const prisma = context.get(PrismaService);
+        const dryRun = flags['dry-run'] === 'true';
+
+        // Archived categories are included on purpose: un-archiving one later must not
+        // bring a colour from the old palette back with it.
+        const categories = await prisma.category.findMany({
+          where: flags.email ? { user: { email: flags.email } } : {},
+          select: { id: true, name: true, color: true },
+          orderBy: { id: 'asc' },
+        });
+
+        const plan = planRecolour(categories);
+
+        if (plan.length === 0) {
+          process.stdout.write(
+            `Nothing to do: ${categories.length} categories, none on the old palette\n`,
+          );
+          break;
+        }
+
+        for (const change of plan) {
+          process.stdout.write(`  ${change.name} ${change.from} -> ${change.to}\n`);
+        }
+
+        if (dryRun) {
+          process.stdout.write(`\n${plan.length} would change (dry run, nothing written)\n`);
+          break;
+        }
+
+        // One transaction: a half-applied palette is worse than the old one, because it
+        // leaves two categories that used to differ wearing colours from different sets.
+        await prisma.$transaction(
+          plan.map((change) =>
+            prisma.category.update({ where: { id: change.id }, data: { color: change.to } }),
+          ),
+        );
+
+        process.stdout.write(`\n${plan.length} categories recoloured\n`);
         break;
       }
 

@@ -29,7 +29,7 @@ describe('Budgets and categories (PRD 8.3, 8.7)', () => {
     expect(response.body.map((category: { name: string }) => category.name)).toEqual([
       'Makan', 'Nonton', 'Transport', 'Ngopi', 'Aktivitas', 'Gift', 'Lain-lain',
     ]);
-    expect(response.body[0]).toMatchObject({ color: '#EF4444', icon: 'utensils' });
+    expect(response.body[0]).toMatchObject({ color: '#9D6DE4', icon: 'utensils' });
   });
 
   // PRD 6.12

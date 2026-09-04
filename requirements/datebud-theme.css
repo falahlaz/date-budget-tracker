@@ -1,0 +1,285 @@
+/* ============================================================
+   datebud — Periwinkle & Butter
+   Light: satu-satunya.  Dark: "Overcast".
+
+   Struktur tema sengaja tiga lapis:
+     1. :root                          -> palet light lengkap
+     2. @media (prefers-color-scheme)  -> OS gelap menang...
+     3. :root[data-theme="dark"]       -> ...kecuali user milih manual
+
+   Lapis 2 di-guard :not([data-theme="light"]) supaya pilihan
+   "terang" milik user tetap menang walau OS-nya gelap. Tanpa itu,
+   toggle cuma jalan satu arah — bug klasik di dark mode.
+
+   Aturan yang gampang kelewat: setiap warna WAJIB punya definisi
+   di :root. Warna yang cuma didefinisikan di dalam blok media atau
+   [data-theme] ga akan pernah apply pas root ga di-stamp (setelan
+   "system"), dan halaman jadi teks tema A di atas ground tema B.
+   ============================================================ */
+
+:root {
+  /* --- ground & permukaan --- */
+  --bg:            #F5F6FB;   /* netral dibias biru-violet, bukan slate murni */
+  --surface:       #FFFFFF;
+  --surface-2:     #EDEEF7;   /* cekungan: track meter, chip, keypad */
+  --surface-3:     #E3E5F2;
+  --border:        #E1E3F0;
+  --border-strong: #CBCEE3;
+
+  /* --- tinta --- */
+  --text:          #262838;
+  --text-2:        #5D6079;
+  --text-3:        #8A8DA6;   /* label mikro & state kosong */
+
+  /* --- aksen: periwinkle. Satu aksi utama per layar, jangan lebih --- */
+  --accent:        #5C63C4;
+  --accent-ink:    #4A50B0;   /* dipakai kalau aksen jadi teks di atas surface */
+  --accent-soft:   #E9EAFA;
+  --accent-line:   #C9CCEE;
+
+  /* --- sekunder: butter. HANYA untuk penanda weekend --- */
+  --butter:        #E0B65C;
+  --butter-ink:    #7E6113;
+  --butter-soft:   #FBF2DE;
+  --butter-line:   #EEDCB0;
+
+  /* --- semantik. Terpisah dari palet kategori, jangan dipakai ulang --- */
+  --pos:           #3E8C74;
+  --pos-soft:      #E0F0EA;
+  --neg:           #C2536A;
+  --neg-soft:      #FBE7EA;
+
+  /* --- kategori chart. Urutan dikunci per kategori, BUKAN per peringkat:
+         kategori yang kefilter ga boleh bikin sisanya ganti warna.
+         Divalidasi: CVD ΔE 19,6 antar warna bersebelahan. --- */
+  --cat-1: #6B6CD0;  /* Makan     */
+  --cat-2: #68A63F;  /* Nonton    */
+  --cat-3: #8E479D;  /* Transport */
+  --cat-4: #C88B00;  /* Ngopi     */
+  --cat-5: #B14576;  /* Aktivitas */
+
+  --shadow-sm: 0 1px 2px rgba(38, 40, 56, .05);
+  --shadow-md: 0 6px 18px -8px rgba(38, 40, 56, .18);
+  --shadow-lg: 0 24px 60px -24px rgba(38, 40, 56, .35);
+
+  /* --- radius bertingkat menurut peran, bukan satu nilai untuk semua --- */
+  --r-xs: 6px;    /* chip di dalam chip, badge   */
+  --r-sm: 10px;   /* tombol kecil, segmented     */
+  --r-md: 14px;   /* field, keypad, tombol utama */
+  --r-lg: 20px;   /* card                        */
+  --r-xl: 28px;   /* bottom sheet                */
+
+  /* --- tipografi: tiga huruf, tiga tugas --- */
+  --f-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --f-ui:      "Public Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono:    "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* --- motion --- */
+  --ease-out:    cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.22, 1, .36, 1);
+  --t-fast: 140ms;
+  --t-base: 240ms;
+  --t-slow: 420ms;
+}
+
+/* ------------------------------------------------------------
+   OVERCAST — palet gelap.
+   Ground-nya sengaja ga hitam pekat (#24262E), jadi kontras teks
+   putih ke background lebih lembut.
+
+   Dua hal yang beda dari sekadar "membalik" light:
+   - --butter-soft dibikin LEBIH TERANG dari --surface, bukan coklat
+     tua. Kuning butter di atas ground hampir hitam selalu jadi lumpur;
+     kartu weekend harus kebaca "disorot", bukan kotor.
+   - --cat-3 dan --cat-5 dinaikkan. Di ground yang lebih terang, nilai
+     light-nya jatuh di bawah rasio kontras 3:1.
+   ------------------------------------------------------------ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:            #24262E;
+    --surface:       #2C2F39;
+    --surface-2:     #343845;
+    --surface-3:     #3D4250;
+    --border:        #3A3E4B;
+    --border-strong: #4B5060;
+
+    --text:          #EDEEF4;
+    --text-2:        #B0B4C4;
+    --text-3:        #868B9E;
+
+    --accent:        #A3A9F0;
+    --accent-ink:    #B7BCF7;
+    --accent-soft:   #343A5A;
+    --accent-line:   #4A5178;
+
+    --butter:        #E7C583;
+    --butter-ink:    #F1D49B;
+    --butter-soft:   #3A3428;
+    --butter-line:   #514835;
+
+    --pos:           #7CC0A7;
+    --pos-soft:      #263831;
+    --neg:           #EC8FA0;
+    --neg-soft:      #3E2A34;
+
+    --cat-1: #7478D8; --cat-2: #639F3D; --cat-3: #A75FB6;
+    --cat-4: #BD8300; --cat-5: #C55787;
+
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, .45);
+    --shadow-md: 0 6px 18px -8px rgba(0, 0, 0, .65);
+    --shadow-lg: 0 24px 60px -24px rgba(0, 0, 0, .8);
+  }
+}
+
+:root[data-theme="dark"] {
+  --bg:            #24262E;
+  --surface:       #2C2F39;
+  --surface-2:     #343845;
+  --surface-3:     #3D4250;
+  --border:        #3A3E4B;
+  --border-strong: #4B5060;
+
+  --text:          #EDEEF4;
+  --text-2:        #B0B4C4;
+  --text-3:        #868B9E;
+
+  --accent:        #A3A9F0;
+  --accent-ink:    #B7BCF7;
+  --accent-soft:   #343A5A;
+  --accent-line:   #4A5178;
+
+  --butter:        #E7C583;
+  --butter-ink:    #F1D49B;
+  --butter-soft:   #3A3428;
+  --butter-line:   #514835;
+
+  --pos:           #7CC0A7;
+  --pos-soft:      #263831;
+  --neg:           #EC8FA0;
+  --neg-soft:      #3E2A34;
+
+  --cat-1: #7478D8; --cat-2: #639F3D; --cat-3: #A75FB6;
+  --cat-4: #BD8300; --cat-5: #C55787;
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, .45);
+  --shadow-md: 0 6px 18px -8px rgba(0, 0, 0, .65);
+  --shadow-lg: 0 24px 60px -24px rgba(0, 0, 0, .8);
+}
+
+/* ============================================================
+   TAILWIND v4
+   ============================================================ */
+@theme {
+  --color-bg:            var(--bg);
+  --color-surface:       var(--surface);
+  --color-surface-2:     var(--surface-2);
+  --color-surface-3:     var(--surface-3);
+  --color-line:          var(--border);
+  --color-line-strong:   var(--border-strong);
+
+  --color-ink:           var(--text);
+  --color-ink-2:         var(--text-2);
+  --color-ink-3:         var(--text-3);
+
+  --color-accent:        var(--accent);
+  --color-accent-ink:    var(--accent-ink);
+  --color-accent-soft:   var(--accent-soft);
+
+  --color-butter:        var(--butter);
+  --color-butter-ink:    var(--butter-ink);
+  --color-butter-soft:   var(--butter-soft);
+
+  --color-pos:           var(--pos);
+  --color-pos-soft:      var(--pos-soft);
+  --color-neg:           var(--neg);
+  --color-neg-soft:      var(--neg-soft);
+
+  --color-cat-1: var(--cat-1);
+  --color-cat-2: var(--cat-2);
+  --color-cat-3: var(--cat-3);
+  --color-cat-4: var(--cat-4);
+  --color-cat-5: var(--cat-5);
+
+  --font-display: "Fraunces", "Iowan Old Style", Georgia, serif;
+  --font-sans:    "Public Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono:    "IBM Plex Mono", ui-monospace, Menlo, monospace;
+
+  --radius-xs: 6px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 20px;
+  --radius-xl: 28px;
+
+  --ease-out:    cubic-bezier(.2, .8, .2, 1);
+  --ease-spring: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* ============================================================
+   DASAR
+   ============================================================ */
+
+/* Wajib: body cat sendiri. Body transparan bakal minjam ground
+   dari luar dan bikin tema kelihatan salah. */
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--f-ui);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color var(--t-base) var(--ease-out),
+              color var(--t-base) var(--ease-out);
+}
+
+/* Angka uang selalu rata kolom. */
+.tabular { font-variant-numeric: tabular-nums; }
+
+/* Angka besar. opsz dinaikkan supaya di ukuran besar Fraunces
+   ga terlalu tebal; SOFT dikurangi supaya ujungnya ga terlalu bulat. */
+.amount-hero {
+  font-family: var(--f-display);
+  font-weight: 600;
+  font-variation-settings: "opsz" 120, "SOFT" 20, "WONK" 1;
+  letter-spacing: -.028em;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Label mikro huruf besar. */
+.label-micro {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Nilai negatif: warna SAJA ga cukup — selalu barengin tanda "−"
+   atau badge teks, biar kebaca juga tanpa persepsi warna. */
+.is-over { color: var(--neg); }
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
+
+/* ============================================================
+   FONT
+   Taruh di <head> index.html:
+
+   <link rel="preconnect" href="https://fonts.googleapis.com">
+   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap">
+
+   Kalau mau self-host (PWA, biar jalan offline): unduh ketiganya,
+   subset ke latin, taruh di /public/fonts, lalu ganti @font-face
+   sendiri dengan font-display: swap.
+   ============================================================ */

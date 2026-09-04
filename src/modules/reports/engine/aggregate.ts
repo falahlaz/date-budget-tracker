@@ -63,7 +63,7 @@ export interface TopExpense {
 
 /** Label for expenses with no category, mirroring the "Tanpa tempat" rule in 6.18. */
 export const UNCATEGORISED_LABEL = 'Tanpa kategori';
-export const UNCATEGORISED_COLOR = '#64748B';
+export const UNCATEGORISED_COLOR = '#858499';
 export const NO_MERCHANT_LABEL = 'Tanpa tempat';
 
 /** Max entries in byMerchant (PRD 8.6). */

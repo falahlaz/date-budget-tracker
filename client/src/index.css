@@ -65,25 +65,11 @@
   --warn-soft:     #fbeadf;
 
   /*
-   * Category chart colours. The order is keyed per category, NOT per rank: a category
-   * removed by a filter must not make the rest change colour. Validated for colour
-   * vision deficiency at ΔE 19.6 between neighbours.
-   *
-   * These stay outside @theme deliberately -- they are read as var(--cat-N) from inline
-   * styles, and Tailwind v4 tree-shakes theme variables no utility references.
+   * Category colours are NOT tokens. They are per-user hex values on a database row
+   * (PRD 7.4), so the palette lives in src/modules/categories/default-categories.ts and
+   * arrives through the API. A stored hex cannot shift between themes, which is why every
+   * colour in that file is chosen to clear 3:1 against both this ground and the dark one.
    */
-  --cat-1: #6b6cd0;
-  --cat-2: #68a63f;
-  --cat-3: #8e479d;
-  --cat-4: #c88b00;
-  --cat-5: #b14576;
-  --cat-6: #c2536a;
-  --cat-7: #2f8f8a;
-  --cat-8: #7a6ad8;
-  --cat-9: #97852a;
-  --cat-10: #4b7fc4;
-  --cat-11: #a95a2c;
-  --cat-12: #3f8c5a;
 
   /* Named --sh-* rather than --shadow-*: @theme owns the --shadow-* namespace below,
      and mapping a variable onto itself would be circular. */
@@ -155,19 +141,6 @@
     --warn:          #e9a16b;
     --warn-soft:     #3a2c20;
 
-    --cat-1: #7478d8;
-    --cat-2: #639f3d;
-    --cat-3: #a75fb6;
-    --cat-4: #bd8300;
-    --cat-5: #c55787;
-    --cat-6: #d96a80;
-    --cat-7: #3fa9a3;
-    --cat-8: #8f82e6;
-    --cat-9: #b3a039;
-    --cat-10: #6098d8;
-    --cat-11: #c47444;
-    --cat-12: #52a670;
-
     --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
     --sh-md: 0 6px 18px -8px rgba(0, 0, 0, 0.65);
     --sh-lg: 0 24px 60px -24px rgba(0, 0, 0, 0.8);
@@ -206,19 +179,6 @@
 
   --warn:          #e9a16b;
   --warn-soft:     #3a2c20;
-
-  --cat-1: #7478d8;
-  --cat-2: #639f3d;
-  --cat-3: #a75fb6;
-  --cat-4: #bd8300;
-  --cat-5: #c55787;
-  --cat-6: #d96a80;
-  --cat-7: #3fa9a3;
-  --cat-8: #8f82e6;
-  --cat-9: #b3a039;
-  --cat-10: #6098d8;
-  --cat-11: #c47444;
-  --cat-12: #52a670;
 
   --sh-sm: 0 1px 2px rgba(0, 0, 0, 0.45);
   --sh-md: 0 6px 18px -8px rgba(0, 0, 0, 0.65);
