@@ -41,7 +41,7 @@ export function WeeklyPage() {
             <button
               type="button"
               onClick={() => setSelection(null)}
-              className="min-h-0 underline"
+              className="underline"
             >
               Kembali ke minggu ini
             </button>

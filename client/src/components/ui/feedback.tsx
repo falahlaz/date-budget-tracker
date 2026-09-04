@@ -60,7 +60,7 @@ export function ErrorState({
       {onRetry || action ? (
         <div className="mt-3 flex items-center gap-4 text-xs font-semibold">
           {onRetry ? (
-            <button type="button" onClick={onRetry} className="min-h-0 underline">
+            <button type="button" onClick={onRetry} className="underline">
               Coba lagi
             </button>
           ) : null}

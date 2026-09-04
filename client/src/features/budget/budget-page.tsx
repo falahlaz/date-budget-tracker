@@ -141,7 +141,7 @@ export function BudgetPage() {
                     <th scope="row" className="py-2.5 pr-2 text-left font-medium text-ink">
                       <button
                         type="button"
-                        className="min-h-0 underline-offset-2 hover:underline"
+                        className="relative min-h-0 underline-offset-2 before:absolute before:inset-x-0 before:-inset-y-2.5 before:content-[''] hover:underline"
                         onClick={() => setPeriod(row.period)}
                       >
                         {formatPeriodShort(row.period)}
