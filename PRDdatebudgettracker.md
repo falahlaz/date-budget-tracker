@@ -704,6 +704,7 @@ Aturan upload:
 - **PWA installable.** `manifest.webmanifest` + service worker (via `vite-plugin-pwa`), app icon, `display: standalone`, theme color. Offline: cukup app shell + cache read-only dashboard terakhir. Offline write **TIDAK** di-scope v1.
 - Angka besar diformat `Rp 1.250.000` (locale `id-ID`, tanpa desimal). Di ruang sempit boleh disingkat `1,25 jt`.
 - Nilai negatif selalu merah dengan prefix `-` dan badge `OVER`.
+- **Light & dark.** Default ikut setelan OS (`prefers-color-scheme`); pilihan manual user menang di dua arah dan disimpan per perangkat di `localStorage`. Token warna didefinisikan lengkap di `:root` supaya halaman tidak pernah jadi teks tema A di atas ground tema B saat root tidak di-stamp.
 
 ### 9.2 Daftar screen
 
@@ -719,7 +720,9 @@ Aturan upload:
 | S8 | `/budget` | Budget Setup | Set/edit budget per bulan + preview turunan (jatah harian, jumlah weekday, carry-in). List riwayat budget bulanan. |
 | S9 | `/settings` | Settings | Kelola kategori, ganti password, logout, info versi. |
 
-Navigasi utama: bottom tab bar (mobile) dengan 4 item — **Home**, **Minggu**, **Bulan**, **Riwayat** — plus **FAB (+)** melayang di tengah untuk quick add.
+Navigasi utama: bottom tab bar (mobile) dengan 4 item — **Home**, **Minggu**, **Bulan**, **Riwayat** — plus tombol **+** untuk quick add **di dalam bar** (bukan FAB melayang, supaya tidak pernah menutupi angka di list).
+
+S9 Settings tidak punya tab. Pintu masuknya ada di **header tiap screen**: ikon gerigi ke `/settings`, plus tombol terang/gelap satu tap di sebelahnya.
 
 ### 9.3 S2 — Home / Today
 
@@ -768,7 +771,9 @@ Sisa minggu ini (jadi rollover W3)        Rp 100.000
 
 Form dalam bottom sheet, urutan field mengikuti kecepatan input:
 
-1. **Nominal** — numeric keypad, autofocus, format ribuan otomatis saat mengetik. **Wajib.**
+1. **Nominal** — input numerik (`inputMode="numeric"`), autofocus, format ribuan otomatis saat mengetik. **Wajib.**
+   Pakai keypad bawaan OS, bukan grid tombol sendiri: di HP keypad sistem itu yang sudah dihafal user,
+   dan di desktop grid tombol cuma menggantikan keyboard yang sudah ada di depan mata.
 2. **Tempat (`merchant`)** — text field dengan **autocomplete** dari `GET /api/expenses/merchants`. Opsional, tapi diletakkan tinggi karena mengisi ini justru **mempercepat** sisa form. Perilaku:
    - Saat kosong/baru fokus: tampilkan 5 tempat paling sering dipakai sebagai chip, satu tap langsung terpilih.
    - Saat mengetik: debounce 250 ms, cocokkan ke `merchant_key`, tampilkan max 8 saran.

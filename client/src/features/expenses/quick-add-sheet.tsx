@@ -4,7 +4,6 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Chip, ChipRow } from '@/components/ui/chip';
 import { Field, Input, Textarea } from '@/components/ui/input';
-import { Keypad } from '@/components/ui/keypad';
 import { Sheet } from '@/components/ui/sheet';
 import { cn } from '@/lib/cn';
 import { CategoryPicker } from '@/features/categories/category-picker';
@@ -21,7 +20,7 @@ const MAX_RECEIPTS = 5;
  * S6 Quick Add (PRD 9.6).
  *
  * Field order follows input speed, not data model tidiness: amount first (autofocused,
- * numeric keypad), then the place. The place sits high because picking a known one
+ * numeric keyboard), then the place. The place sits high because picking a known one
  * auto-fills category and payment method, which makes the rest of the form disappear --
  * that is the whole reason the field earns its position (goal G3, under 20 seconds).
  */
@@ -43,8 +42,6 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
 
   const amount = parseAmountInput(amountText);
   const today = todayInJakarta();
-  // The keypad speaks digits; the field displays them grouped. One value, two views.
-  const amountDigits = amountText.replace(/\D/g, '');
 
   // 250ms debounce keeps the suggestion endpoint quiet while the user is mid-word (PRD 9.6).
   useEffect(() => {
@@ -148,16 +145,16 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
     >
       <div className="flex flex-col gap-4">
         {/*
-          A real input, not a display node, so a desktop keyboard still works and the
-          field stays focusable and labelled. inputMode="none" is what suppresses the OS
-          keyboard on touch: the keypad below is the entry method there, and a software
-          keyboard sliding up would bury it along with the Simpan button.
+          inputMode="numeric" hands entry to the keyboard the device already has: the OS
+          numeric pad on a phone, the real keyboard on a PC. A custom grid of keys was
+          worse than both -- on desktop it replaced a keyboard sitting right there, and on
+          a phone it was one more layout to learn for no gain over the system one.
         */}
         <div className="flex items-baseline gap-2 border-b-2 border-accent pb-3">
           <span className="font-mono text-[13px] font-medium text-ink-3">Rp</span>
           <Input
             autoFocus
-            inputMode="none"
+            inputMode="numeric"
             placeholder="0"
             aria-label="Nominal"
             value={amountText}
@@ -168,8 +165,6 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
             )}
           />
         </div>
-
-        <Keypad value={amountDigits} onChange={(next) => setAmountText(formatAmountInput(next))} />
 
         <Field label="Tempat" hint="opsional">
           <Input
