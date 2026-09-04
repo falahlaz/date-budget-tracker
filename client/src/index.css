@@ -379,6 +379,28 @@
   }
 }
 
+/*
+ * Sheet entry. Declared here rather than inline because Tailwind's animate-[...] needs a
+ * real @keyframes name, and both halves have to share a timing to feel like one motion.
+ */
+@keyframes sheet-rise {
+  from {
+    transform: translateY(101%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes sheet-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

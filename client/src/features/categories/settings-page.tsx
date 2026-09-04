@@ -3,15 +3,31 @@ import { useState } from 'react';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
 import { LoadingBlock } from '@/components/ui/feedback';
 import { Field, Input } from '@/components/ui/input';
+import { SectionHead, Segmented } from '@/components/ui/section';
 import { Sheet } from '@/components/ui/sheet';
 import { useAuth } from '@/features/auth/auth-context';
 import { ApiError, api } from '@/lib/api';
+import { useTheme, type ThemePreference } from '@/lib/theme';
 import { useArchiveCategory, useCategories, useCreateCategory } from './hooks';
 
 const APP_VERSION = '1.0.0';
+
+/**
+ * Mirrors UNCATEGORISED_COLOR on the server (reports/engine/aggregate.ts).
+ *
+ * It is only the *starting* value of the picker: a category left on it would be
+ * indistinguishable from uncategorised spend in the donut, so the palette deliberately
+ * excludes it and the server picks a real colour when none is sent.
+ */
+const UNCATEGORISED_COLOR = '#6E7290';
+
+const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = [
+  { value: 'light', label: 'Terang' },
+  { value: 'dark', label: 'Gelap' },
+  { value: 'system', label: 'Sistem' },
+];
 
 /** S9 Settings (PRD 9.2): categories, password, sign out, version. */
 export function SettingsPage() {
@@ -22,8 +38,9 @@ export function SettingsPage() {
 
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState('#64748B');
+  const [newColor, setNewColor] = useState(UNCATEGORISED_COLOR);
   const [changingPassword, setChangingPassword] = useState(false);
+  const { preference, resolved, setTheme } = useTheme();
 
   const addCategory = async () => {
     try {
@@ -38,69 +55,97 @@ export function SettingsPage() {
 
   return (
     <>
-      <PageHeader title="Pengaturan" subtitle={user?.email} />
+      <PageHeader eyebrow={user?.email} title="Pengaturan" />
 
-      <div className="flex flex-col gap-3">
-        <Card>
-          <CardHeader
-            title="Kategori"
-            description="Kategori yang diarsip ga muncul lagi pas nyatat, tapi pengeluaran lama tetap kebaca."
-            action={
-              <Button variant="secondary" size="icon" onClick={() => setAdding(true)} aria-label="Tambah kategori">
-                <Plus className="h-4 w-4" />
-              </Button>
-            }
-          />
+      <section className="mb-7">
+        <SectionHead
+          title="Tampilan"
+          action={
+            <Segmented
+              label="Tema"
+              value={preference}
+              onChange={setTheme}
+              options={THEME_OPTIONS}
+            />
+          }
+        />
+        <p className="text-[11.5px] text-ink-3">
+          {preference === 'system'
+            ? `Ikut setelan perangkat — sekarang ${resolved === 'dark' ? 'gelap' : 'terang'}.`
+            : 'Pilihan ini menang atas setelan perangkat.'}
+        </p>
+      </section>
 
-          {categories.isLoading ? (
-            <LoadingBlock />
-          ) : (
-            <ul className="divide-y divide-line">
-              {(categories.data ?? []).map((category) => (
-                <li key={category.id} className="flex items-center gap-3 py-2">
-                  <span
-                    aria-hidden
-                    className="h-3 w-3 shrink-0 rounded-full"
-                    style={{ backgroundColor: category.color }}
-                  />
-                  <span className="flex-1 text-sm text-ink">{category.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    aria-label={`Arsipkan ${category.name}`}
-                    onClick={() => {
-                      archiveCategory.mutate(category.id);
-                      toast.success(`${category.name} diarsipkan`);
-                    }}
-                  >
-                    <Archive className="h-4 w-4" />
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Card>
-
-        <Card>
-          <CardHeader title="Akun" />
-          <div className="flex flex-col gap-2">
-            <Button variant="secondary" onClick={() => setChangingPassword(true)}>
-              Ganti password
+      <section className="mb-7">
+        <SectionHead
+          title="Kategori"
+          action={
+            <Button
+              variant="secondary"
+              size="icon"
+              onClick={() => setAdding(true)}
+              aria-label="Tambah kategori"
+            >
+              <Plus className="h-4 w-4" />
             </Button>
-            <Button variant="ghost" onClick={() => void logout()}>
-              <LogOut className="h-4 w-4" />
-              Keluar
-            </Button>
-          </div>
-        </Card>
+          }
+        />
+        <p className="mb-2 text-[11.5px] text-ink-3">
+          Kategori yang diarsip ga muncul lagi pas nyatat, tapi pengeluaran lama tetap kebaca.
+        </p>
 
-        <p className="text-center text-xs text-ink-subtle">datebud v{APP_VERSION}</p>
-      </div>
+        {categories.isLoading ? (
+          <LoadingBlock />
+        ) : (
+          <ul className="divide-y divide-line">
+            {(categories.data ?? []).map((category) => (
+              <li key={category.id} className="flex items-center gap-3 py-2">
+                <span
+                  aria-hidden
+                  className="h-2.5 w-2.5 shrink-0 rounded-full"
+                  style={{ backgroundColor: category.color }}
+                />
+                <span className="flex-1 text-sm text-ink">{category.name}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Arsipkan ${category.name}`}
+                  onClick={() => {
+                    archiveCategory.mutate(category.id);
+                    toast.success(`${category.name} diarsipkan`);
+                  }}
+                >
+                  <Archive className="h-4 w-4" />
+                </Button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section className="mb-7">
+        <SectionHead title="Akun" />
+        <div className="flex flex-col gap-2">
+          <Button variant="secondary" onClick={() => setChangingPassword(true)}>
+            Ganti password
+          </Button>
+          <Button variant="ghost" onClick={() => void logout()}>
+            <LogOut className="h-4 w-4" />
+            Keluar
+          </Button>
+        </div>
+      </section>
+
+      <p className="label-micro text-center">datebud v{APP_VERSION}</p>
 
       <Sheet open={adding} onOpenChange={setAdding} title="Kategori baru">
         <div className="flex flex-col gap-4">
           <Field label="Nama" required>
-            <Input value={newName} maxLength={50} onChange={(event) => setNewName(event.target.value)} />
+            <Input
+              value={newName}
+              maxLength={50}
+              onChange={(event) => setNewName(event.target.value)}
+            />
           </Field>
           <Field label="Warna" hint="dipakai di chart">
             <Input
@@ -110,7 +155,11 @@ export function SettingsPage() {
               className="h-12 w-20 p-1"
             />
           </Field>
-          <Button size="lg" onClick={addCategory} disabled={newName.trim() === '' || createCategory.isPending}>
+          <Button
+            size="lg"
+            onClick={addCategory}
+            disabled={newName.trim() === '' || createCategory.isPending}
+          >
             Tambah
           </Button>
         </div>
@@ -160,9 +209,7 @@ function ChangePasswordSheet({ onClose }: { onClose: () => void }) {
             onChange={(event) => setNewPassword(event.target.value)}
           />
         </Field>
-        <p className="text-xs text-ink-muted">
-          Semua perangkat yang lagi login bakal ikut keluar.
-        </p>
+        <p className="text-xs text-ink-2">Semua perangkat yang lagi login bakal ikut keluar.</p>
         <Button size="lg" onClick={submit} disabled={newPassword.length < 8 || submitting}>
           {submitting ? 'Menyimpan…' : 'Ganti password'}
         </Button>

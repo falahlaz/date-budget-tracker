@@ -129,7 +129,6 @@ export function CategoryPicker({
           {(categories.data ?? []).map((category) => (
             <Chip
               key={category.id}
-              className="h-10"
               accent={category.color}
               selected={value === category.id}
               onClick={() => onChange(value === category.id ? null : category.id)}
@@ -137,7 +136,7 @@ export function CategoryPicker({
               {category.name}
             </Chip>
           ))}
-          <Chip className="h-10" onClick={() => setAdding(true)} aria-label="Tambah kategori baru">
+          <Chip ghost onClick={() => setAdding(true)} aria-label="Tambah kategori baru">
             <Plus className="h-4 w-4" />
             Baru
           </Chip>
