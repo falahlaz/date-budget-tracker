@@ -3,14 +3,45 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#4f46e5" />
+    <!--
+      Two theme-colors, not one: the browser chrome has to follow the same ground the page
+      paints, and a single value leaves the status bar showing the wrong theme.
+    -->
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#F5F6FB" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#24262E" />
     <meta name="description" content="Budget weekend yang ditentukan sama disiplin hari kerja." />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="datebud" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400..700&family=IBM+Plex+Mono:wght@400;500;600&family=Public+Sans:wght@400;500;600;700&display=swap"
+    />
+
     <title>datebud</title>
+
+    <!--
+      Stamp the saved theme before the first paint. This has to be inline and ahead of the
+      module script: reading localStorage from React would leave one frame of the wrong
+      ground on every hard reload. The key and the values are owned by src/lib/theme.ts.
+    -->
+    <script>
+      (function () {
+        try {
+          var saved = localStorage.getItem('datebud-theme');
+          if (saved === 'light' || saved === 'dark') {
+            document.documentElement.setAttribute('data-theme', saved);
+          }
+        } catch (error) {
+          /* Private mode denies storage; falling through leaves the OS in charge. */
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>
