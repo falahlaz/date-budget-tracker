@@ -21,7 +21,8 @@ disagreement between the code and those sections, the PRD wins.
 | ORM / DB | Prisma 6 · MySQL 8.0 (InnoDB, utf8mb4) |
 | Frontend | React 19 · Vite 6 · TypeScript, served by Nest in production |
 | State | TanStack Query v5 |
-| Styling | Tailwind CSS v4, mobile-first |
+| Styling | Tailwind CSS v4, mobile-first · "Periwinkle & Butter" (`requirements/datebud-theme.css`) |
+| Type | Fraunces (money) · Public Sans (UI) · IBM Plex Mono (receipts, micro labels) |
 | Charts | Recharts (lazy-loaded) |
 | Uploads | multer (memory) + sharp |
 | Auth | JWT HS256 + rotating refresh cookie + argon2id |
@@ -71,6 +72,7 @@ Open <http://localhost:5173>. The Vite dev server proxies `/api` to Nest.
 | `npm run test:e2e` | Full supertest suite — **needs a running MySQL** |
 | `npm --prefix client test` | Client unit tests |
 | `npm run cli -- user:create …` | Create a user + their default categories |
+| `npm run cli -- categories:recolour` | Move categories off the pre-revamp palette (`--dry-run` first) |
 | `npm run backup` | `mysqldump` + receipt storage into one dated tarball |
 | `npm run prisma:migrate` | Create/apply a migration in development |
 
@@ -104,7 +106,9 @@ Rules worth knowing before changing anything:
   Division uses `Math.floor` and the remainder is carried, never dropped.
 - **Negative is legal.** An expense is never rejected for exceeding a budget; deficits roll
   forward exactly like surpluses. The UI marks them red *and* labels them `OVER` — colour
-  is never the only signal.
+  is never the only signal. The same rule shapes the category palette: every colour clears
+  3:1 on both themes and sits at least ΔE 19 from its neighbours, and the donut still names
+  every slice.
 - **Carry-in never raises the daily rate.** It enters as `rolloverIn[1]` so the daily
   number stays stable and memorable month to month.
 - **Nothing derived is stored.** `carry_out_cached` is a pure optimisation; `NULL` means

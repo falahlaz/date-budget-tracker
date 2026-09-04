@@ -406,13 +406,29 @@ Saat migration pertama kali jalan, seed kategori default untuk user:
 
 | name | color | icon |
 |---|---|---|
-| Makan | `#EF4444` | `utensils` |
-| Nonton | `#8B5CF6` | `clapperboard` |
-| Transport | `#3B82F6` | `car` |
-| Ngopi | `#A16207` | `coffee` |
-| Aktivitas | `#10B981` | `ticket` |
-| Gift | `#EC4899` | `gift` |
-| Lain-lain | `#64748B` | `ellipsis` |
+| Makan | `#9D6DE4` | `utensils` |
+| Nonton | `#5B9432` | `clapperboard` |
+| Transport | `#C557D9` | `car` |
+| Ngopi | `#B17C00` | `coffee` |
+| Aktivitas | `#E24D98` | `ticket` |
+| Gift | `#E25662` | `gift` |
+| Lain-lain | `#858499` | `ellipsis` |
+
+Warna di atas bukan pilihan bebas. Warna kategori disimpan sebagai satu hex per row dan
+dipakai di light **dan** dark, jadi satu nilai harus jalan di dua-duanya: tiap warna wajib
+lolos rasio kontras 3:1 terhadap `#FFFFFF` dan `#2C2F39` sekaligus, dan jarak antar warna
+minimal ΔE 19 di CIE Lab supaya potongan donut tetap kebedain buat mata color-blind. Dua
+syarat itu dikunci sebagai property test di `default-categories.spec.ts`.
+
+`#858499` adalah warna "Tanpa kategori" (`UNCATEGORISED_COLOR`), jadi dia **tidak** ikut
+`CATEGORY_PALETTE` — kategori beneran yang kebagian warna itu bakal ketuker sama
+pengeluaran tanpa kategori di donut.
+
+Kategori yang sudah terlanjur pakai palet lama dipindah lewat:
+
+```bash
+npm run cli -- categories:recolour [--email=<email>] [--dry-run]
+```
 
 User seed dibuat lewat CLI command, **bukan** lewat endpoint publik:
 
