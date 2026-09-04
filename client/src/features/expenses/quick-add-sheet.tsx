@@ -4,7 +4,9 @@ import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Chip, ChipRow } from '@/components/ui/chip';
 import { Field, Input, Textarea } from '@/components/ui/input';
+import { Keypad } from '@/components/ui/keypad';
 import { Sheet } from '@/components/ui/sheet';
+import { cn } from '@/lib/cn';
 import { CategoryPicker } from '@/features/categories/category-picker';
 import { useCurrentWeekReport } from '@/features/reports/hooks';
 import { ApiError } from '@/lib/api';
@@ -41,6 +43,8 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
 
   const amount = parseAmountInput(amountText);
   const today = todayInJakarta();
+  // The keypad speaks digits; the field displays them grouped. One value, two views.
+  const amountDigits = amountText.replace(/\D/g, '');
 
   // 250ms debounce keeps the suggestion endpoint quiet while the user is mid-word (PRD 9.6).
   useEffect(() => {
@@ -143,21 +147,29 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
       title="Catat pengeluaran"
     >
       <div className="flex flex-col gap-4">
-        <Field label="Nominal" required>
-          <div className="relative">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-lg font-semibold text-ink-muted">
-              Rp
-            </span>
-            <Input
-              autoFocus
-              inputMode="numeric"
-              placeholder="0"
-              value={amountText}
-              onChange={(event) => setAmountText(formatAmountInput(event.target.value))}
-              className="tabular pl-11 text-2xl font-bold"
-            />
-          </div>
-        </Field>
+        {/*
+          A real input, not a display node, so a desktop keyboard still works and the
+          field stays focusable and labelled. inputMode="none" is what suppresses the OS
+          keyboard on touch: the keypad below is the entry method there, and a software
+          keyboard sliding up would bury it along with the Simpan button.
+        */}
+        <div className="flex items-baseline gap-2 border-b-2 border-accent pb-3">
+          <span className="font-mono text-[13px] font-medium text-ink-3">Rp</span>
+          <Input
+            autoFocus
+            inputMode="none"
+            placeholder="0"
+            aria-label="Nominal"
+            value={amountText}
+            onChange={(event) => setAmountText(formatAmountInput(event.target.value))}
+            className={cn(
+              'amount-display h-auto min-h-0 rounded-none border-0 bg-transparent p-0 text-[38px] focus:border-0',
+              amountText === '' && 'text-ink-3',
+            )}
+          />
+        </div>
+
+        <Keypad value={amountDigits} onChange={(next) => setAmountText(formatAmountInput(next))} />
 
         <Field label="Tempat" hint="opsional">
           <Input
@@ -172,14 +184,14 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
                 {suggestions.data.items.map((suggestion) => (
                   <Chip
                     key={suggestion.merchantKey}
-                    className="h-9"
                     selected={merchant.trim() === suggestion.displayName}
                     onClick={() => {
                       // Picking a place fills in what was used there last; the user can
                       // still override any of it (PRD 9.6).
                       setMerchant(suggestion.displayName);
                       setMerchantQuery(suggestion.displayName);
-                      if (suggestion.lastCategoryId !== null) setCategoryId(suggestion.lastCategoryId);
+                      if (suggestion.lastCategoryId !== null)
+                        setCategoryId(suggestion.lastCategoryId);
                       setPaymentMethod(suggestion.lastPaymentMethod);
                     }}
                   >
@@ -195,11 +207,10 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
 
         <Field label="Tanggal" required>
           <ChipRow>
-            <Chip className="h-10" selected={spentOn === today} onClick={() => setSpentOn(today)}>
+            <Chip selected={spentOn === today} onClick={() => setSpentOn(today)}>
               Hari ini
             </Chip>
             <Chip
-              className="h-10"
               selected={spentOn === shiftDate(today, -1)}
               onClick={() => setSpentOn(shiftDate(today, -1))}
             >
@@ -210,7 +221,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
               value={spentOn}
               max={today}
               onChange={(event) => setSpentOn(event.target.value)}
-              className="h-10 w-auto shrink-0 py-0"
+              className="w-auto shrink-0 py-0"
             />
           </ChipRow>
         </Field>
@@ -220,7 +231,6 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
             {PAYMENT_METHODS.map((method) => (
               <Chip
                 key={method}
-                className="h-10"
                 selected={paymentMethod === method}
                 onClick={() => setPaymentMethod(method)}
               >
@@ -260,13 +270,13 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
                 <img
                   src={URL.createObjectURL(file)}
                   alt={file.name}
-                  className="h-16 w-16 rounded-lg border border-line object-cover"
+                  className="h-16 w-16 rounded-md border border-line object-cover"
                 />
                 <button
                   type="button"
                   aria-label={`Hapus ${file.name}`}
                   onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
-                  className="absolute -right-2 -top-2 grid h-6 w-6 min-h-0 place-items-center rounded-full bg-ink text-surface"
+                  className="absolute -top-2 -right-2 grid h-6 w-6 min-h-0 place-items-center rounded-full bg-ink text-bg"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -289,8 +299,12 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
         </Field>
 
         {confirmingOverspend && overspendWarning !== null ? (
-          <p className="rounded-xl bg-warn-soft px-3 py-2.5 text-sm text-warn" role="alert">
-            Ini bikin weekend minggu ini minus {formatRupiah(overspendWarning)}. Tap Simpan lagi buat lanjut.
+          <p
+            className="rounded-md border border-warn/30 bg-warn-soft px-3.5 py-3 text-sm text-warn"
+            role="alert"
+          >
+            Ini bikin weekend minggu ini minus {formatRupiah(overspendWarning)}. Tap Simpan lagi
+            buat lanjut.
           </p>
         ) : null}
 
