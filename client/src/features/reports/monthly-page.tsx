@@ -12,10 +12,11 @@ import {
   YAxis,
 } from 'recharts';
 import { PageHeader } from '@/components/app-shell';
-import { Button } from '@/components/ui/button';
-import { Card, CardHeader } from '@/components/ui/card';
+import { Button, StepButton } from '@/components/ui/button';
+import { Card } from '@/components/ui/card';
 import { EmptyState, ErrorState, LoadingBlock, Meter } from '@/components/ui/feedback';
 import { Money, OverBadge } from '@/components/ui/money';
+import { SectionHead, Segmented } from '@/components/ui/section';
 import { cn } from '@/lib/cn';
 import {
   formatCompactRupiah,
@@ -34,24 +35,27 @@ export function MonthlyPage() {
 
   return (
     <>
-      <PageHeader title="Bulan ini" />
+      <PageHeader eyebrow="Rincian bulanan" title="Bulan" />
 
-      <div className="mb-3 flex items-center gap-2">
-        <Button variant="secondary" size="icon" onClick={() => setPeriod(shiftPeriod(period, -1))} aria-label="Bulan sebelumnya">
+      <div className="mb-6 flex items-center justify-between gap-2">
+        <StepButton onClick={() => setPeriod(shiftPeriod(period, -1))} aria-label="Bulan sebelumnya">
           ‹
-        </Button>
-        <span className="flex-1 text-center text-sm font-semibold text-ink">
-          {formatPeriodLong(period)}
-        </span>
-        <Button
-          variant="secondary"
-          size="icon"
+        </StepButton>
+        <div className="min-w-0 text-center">
+          <div className="text-[15px] font-semibold text-ink">{formatPeriodLong(period)}</div>
+          {data?.hasBudget ? (
+            <div className="mt-0.5 text-[11.5px] text-ink-3">
+              {data.weekdayCount} hari weekday · {formatRupiah(data.dailyWeekdayRate)}/hari
+            </div>
+          ) : null}
+        </div>
+        <StepButton
           onClick={() => setPeriod(shiftPeriod(period, 1))}
           disabled={period >= currentPeriod()}
           aria-label="Bulan berikutnya"
         >
           ›
-        </Button>
+        </StepButton>
       </div>
 
       {isLoading ? (
@@ -59,7 +63,7 @@ export function MonthlyPage() {
       ) : error ? (
         <ErrorState message={(error as Error).message} onRetry={() => refetch()} />
       ) : !data ? null : (
-        <div className="flex flex-col gap-3">
+        <>
           <SummaryCard report={data} />
           <WeeklyTable report={data} />
           <CategoryDonut report={data} />
@@ -67,7 +71,7 @@ export function MonthlyPage() {
           <MerchantRanking report={data} period={period} />
           <TopExpenses report={data} />
           <PaymentMethods report={data} />
-        </div>
+        </>
       )}
     </>
   );
@@ -76,12 +80,13 @@ export function MonthlyPage() {
 function SummaryCard({ report }: { report: MonthReport }) {
   if (!report.hasBudget) {
     return (
-      <Card className="border-brand/30 bg-brand-soft">
+      <Card className="mb-7 border-accent-line bg-accent-soft">
         <p className="text-sm font-semibold text-ink">Bulan ini belum ada budget</p>
-        <p className="mt-1 text-xs text-ink-muted">
-          Total terpakai {formatRupiah(report.totalSpent)}. Set budget biar angka jatah harian muncul.
+        <p className="mt-1 text-xs text-ink-2">
+          Total terpakai {formatRupiah(report.totalSpent)}. Set budget biar angka jatah harian
+          muncul.
         </p>
-        <Button asChild size="md" className="mt-3">
+        <Button asChild size="md" className="mt-4">
           <Link to="/budget">Set budget</Link>
         </Button>
       </Card>
@@ -90,20 +95,27 @@ function SummaryCard({ report }: { report: MonthReport }) {
 
   const available = report.monthlyBudget + report.carryIn;
   const paceRatio = report.daysTotal > 0 ? report.daysElapsed / report.daysTotal : 0;
+  const spentRatio = available > 0 ? report.totalSpent / available : 0;
+  const aheadBy = Math.round((paceRatio - spentRatio) * 1000) / 10;
 
   return (
-    <Card>
-      <div className="flex items-baseline justify-between gap-3">
-        <div>
-          <p className="text-xs font-medium text-ink-muted">Sisa bulan ini</p>
-          <p className="tabular mt-0.5 text-3xl font-bold text-ink">
+    <Card className="mb-7">
+      <div className="flex items-end justify-between gap-4">
+        <div className="min-w-0">
+          <div className="label-micro mb-1.5 text-[10px] tracking-[0.14em]">Sisa bulan ini</div>
+          <p className="amount-display text-[32px]">
             <Money amount={report.spendableRemaining} showOverBadge={false} />
           </p>
         </div>
-        {report.isOverspent ? <OverBadge /> : null}
+        <div className="shrink-0 text-right">
+          <div className="label-micro mb-1.5 text-[10px] tracking-[0.14em]">Terpakai</div>
+          <p className="tabular font-mono text-sm font-medium text-ink">
+            {formatRupiah(report.totalSpent)}
+          </p>
+        </div>
       </div>
 
-      <div className="mt-4">
+      <div className="mt-5">
         <Meter
           value={report.totalSpent}
           max={available}
@@ -111,32 +123,44 @@ function SummaryCard({ report }: { report: MonthReport }) {
           size="lg"
           fillClassName={report.isOverspent ? 'bg-neg' : 'bg-accent'}
         />
-        <div className="mt-1.5 flex justify-between text-[11px] text-ink-muted">
-          <span>{formatRupiah(report.totalSpent)} terpakai</span>
-          <span>dari {formatRupiah(available)}</span>
+        <div className="mt-2.5 flex items-baseline justify-between gap-3 text-[11.5px] text-ink-3">
+          <span>
+            {Math.round(spentRatio * 100)}% budget terpakai di hari ke-{report.daysElapsed}
+          </span>
+          {/* The pace tick alone only says "behind" or "ahead"; the figure says by how much. */}
+          {available > 0 ? (
+            <span className={aheadBy >= 0 ? 'text-pos' : 'text-neg'}>
+              <b className="font-semibold">
+                {aheadBy >= 0 ? 'Lebih hemat' : 'Lebih boros'} {Math.abs(aheadBy).toFixed(1)}%
+              </b>{' '}
+              dari pace
+            </span>
+          ) : null}
         </div>
-        <p className="mt-1 text-[11px] text-ink-subtle">
-          Garis penanda = seharusnya sampai hari ke-{report.daysElapsed} dari {report.daysTotal}.
-        </p>
       </div>
 
-      <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
-        <Stat label="Budget" value={formatCompactRupiah(report.monthlyBudget)} />
-        <Stat label="Carry-in" value={formatCompactRupiah(report.carryIn)} tone={report.carryIn < 0 ? 'over' : undefined} />
-        <Stat label="Jatah/hari" value={formatCompactRupiah(report.dailyWeekdayRate)} />
+      <dl className="mt-4 flex items-baseline justify-between gap-3 border-t border-line pt-3.5 text-[11.5px] text-ink-3">
+        <div className="flex items-baseline gap-1.5">
+          <dt>Budget</dt>
+          <dd className="tabular font-semibold text-ink">
+            {formatCompactRupiah(report.monthlyBudget)}
+          </dd>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <dt>Carry-in</dt>
+          <dd
+            className={cn(
+              'tabular font-semibold',
+              report.carryIn < 0 ? 'text-neg' : report.carryIn > 0 ? 'text-pos' : 'text-ink',
+            )}
+          >
+            {report.carryIn > 0 ? '+' : ''}
+            {formatCompactRupiah(report.carryIn)}
+          </dd>
+        </div>
+        {report.isOverspent ? <OverBadge /> : null}
       </dl>
     </Card>
-  );
-}
-
-function Stat({ label, value, tone }: { label: string; value: string; tone?: 'over' }) {
-  return (
-    <div className="rounded-xl bg-surface-sunken px-2 py-2">
-      <dt className="text-[10px] text-ink-subtle">{label}</dt>
-      <dd className={cn('tabular mt-0.5 text-sm font-semibold', tone === 'over' ? 'text-over' : 'text-ink')}>
-        {value}
-      </dd>
-    </div>
   );
 }
 
@@ -145,55 +169,104 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: 'ov
  *
  * Columns match Fixture B exactly so the numbers can be checked against the spec by eye.
  * It scrolls horizontally rather than wrapping, because collapsing a row would break the
- * left-to-right reading of the calculation.
+ * left-to-right reading of the calculation. The mask on the right edge is the affordance
+ * that says so -- a scrollbar does not appear on touch until you already scrolled.
  */
 function WeeklyTable({ report }: { report: MonthReport }) {
   return (
-    <Card>
-      <CardHeader title="Rincian per minggu" description="Geser ke samping buat lihat semua kolom" />
+    <section className="mb-7">
+      <SectionHead title="Per minggu" />
 
-      <div className="-mx-4 overflow-x-auto px-4">
-        <table className="tabular w-full min-w-[38rem] border-collapse text-right text-xs">
+      <div
+        className="-mx-5 overflow-x-auto px-5 pb-1"
+        style={{
+          maskImage: 'linear-gradient(to right, #000 0, #000 calc(100% - 26px), transparent 100%)',
+          WebkitMaskImage:
+            'linear-gradient(to right, #000 0, #000 calc(100% - 26px), transparent 100%)',
+        }}
+      >
+        <table className="tabular w-full min-w-[30rem] border-collapse text-right font-mono text-[11.5px]">
           <thead>
-            <tr className="border-b border-line text-ink-subtle">
-              <th scope="col" className="py-2 text-left font-medium">Minggu</th>
-              <th scope="col" className="py-2 font-medium">Budget</th>
-              <th scope="col" className="py-2 font-medium">Weekday</th>
-              <th scope="col" className="py-2 font-medium">Rollover</th>
-              <th scope="col" className="py-2 font-medium">Weekend</th>
-              <th scope="col" className="py-2 font-medium">Terpakai</th>
-              <th scope="col" className="py-2 font-medium">Sisa</th>
+            <tr className="border-b border-line-strong">
+              {['W', 'Budget', 'Weekday', 'Rollover', 'Weekend', 'Kepakai', 'Sisa'].map(
+                (heading, index) => (
+                  <th
+                    key={heading}
+                    scope="col"
+                    className={cn(
+                      'py-2.5 pr-2 text-[9.5px] font-medium tracking-[0.1em] text-ink-3 uppercase',
+                      index === 0 ? 'pr-2 pl-0 text-left' : null,
+                      index === 6 ? 'pr-0' : null,
+                    )}
+                  >
+                    {heading}
+                  </th>
+                ),
+              )}
             </tr>
           </thead>
           <tbody>
             {report.weeks.map((week) => (
               <tr
                 key={week.weekIndex}
-                className={cn('border-b border-line last:border-0', week.isCurrent && 'bg-brand-soft')}
+                className={cn(
+                  'border-b border-line last:border-0',
+                  week.isCurrent && '[&>*]:bg-accent-soft',
+                )}
               >
-                <th scope="row" className="py-2 text-left font-medium text-ink">
+                <th
+                  scope="row"
+                  className="rounded-l-xs py-2.5 pr-2 text-left font-medium text-ink"
+                >
                   W{week.weekIndex}
-                  <span className="block text-[10px] font-normal text-ink-subtle">
+                  <span className="block text-[9px] font-normal text-ink-3">
                     {formatDayShort(week.startDate)}–{formatDayShort(week.endDate)}
                   </span>
                 </th>
-                <td className="py-2 text-ink-muted">{formatCompactRupiah(week.weekBudget)}</td>
-                <td className="py-2 text-ink-muted">{formatCompactRupiah(week.weekdaySpent)}</td>
-                <td className={cn('py-2', week.rolloverIn < 0 ? 'text-over' : 'text-ink-muted')}>
+                <td className="py-2.5 pr-2 text-ink-2">{formatCompactRupiah(week.weekBudget)}</td>
+                <td className="py-2.5 pr-2 text-ink-2">
+                  {formatCompactRupiah(week.weekdaySpent)}
+                </td>
+                <td
+                  className={cn(
+                    'py-2.5 pr-2 font-medium',
+                    week.rolloverIn < 0
+                      ? 'text-neg'
+                      : week.rolloverIn > 0
+                        ? 'text-pos'
+                        : 'text-ink-2',
+                  )}
+                >
+                  {week.rolloverIn > 0 ? '+' : ''}
                   {formatCompactRupiah(week.rolloverIn)}
                 </td>
-                <td className="py-2 font-medium text-ink">{formatCompactRupiah(week.weekendBudget)}</td>
-                <td className="py-2 text-ink-muted">{formatCompactRupiah(week.weekendSpent)}</td>
-                <td className={cn('py-2 font-semibold', week.weekRemaining < 0 ? 'text-over' : 'text-ink')}>
+                <td className="py-2.5 pr-2 font-medium text-ink">
+                  {formatCompactRupiah(week.weekendBudget)}
+                </td>
+                <td className="py-2.5 pr-2 text-ink-2">
+                  {formatCompactRupiah(week.weekendSpent)}
+                </td>
+                <td
+                  className={cn(
+                    'rounded-r-xs py-2.5 font-medium',
+                    week.weekRemaining < 0 ? 'text-neg' : 'text-pos',
+                  )}
+                >
+                  {week.weekRemaining > 0 ? '+' : ''}
                   {formatCompactRupiah(week.weekRemaining)}
-                  {week.weekRemaining < 0 ? <span className="ml-1 text-[9px] font-bold">OVER</span> : null}
                 </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
-    </Card>
+      {/* The Sisa column is signed, so the OVER badge that normally rides a negative
+          amount would repeat on every row. One legend covers the column instead. */}
+      <p className="mt-2 text-[11px] text-ink-3">
+        Kolom Sisa: <span className="font-medium text-neg">merah</span> = lewat dari budget
+        minggu itu.
+      </p>
+    </section>
   );
 }
 
@@ -201,72 +274,91 @@ function WeeklyTable({ report }: { report: MonthReport }) {
  * Spend by category (PRD 9.5, item 4) -- the answer to goal G1.
  *
  * Category colours are user-owned (PRD 7.4), so the chart cannot guarantee they are
- * distinguishable to a colourblind reader -- two of the seed colours are close. Identity
- * therefore never rests on the fill: every slice is named with its amount and share in the
- * legend beside it, and the segments are separated by a surface-coloured gap.
+ * distinguishable to a colourblind reader. Identity therefore never rests on the fill:
+ * every slice is named with its amount and share in the legend beside it, and the segments
+ * are separated by a surface-coloured gap.
  */
 function CategoryDonut({ report }: { report: MonthReport }) {
   if (report.byCategory.length === 0) {
     return (
-      <Card>
-        <CardHeader title="Uangnya lari ke mana" />
+      <section className="mb-7">
+        <SectionHead title="Uangnya lari ke mana" />
         <EmptyState title="Belum ada pengeluaran bulan ini" />
-      </Card>
+      </section>
     );
   }
 
   return (
-    <Card>
-      <CardHeader title="Uangnya lari ke mana" description={`Total ${formatRupiah(report.totalSpent)}`} />
+    <section className="mb-7">
+      <SectionHead
+        title="Uangnya lari ke mana"
+        action={
+          <span className="tabular font-mono text-xs text-ink-2">
+            {formatCompactRupiah(report.totalSpent)}
+          </span>
+        }
+      />
 
-      <div className="h-52 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <PieChart>
-            <Pie
-              data={report.byCategory}
-              dataKey="amount"
-              nameKey="name"
-              innerRadius="58%"
-              outerRadius="88%"
-              paddingAngle={2}
-              stroke="var(--color-surface-raised)"
-              strokeWidth={2}
-              isAnimationActive={false}
+      <div className="flex items-center gap-5">
+        <div className="h-[132px] w-[132px] shrink-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie
+                data={report.byCategory}
+                dataKey="amount"
+                nameKey="name"
+                innerRadius="62%"
+                outerRadius="92%"
+                paddingAngle={2}
+                stroke="var(--bg)"
+                strokeWidth={2}
+                isAnimationActive={false}
+              >
+                {report.byCategory.map((slice) => (
+                  <Cell key={slice.categoryId ?? 'none'} fill={slice.color} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number, name: string) => [formatRupiah(value), name]}
+                contentStyle={{
+                  borderRadius: 14,
+                  border: '1px solid var(--border)',
+                  background: 'var(--surface)',
+                  color: 'var(--text)',
+                  fontSize: 12,
+                  boxShadow: 'var(--sh-md)',
+                }}
+                itemStyle={{ color: 'var(--text)' }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        <ul className="flex min-w-0 flex-1 flex-col gap-2">
+          {report.byCategory.map((slice) => (
+            <li
+              key={slice.categoryId ?? 'none'}
+              className="grid grid-cols-[9px_1fr_auto] items-center gap-2.5 text-[12.5px]"
             >
-              {report.byCategory.map((slice) => (
-                <Cell key={slice.categoryId ?? 'none'} fill={slice.color} />
-              ))}
-            </Pie>
-            <Tooltip
-              formatter={(value: number, name: string) => [formatRupiah(value), name]}
-              contentStyle={{
-                borderRadius: 12,
-                border: '1px solid var(--color-line)',
-                background: 'var(--color-surface-raised)',
-                fontSize: 12,
-              }}
-            />
-          </PieChart>
-        </ResponsiveContainer>
+              <span
+                aria-hidden
+                className="h-[9px] w-[9px] shrink-0 rounded-[2px]"
+                style={{ backgroundColor: slice.color }}
+              />
+              <span className="truncate text-ink-2">{slice.name}</span>
+              <span className="shrink-0 text-right">
+                <span className="tabular block font-mono text-[11.5px] text-ink">
+                  {formatCompactRupiah(slice.amount)}
+                </span>
+                <span className="tabular block font-mono text-[10.5px] text-ink-3">
+                  {Math.round(slice.share * 100)}%
+                </span>
+              </span>
+            </li>
+          ))}
+        </ul>
       </div>
-
-      <ul className="mt-2 flex flex-col gap-1.5">
-        {report.byCategory.map((slice) => (
-          <li key={slice.categoryId ?? 'none'} className="flex items-center gap-2 text-sm">
-            <span
-              aria-hidden
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: slice.color }}
-            />
-            <span className="flex-1 truncate text-ink">{slice.name}</span>
-            <span className="tabular shrink-0 text-ink-muted">{Math.round(slice.share * 100)}%</span>
-            <span className="tabular w-24 shrink-0 text-right font-medium text-ink">
-              {formatRupiah(slice.amount)}
-            </span>
-          </li>
-        ))}
-      </ul>
-    </Card>
+    </section>
   );
 }
 
@@ -278,12 +370,12 @@ function WeekdayWeekendBar({ report }: { report: MonthReport }) {
   ];
 
   return (
-    <Card>
-      <CardHeader title="Hari kerja vs weekend" />
+    <section className="mb-7">
+      <SectionHead title="Hari kerja vs weekend" />
 
-      <div className="h-40 w-full">
+      <div className="h-32 w-full">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data} layout="vertical" margin={{ left: 0, right: 56, top: 4, bottom: 4 }}>
+          <BarChart data={data} layout="vertical" margin={{ left: 0, right: 64, top: 4, bottom: 4 }}>
             <XAxis type="number" hide />
             <YAxis
               type="category"
@@ -291,25 +383,29 @@ function WeekdayWeekendBar({ report }: { report: MonthReport }) {
               axisLine={false}
               tickLine={false}
               width={80}
-              tick={{ fill: 'var(--color-ink-muted)', fontSize: 12 }}
+              tick={{ fill: 'var(--text-2)', fontSize: 12 }}
             />
             <Bar
               dataKey="amount"
-              fill="var(--color-brand)"
               radius={[4, 4, 4, 4]}
               barSize={22}
               isAnimationActive={false}
               label={{
                 position: 'right',
                 formatter: (value: number) => formatCompactRupiah(value),
-                fill: 'var(--color-ink)',
+                fill: 'var(--text)',
                 fontSize: 12,
               }}
-            />
+            >
+              {/* Butter is the weekend marker everywhere else in the app; it would be odd
+                  for the one chart that is literally about the weekend to opt out. */}
+              <Cell fill="var(--accent)" />
+              <Cell fill="var(--butter)" />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </Card>
+    </section>
   );
 }
 
@@ -325,32 +421,37 @@ function MerchantRanking({ report, period }: { report: MonthReport; period: stri
 
   if (report.byMerchant.length === 0) {
     return (
-      <Card>
-        <CardHeader title="Tempat paling nguras" />
-        <EmptyState title="Belum ada tempat tercatat" description="Isi kolom tempat pas nyatat biar ranking ini kebaca." />
-      </Card>
+      <section className="mb-7">
+        <SectionHead title="Tempat paling nguras" />
+        <EmptyState
+          title="Belum ada tempat tercatat"
+          description="Isi kolom tempat pas nyatat biar ranking ini kebaca."
+        />
+      </section>
     );
   }
 
   const rows = [...report.byMerchant].sort((a, b) => {
     // The "no place" bucket always stays at the bottom, whichever sort is active (PRD 6.18).
-    if ((a.merchantKey === null) !== (b.merchantKey === null)) return a.merchantKey === null ? 1 : -1;
+    if ((a.merchantKey === null) !== (b.merchantKey === null))
+      return a.merchantKey === null ? 1 : -1;
     return b[sortBy] - a[sortBy];
   });
 
   return (
-    <Card>
-      <CardHeader
+    <section className="mb-7">
+      <SectionHead
         title="Tempat paling nguras"
         action={
-          <div className="flex rounded-lg bg-surface-sunken p-0.5 text-[11px] font-semibold">
-            <ToggleButton active={sortBy === 'amount'} onClick={() => setSortBy('amount')}>
-              Total
-            </ToggleButton>
-            <ToggleButton active={sortBy === 'avgAmount'} onClick={() => setSortBy('avgAmount')}>
-              Rata-rata
-            </ToggleButton>
-          </div>
+          <Segmented
+            label="Urutkan tempat"
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+              { value: 'amount', label: 'Total' },
+              { value: 'avgAmount', label: 'Rata-rata' },
+            ]}
+          />
         }
       />
 
@@ -359,16 +460,23 @@ function MerchantRanking({ report, period }: { report: MonthReport; period: stri
           const content = (
             <>
               <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-medium text-ink">{row.displayName}</span>
-                <span className="text-xs text-ink-muted">
+                <span
+                  className={cn(
+                    'block truncate text-sm font-medium',
+                    row.merchantKey ? 'text-ink' : 'text-ink-3 italic',
+                  )}
+                >
+                  {row.displayName}
+                </span>
+                <span className="text-[11.5px] text-ink-3">
                   {row.count}× {row.categoryName ? `· ${row.categoryName}` : ''}
                 </span>
               </span>
               <span className="shrink-0 text-right">
-                <span className="tabular block text-sm font-semibold text-ink">
+                <span className="tabular block font-mono text-[13px] font-medium text-ink">
                   {formatRupiah(sortBy === 'amount' ? row.amount : row.avgAmount)}
                 </span>
-                <span className="tabular block text-xs text-ink-muted">
+                <span className="tabular block font-mono text-[10px] text-ink-3">
                   {sortBy === 'amount'
                     ? `${formatRupiah(row.avgAmount)}/kunjungan`
                     : `total ${formatRupiah(row.amount)}`}
@@ -383,42 +491,18 @@ function MerchantRanking({ report, period }: { report: MonthReport; period: stri
                 <Link
                   to={`/expenses?period=${period}&merchantKey=${encodeURIComponent(row.merchantKey)}`}
                   data-tap
-                  className="flex items-center gap-3 py-2.5 active:bg-surface-sunken"
+                  className="-mx-2 flex items-center gap-3 rounded-sm px-2 py-3 transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2"
                 >
                   {content}
                 </Link>
               ) : (
-                <div className="flex items-center gap-3 py-2.5">{content}</div>
+                <div className="flex items-center gap-3 py-3">{content}</div>
               )}
             </li>
           );
         })}
       </ul>
-    </Card>
-  );
-}
-
-function ToggleButton({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-pressed={active}
-      className={cn(
-        'min-h-0 rounded-md px-2.5 py-1.5 transition-colors',
-        active ? 'bg-surface-raised text-ink shadow-sm' : 'text-ink-muted',
-      )}
-    >
-      {children}
-    </button>
+    </section>
   );
 }
 
@@ -426,29 +510,33 @@ function TopExpenses({ report }: { report: MonthReport }) {
   if (report.topExpenses.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader title="Pengeluaran terbesar" />
+    <section className="mb-7">
+      <SectionHead title="Pengeluaran terbesar" />
       <ul className="divide-y divide-line">
         {report.topExpenses.map((expense) => (
           <li key={expense.id}>
-            <Link to={`/expenses/${expense.id}`} data-tap className="flex items-center gap-3 py-2.5">
+            <Link
+              to={`/expenses/${expense.id}`}
+              data-tap
+              className="-mx-2 flex items-center gap-3 rounded-sm px-2 py-3 transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2"
+            >
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium text-ink">
                   {expense.merchant ?? expense.categoryName ?? 'Tanpa tempat'}
                 </span>
-                <span className="block truncate text-xs text-ink-muted">
+                <span className="block truncate text-[11.5px] text-ink-3">
                   {formatDayShort(expense.spentOn)}
                   {expense.note ? ` · ${expense.note}` : ''}
                 </span>
               </span>
-              <span className="tabular shrink-0 text-sm font-semibold text-ink">
+              <span className="tabular shrink-0 font-mono text-[13px] font-medium text-ink">
                 {formatRupiah(expense.amount)}
               </span>
             </Link>
           </li>
         ))}
       </ul>
-    </Card>
+    </section>
   );
 }
 
@@ -456,21 +544,21 @@ function PaymentMethods({ report }: { report: MonthReport }) {
   if (report.byPaymentMethod.length === 0) return null;
 
   return (
-    <Card>
-      <CardHeader title="Metode bayar" />
+    <section>
+      <SectionHead title="Metode bayar" />
       <ul className="divide-y divide-line">
         {report.byPaymentMethod.map((row) => (
-          <li key={row.paymentMethod} className="flex items-center gap-3 py-2">
+          <li key={row.paymentMethod} className="flex items-center gap-3 py-3">
             <span className="flex-1 text-sm text-ink">
               {PAYMENT_METHOD_LABELS[row.paymentMethod as PaymentMethod] ?? row.paymentMethod}
             </span>
-            <span className="text-xs text-ink-muted">{row.count}×</span>
-            <span className="tabular w-24 text-right text-sm font-medium text-ink">
+            <span className="font-mono text-[11px] text-ink-3">{row.count}×</span>
+            <span className="tabular w-24 text-right font-mono text-[13px] font-medium text-ink">
               {formatRupiah(row.amount)}
             </span>
           </li>
         ))}
       </ul>
-    </Card>
+    </section>
   );
 }
