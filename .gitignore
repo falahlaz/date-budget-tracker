@@ -13,7 +13,9 @@ client/dist/
 .env.*.local
 
 # receipt storage (bind-mounted volume)
-storage/
+# Anchored: an unanchored "storage/" also matches src/modules/receipts/storage/,
+# which silently kept the storage driver itself out of the repo.
+/storage/
 
 # backups
 backups/
