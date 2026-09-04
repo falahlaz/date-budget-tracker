@@ -11,42 +11,44 @@ const TABS = [
 ];
 
 /**
- * The app frame (PRD 9.2): four bottom tabs with a floating add button in the middle.
+ * The app frame (PRD 9.2): four bottom tabs and the add button, all inside one bar.
  *
- * Both live at the bottom of the screen because that is the only region a thumb reaches
- * without re-gripping the phone, and adding an expense has to take seconds (goal G3).
+ * Everything lives at the bottom because that is the only region a thumb reaches without
+ * re-gripping the phone, and adding an expense has to take seconds (goal G3).
+ *
+ * The add button used to float above the bar. It no longer does: a circle hovering over a
+ * scrolling list sits on top of exactly the thing the list exists to show -- the amounts
+ * in the last row. Inside the bar it is just as reachable and covers nothing.
  */
 export function AppShell({ children }: { children: ReactNode }) {
   const navigate = useNavigate();
   const location = useLocation();
 
   return (
-    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col bg-surface-sunken">
-      <main className="flex-1 px-4 pb-28 pt-4">{children}</main>
+    <div className="mx-auto flex min-h-dvh w-full max-w-2xl flex-col bg-bg">
+      <main className="flex-1 px-5 pt-6 pb-28">{children}</main>
 
       <nav
         aria-label="Navigasi utama"
-        className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-2xl border-t border-line bg-surface pb-[env(safe-area-inset-bottom)]"
+        className="fixed inset-x-0 bottom-0 z-30 mx-auto w-full max-w-2xl border-t border-line pb-[env(safe-area-inset-bottom)] backdrop-blur-[16px]"
+        style={{ backgroundColor: 'color-mix(in srgb, var(--surface) 92%, transparent)' }}
       >
-        <ul className="grid grid-cols-5 items-center">
-          {TABS.slice(0, 2).map((tab) => (
+        <ul className="flex items-center gap-1 px-3 py-2">
+          {TABS.map((tab) => (
             <TabItem key={tab.to} {...tab} />
           ))}
 
-          <li className="flex justify-center">
+          <li className="flex shrink-0 pl-1.5">
             <button
               type="button"
               onClick={() => navigate('/expenses/new', { state: { background: location } })}
               aria-label="Catat pengeluaran"
-              className="-mt-6 grid h-14 w-14 place-items-center rounded-full bg-brand text-brand-ink shadow-lg shadow-brand/30 transition-transform active:scale-95"
+              className="grid h-11 w-13 place-items-center rounded-md bg-accent text-accent-on transition-transform duration-[var(--t-fast)] ease-[var(--ease-spring)] hover:-translate-y-px active:scale-[0.93]"
+              style={{ boxShadow: '0 6px 16px -8px color-mix(in srgb, var(--accent) 80%, transparent)' }}
             >
-              <Plus className="h-7 w-7" />
+              <Plus className="h-5 w-5" />
             </button>
           </li>
-
-          {TABS.slice(2).map((tab) => (
-            <TabItem key={tab.to} {...tab} />
-          ))}
         </ul>
       </nav>
     </div>
@@ -65,14 +67,16 @@ function TabItem({
   end: boolean;
 }) {
   return (
-    <li>
+    <li className="min-w-0 flex-1">
       <NavLink
         to={to}
         end={end}
+        data-tap
         className={({ isActive }) =>
           cn(
-            'flex h-16 flex-col items-center justify-center gap-1 text-[11px] font-medium transition-colors',
-            isActive ? 'text-brand-text' : 'text-ink-muted',
+            'flex h-12 flex-col items-center justify-center gap-1 rounded-sm text-[10.5px] font-medium',
+            'transition-colors duration-[var(--t-fast)] ease-out active:scale-95',
+            isActive ? 'text-accent-ink' : 'text-ink-3',
           )
         }
       >
@@ -83,20 +87,29 @@ function TabItem({
   );
 }
 
+/**
+ * The screen header: a mono eyebrow over a Fraunces title.
+ *
+ * The eyebrow is where the date or period lives, so the title can stay a name rather than
+ * growing into a sentence.
+ */
 export function PageHeader({
   title,
   subtitle,
+  eyebrow,
   action,
 }: {
   title: string;
   subtitle?: string;
+  eyebrow?: string;
   action?: ReactNode;
 }) {
   return (
-    <header className="mb-4 flex items-end justify-between gap-3">
-      <div>
-        <h1 className="text-xl font-bold text-ink">{title}</h1>
-        {subtitle ? <p className="mt-0.5 text-sm text-ink-muted">{subtitle}</p> : null}
+    <header className="mb-6 flex items-start justify-between gap-4">
+      <div className="min-w-0">
+        {eyebrow ? <div className="label-micro mb-2">{eyebrow}</div> : null}
+        <h1 className="title-display text-2xl text-ink">{title}</h1>
+        {subtitle ? <p className="mt-1 text-sm text-ink-2">{subtitle}</p> : null}
       </div>
       {action}
     </header>
