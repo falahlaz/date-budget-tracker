@@ -127,7 +127,7 @@ function Breakdown({ week }: { week: WeekReport }) {
           label={`Budget minggu (${week.weekdayDays} × ${formatRupiah(week.dailyWeekdayRate)})`}
           amount={week.weekBudget}
         />
-        <ReceiptLine label="Terpakai di weekday" amount={-week.weekdaySpent} tone="neg" signed />
+        <ReceiptLine label="Terpakai di weekday" amount={week.weekdaySpent} tone="neg" signed="minus" />
         <ReceiptLine
           label="Rollover dari minggu lalu"
           amount={week.rolloverIn}
@@ -138,7 +138,7 @@ function Breakdown({ week }: { week: WeekReport }) {
         <ReceiptRule />
 
         <ReceiptLine label="Budget weekend" amount={week.weekendBudget} strong />
-        <ReceiptLine label="Terpakai di weekend" amount={-week.weekendSpent} tone="neg" signed />
+        <ReceiptLine label="Terpakai di weekend" amount={week.weekendSpent} tone="neg" signed="minus" />
 
         <ReceiptRule double />
 

@@ -45,11 +45,16 @@ export function ReceiptLine({
   tone?: 'neutral' | 'pos' | 'neg';
   /** The subtotal lines a rule introduces: the label reads at full ink. */
   strong?: boolean;
-  /** Render an explicit + / − rather than a bare figure. */
-  signed?: boolean;
+  /**
+   * Render an explicit + / − rather than a bare figure.
+   *
+   * `'minus'` for a row that always takes away: spending nothing is still a subtraction,
+   * and negating it leaves -0, which is not `< 0` and would otherwise read "+ Rp 0".
+   */
+  signed?: boolean | 'minus';
 }) {
   const text = signed
-    ? `${amount < 0 ? '−' : '+'} ${formatRupiah(Math.abs(amount))}`
+    ? `${signed === 'minus' || amount < 0 ? '−' : '+'} ${formatRupiah(Math.abs(amount))}`
     : formatRupiah(amount);
 
   return (
