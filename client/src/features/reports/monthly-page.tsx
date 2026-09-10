@@ -66,7 +66,7 @@ export function MonthlyPage() {
         <>
           <SummaryCard report={data} />
           <WeeklyTable report={data} />
-          <CategoryDonut report={data} />
+          <CategoryDonut report={data} period={period} />
           <WeekdayWeekendBar report={data} />
           <MerchantRanking report={data} period={period} />
           <TopExpenses report={data} />
@@ -270,6 +270,14 @@ function WeeklyTable({ report }: { report: MonthReport }) {
   );
 }
 
+/** How many legend rows show before "Lihat semua". The donut always draws every slice. */
+const CATEGORY_LEGEND_PREVIEW = 5;
+
+/** Target of the toggle's aria-controls. One donut per screen, so a literal id is safe. */
+const CATEGORY_LEGEND_ID = 'category-legend';
+
+const CATEGORY_LEGEND_ROW = 'grid grid-cols-[9px_1fr_auto] items-center gap-2.5 text-[12.5px]';
+
 /**
  * Spend by category (PRD 9.5, item 4) -- the answer to goal G1.
  *
@@ -278,7 +286,10 @@ function WeeklyTable({ report }: { report: MonthReport }) {
  * every slice is named with its amount and share in the legend beside it, and the segments
  * are separated by a surface-coloured gap.
  */
-function CategoryDonut({ report }: { report: MonthReport }) {
+function CategoryDonut({ report, period }: { report: MonthReport; period: string }) {
+  // Sits above the empty-state return because a hook cannot follow a conditional return.
+  const [showAll, setShowAll] = useState(false);
+
   if (report.byCategory.length === 0) {
     return (
       <section className="mb-7">
@@ -287,6 +298,16 @@ function CategoryDonut({ report }: { report: MonthReport }) {
       </section>
     );
   }
+
+  // The server returns byCategory amount-desc with "Tanpa kategori" pinned last (PRD 6.18),
+  // so the head of the list is already "the biggest few" -- nothing to sort here.
+  const canTruncate = report.byCategory.length > CATEGORY_LEGEND_PREVIEW;
+  const legendRows = showAll
+    ? report.byCategory
+    : report.byCategory.slice(0, CATEGORY_LEGEND_PREVIEW);
+  const hiddenAmount = report.byCategory
+    .slice(CATEGORY_LEGEND_PREVIEW)
+    .reduce((sum, slice) => sum + slice.amount, 0);
 
   return (
     <section className="mb-7">
@@ -299,6 +320,8 @@ function CategoryDonut({ report }: { report: MonthReport }) {
         }
       />
 
+      {/* The legend is taller than the 132px donut once its rows are tap targets, so the
+          chart stays centred against it rather than hanging off the top. */}
       <div className="flex items-center gap-5">
         <div className="h-[132px] w-[132px] shrink-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -334,30 +357,67 @@ function CategoryDonut({ report }: { report: MonthReport }) {
           </ResponsiveContainer>
         </div>
 
-        <ul className="flex min-w-0 flex-1 flex-col gap-2">
-          {report.byCategory.map((slice) => (
-            <li
-              key={slice.categoryId ?? 'none'}
-              className="grid grid-cols-[9px_1fr_auto] items-center gap-2.5 text-[12.5px]"
-            >
-              <span
-                aria-hidden
-                className="h-[9px] w-[9px] shrink-0 rounded-[2px]"
-                style={{ backgroundColor: slice.color }}
-              />
-              <span className="truncate text-ink-2">{slice.name}</span>
-              <span className="shrink-0 text-right">
-                <span className="tabular block font-mono text-[11.5px] text-ink">
-                  {formatCompactRupiah(slice.amount)}
+        {/* No gap: every row is its own 44px tap target, which already spaces the list. */}
+        <ul id={CATEGORY_LEGEND_ID} className="flex min-w-0 flex-1 flex-col">
+          {legendRows.map((slice) => {
+            const content = (
+              <>
+                <span
+                  aria-hidden
+                  className="h-[9px] w-[9px] shrink-0 rounded-[2px]"
+                  style={{ backgroundColor: slice.color }}
+                />
+                <span className="truncate text-ink-2">{slice.name}</span>
+                <span className="shrink-0 text-right">
+                  <span className="tabular block font-mono text-[11.5px] text-ink">
+                    {formatCompactRupiah(slice.amount)}
+                  </span>
+                  <span className="tabular block font-mono text-[10.5px] text-ink-3">
+                    {Math.round(slice.share * 100)}%
+                  </span>
                 </span>
-                <span className="tabular block font-mono text-[10.5px] text-ink-3">
-                  {Math.round(slice.share * 100)}%
-                </span>
-              </span>
-            </li>
-          ))}
+              </>
+            );
+
+            return (
+              <li key={slice.categoryId ?? 'none'}>
+                {slice.categoryId !== null ? (
+                  <Link
+                    to={`/expenses?period=${period}&categoryId=${slice.categoryId}`}
+                    data-tap
+                    className={cn(
+                      CATEGORY_LEGEND_ROW,
+                      '-mx-2 rounded-sm px-2 transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2',
+                    )}
+                  >
+                    {content}
+                  </Link>
+                ) : (
+                  // Riwayat cannot express "no category", so this row does not pretend to be
+                  // a link. It keeps the 44px the links get from index.css so the list is even.
+                  <div className={cn(CATEGORY_LEGEND_ROW, 'min-h-11 px-2')}>{content}</div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       </div>
+
+      {canTruncate ? (
+        <Button
+          variant="secondary"
+          onClick={() => setShowAll((open) => !open)}
+          aria-expanded={showAll}
+          aria-controls={CATEGORY_LEGEND_ID}
+          className="mt-3 w-full text-xs font-medium"
+        >
+          {/* The collapsed rows still count towards the total in the section head, so the
+              label carries what they add up to -- otherwise the column reads as wrong. */}
+          {showAll
+            ? 'Ciutkan'
+            : `Lihat semua (${report.byCategory.length}) · +${formatCompactRupiah(hiddenAmount)}`}
+        </Button>
+      ) : null}
     </section>
   );
 }
