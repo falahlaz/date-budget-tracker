@@ -20,12 +20,24 @@ import { useInfiniteExpenses, type ExpenseFilters } from './hooks';
  */
 export function ExpenseListPage() {
   const [params, setParams] = useSearchParams();
-  const categories = useCategories();
+  // Archived categories still show up in the monthly donut, so a tap-through can land
+  // here filtering on one. Fetching them keeps that filter nameable and clearable.
+  const categories = useCategories(true);
 
   const period = params.get('period') ?? currentPeriod();
   const merchantKey = params.get('merchantKey') ?? undefined;
   const categoryId = params.get('categoryId') ? Number(params.get('categoryId')) : undefined;
   const dayType = (params.get('dayType') as ExpenseFilters['dayType']) ?? undefined;
+
+  const allCategories = categories.data ?? [];
+  const chipCategories = allCategories.filter((category) => !category.isArchived);
+  const selectedCategory = allCategories.find((category) => category.id === categoryId);
+  // Gated on isSuccess: while the list is still loading, every id looks unknown, and the
+  // pill would flash on screen for a category that does have a chip.
+  const orphanCategory =
+    categoryId !== undefined &&
+    categories.isSuccess &&
+    (!selectedCategory || selectedCategory.isArchived);
 
   const [searchText, setSearchText] = useState(params.get('q') ?? '');
   const [debouncedSearch, setDebouncedSearch] = useState(searchText);
@@ -48,6 +60,13 @@ export function ExpenseListPage() {
 
   const query = useInfiniteExpenses(filters);
   const sentinel = useRef<HTMLDivElement>(null);
+  const selectedChip = useRef<HTMLButtonElement>(null);
+
+  // The chip row scrolls sideways, so a category tapped from the monthly donut can land
+  // off-screen -- an active filter with nothing on screen to show for it.
+  useEffect(() => {
+    selectedChip.current?.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }, [categoryId, chipCategories.length]);
 
   // Load the next page as the bottom of the list comes into view.
   useEffect(() => {
@@ -128,9 +147,10 @@ export function ExpenseListPage() {
             Weekend
           </Chip>
 
-          {(categories.data ?? []).map((category) => (
+          {chipCategories.map((category) => (
             <Chip
               key={category.id}
+              ref={categoryId === category.id ? selectedChip : undefined}
               accent={category.color}
               selected={categoryId === category.id}
               onClick={() =>
@@ -141,6 +161,20 @@ export function ExpenseListPage() {
             </Chip>
           ))}
         </ChipRow>
+
+        {/* An archived (or stale bookmarked) category has no chip to switch it off, so the
+            filter would be invisible and unclearable without this. */}
+        {orphanCategory ? (
+          <button
+            type="button"
+            onClick={() => setParam('categoryId', undefined)}
+            className="inline-flex w-fit items-center gap-1.5 rounded-sm border border-accent bg-accent-soft px-3 py-1.5 text-xs font-medium text-accent-ink"
+          >
+            <Filter className="h-3.5 w-3.5" aria-hidden />
+            Kategori: {selectedCategory ? `${selectedCategory.name} (diarsip)` : 'terpilih'}
+            <X className="h-3.5 w-3.5" aria-hidden />
+          </button>
+        ) : null}
 
         {merchantKey ? (
           <button

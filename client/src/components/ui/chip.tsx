@@ -1,4 +1,4 @@
-import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode, Ref } from 'react';
 import { cn } from '@/lib/cn';
 
 export interface ChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
@@ -7,6 +7,8 @@ export interface ChipProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   accent?: string;
   /** A dashed outline for "add something new" affordances. */
   ghost?: boolean;
+  /** Forwarded to the button, so a caller can scroll one chip of a long row into view. */
+  ref?: Ref<HTMLButtonElement>;
 }
 
 /** A single-tap control: the fastest possible input for a small, known set of options. */
