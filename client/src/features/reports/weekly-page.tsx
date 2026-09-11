@@ -15,7 +15,7 @@ import { ExpenseRow } from '@/features/expenses/expense-row';
 import { useExpenses } from '@/features/expenses/hooks';
 import { cn } from '@/lib/cn';
 import { formatDateRange, formatDayShort, formatRupiah, formatWeekdayShort } from '@/lib/format';
-import { currentPeriod } from '@/lib/today';
+import { currentPeriod, todayInJakarta } from '@/lib/today';
 import type { DayRow, WeekReport } from '@/types/api';
 import { useCurrentWeekReport, useWeekReport } from './hooks';
 
@@ -102,6 +102,50 @@ function NoWeekdayBanner({ weekIndex }: { weekIndex: number }) {
   );
 }
 
+/** Where the week being viewed sits relative to today. */
+export type WeekTimeState = 'past' | 'current' | 'future';
+
+type WeekStatus = {
+  tone: 'over' | 'run' | 'ok' | 'idle';
+  label: string;
+  /** What happens to the remainder, phrased in the tense the week deserves. */
+  rollover: string;
+};
+
+/**
+ * The closing line of the receipt: how the week stands, and where its remainder goes.
+ *
+ * The arrows walk into weeks that have not happened yet, so "contains today or not" is one
+ * distinction short -- an unstarted week is not finished, it has not begun. `today` is a
+ * parameter rather than a call inside so the whole thing stays pure.
+ */
+export function weekStatus(
+  week: Pick<
+    WeekReport,
+    'startDate' | 'endDate' | 'period' | 'weekRemaining' | 'nextWeek'
+  >,
+  today: string,
+): WeekStatus {
+  const state: WeekTimeState =
+    today < week.startDate ? 'future' : today > week.endDate ? 'past' : 'current';
+
+  // On the last segment of a month the remainder becomes the month's carryOut, which feeds
+  // next month's W1 -- so naming "W{weekIndex + 1}" there points at a week that never exists.
+  const target =
+    week.nextWeek.period === week.period
+      ? `jadi rollover W${week.nextWeek.weekIndex}`
+      : 'jadi carry-over ke bulan depan';
+  const rollover = state === 'future' ? `nanti ${target}` : target;
+
+  // Over outranks the time state on purpose. A week whose remaining is already negative
+  // before it starts has had its allowance eaten by an incoming deficit, and "over budget"
+  // must never be carried by colour alone (PRD 9.1, 11).
+  if (week.weekRemaining < 0) return { tone: 'over', label: 'Over', rollover };
+  if (state === 'future') return { tone: 'idle', label: 'Akan datang', rollover };
+  if (state === 'current') return { tone: 'run', label: 'Berjalan', rollover };
+  return { tone: 'ok', label: 'Selesai', rollover };
+}
+
 /**
  * The receipt (PRD 9.4).
  *
@@ -110,15 +154,7 @@ function NoWeekdayBanner({ weekIndex }: { weekIndex: number }) {
  * weekend budget.
  */
 function Breakdown({ week }: { week: WeekReport }) {
-  // On the last segment of a month the remainder becomes the month's carryOut, which feeds
-  // next month's W1 -- so naming "W{weekIndex + 1}" there points at a week that never exists.
-  const rolloverTarget =
-    week.nextWeek.period === week.period
-      ? `jadi rollover W${week.nextWeek.weekIndex}`
-      : 'jadi carry-over ke bulan depan';
-
-  // A week that still contains today can still change; one that does not is final.
-  const isRunning = week.days.some((day) => day.isToday);
+  const status = weekStatus(week, todayInJakarta());
 
   return (
     <div className="mb-7">
@@ -148,14 +184,8 @@ function Breakdown({ week }: { week: WeekReport }) {
           amount={week.weekRemaining}
           note={
             <span className="inline-flex flex-wrap items-center gap-1.5">
-              {week.weekRemaining < 0 ? (
-                <StatusBadge tone="over">Over</StatusBadge>
-              ) : isRunning ? (
-                <StatusBadge tone="run">Berjalan</StatusBadge>
-              ) : (
-                <StatusBadge tone="ok">Selesai</StatusBadge>
-              )}
-              <span>{rolloverTarget}.</span>
+              <StatusBadge tone={status.tone}>{status.label}</StatusBadge>
+              <span>{status.rollover}.</span>
             </span>
           }
         />
