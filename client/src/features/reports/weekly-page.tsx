@@ -82,7 +82,7 @@ export function WeeklyPage() {
         </StepButton>
       </div>
 
-      {data.weekdayDays === 0 ? <NoWeekdayBanner /> : null}
+      {data.weekdayDays === 0 ? <NoWeekdayBanner weekIndex={data.weekIndex} /> : null}
       <Breakdown week={data} />
       <DayTable days={data.days} />
       <WeekExpenses period={data.period} weekIndex={data.weekIndex} />
@@ -91,12 +91,12 @@ export function WeeklyPage() {
 }
 
 /** PRD 6.1: the first week of a month that opens on a weekend has no allowance yet. */
-function NoWeekdayBanner() {
+function NoWeekdayBanner({ weekIndex }: { weekIndex: number }) {
   return (
     <Card className="mb-6 border-warn/30 bg-warn-soft">
       <p className="text-sm text-warn">
-        Minggu ini belum ada jatah weekday, budget weekend-nya minus dulu dan ketutup minggu
-        depan.
+        Minggu W{weekIndex} belum ada jatah weekday, budget weekend-nya minus dulu dan ketutup
+        minggu depan.
       </p>
     </Card>
   );
@@ -122,7 +122,7 @@ function Breakdown({ week }: { week: WeekReport }) {
 
   return (
     <div className="mb-7">
-      <ReceiptCard caption="Alur budget minggu ini">
+      <ReceiptCard caption={`Alur budget minggu W${week.weekIndex}`}>
         <ReceiptLine
           label="Budget minggu"
           detail={`${week.weekdayDays} hari weekday × ${formatRupiah(week.dailyWeekdayRate)}`}
@@ -144,7 +144,7 @@ function Breakdown({ week }: { week: WeekReport }) {
         <ReceiptRule double />
 
         <ReceiptTotal
-          label="Sisa minggu ini"
+          label={`Sisa minggu W${week.weekIndex}`}
           amount={week.weekRemaining}
           note={
             <span className="inline-flex flex-wrap items-center gap-1.5">
@@ -235,7 +235,7 @@ function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number
 
   if (isLoading) return <LoadingBlock />;
   if (!data || data.items.length === 0) {
-    return <EmptyState title="Belum ada pengeluaran minggu ini" />;
+    return <EmptyState title={`Belum ada pengeluaran di minggu W${weekIndex}`} />;
   }
 
   const byDate = new Map<string, typeof data.items>();
@@ -246,7 +246,7 @@ function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number
   return (
     <section>
       <SectionHead
-        title="Pengeluaran minggu ini"
+        title={`Pengeluaran minggu W${weekIndex}`}
         action={
           <span className="tabular font-mono text-xs text-ink-2">
             {formatRupiah(data.sumAmount)}
