@@ -240,7 +240,12 @@ function WeeklyTable({ report }: { report: MonthReport }) {
                   {week.rolloverIn > 0 ? '+' : ''}
                   {formatCompactRupiah(week.rolloverIn)}
                 </td>
-                <td className="py-2.5 pr-2 font-medium text-ink">
+                <td
+                  className={cn(
+                    'py-2.5 pr-2 font-medium',
+                    week.weekendBudget < 0 ? 'text-neg' : 'text-ink',
+                  )}
+                >
                   {formatCompactRupiah(week.weekendBudget)}
                 </td>
                 <td className="py-2.5 pr-2 text-ink-2">
