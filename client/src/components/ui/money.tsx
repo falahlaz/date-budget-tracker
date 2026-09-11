@@ -89,12 +89,21 @@ export function OverBadge() {
   );
 }
 
-/** The receipt-card status pill: over / running / settled. */
-export function StatusBadge({ tone, children }: { tone: 'over' | 'run' | 'ok'; children: string }) {
+/** The receipt-card status pill: over / running / settled / not started yet. */
+export function StatusBadge({
+  tone,
+  children,
+}: {
+  tone: 'over' | 'run' | 'ok' | 'idle';
+  children: string;
+}) {
   const styles = {
     over: 'bg-neg-soft text-neg',
     run: 'bg-accent-soft text-accent-ink',
     ok: 'bg-pos-soft text-pos',
+    // A week that has not started has nothing to report, so it reads as chrome rather
+    // than as one of the three outcomes.
+    idle: 'bg-surface-3 text-ink-3',
   } as const;
 
   return (
