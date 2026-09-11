@@ -34,7 +34,7 @@ export function ReceiptLine({
   label,
   detail,
   amount,
-  tone = 'neutral',
+  tone,
   strong,
   signed,
 }: {
@@ -48,6 +48,13 @@ export function ReceiptLine({
    */
   detail?: string;
   amount: number;
+  /**
+   * Overrides the colour of the figure.
+   *
+   * Left off, the sign decides: a negative figure reads `neg`, matching `Money` and the
+   * total underneath it. Rows that move the total in a fixed direction pass their tone
+   * explicitly -- a spend row is a subtraction whether or not its figure is negative.
+   */
   tone?: 'neutral' | 'pos' | 'neg';
   /** The subtotal lines a rule introduces: the label reads at full ink. */
   strong?: boolean;
@@ -59,6 +66,7 @@ export function ReceiptLine({
    */
   signed?: boolean | 'minus';
 }) {
+  const resolvedTone = tone ?? (amount < 0 ? 'neg' : 'neutral');
   const text = signed
     ? `${signed === 'minus' || amount < 0 ? '−' : '+'} ${formatRupiah(Math.abs(amount))}`
     : formatRupiah(amount);
@@ -76,7 +84,7 @@ export function ReceiptLine({
         <span
           className={cn(
             'shrink-0 font-medium whitespace-nowrap',
-            tone === 'pos' ? 'text-pos' : tone === 'neg' ? 'text-neg' : 'text-ink',
+            resolvedTone === 'pos' ? 'text-pos' : resolvedTone === 'neg' ? 'text-neg' : 'text-ink',
           )}
         >
           {text}

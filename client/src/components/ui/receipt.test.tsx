@@ -46,3 +46,35 @@ describe('ReceiptLine signed rows', () => {
     expect(amountOf(line({ label: 'Budget weekend', amount: -149_239 }))).toBe('-Rp 149.239');
   });
 });
+
+/**
+ * The weekend budget goes negative whenever weekday overspend plus a deficit rolling in
+ * exceeds the week's allowance (PRD 4.4). Left neutral it read as an ordinary allowance,
+ * while the identical figure in the total underneath it read as over -- the same number
+ * telling two stories in one card.
+ */
+describe('ReceiptLine tone', () => {
+  /** The class list of the figure at the end of the line. */
+  function classOf(node: HTMLElement): string {
+    const spans = node.querySelectorAll('span');
+    return spans[spans.length - 1].className;
+  }
+
+  it('colours an untoned negative figure as over', () => {
+    expect(classOf(line({ label: 'Budget weekend', amount: -178_054 }))).toContain('text-neg');
+  });
+
+  it('leaves an untoned positive figure at full ink', () => {
+    expect(classOf(line({ label: 'Budget weekend', amount: 160_946 }))).toContain('text-ink');
+  });
+
+  it('leaves an untoned zero at full ink', () => {
+    expect(classOf(line({ label: 'Budget weekend', amount: 0 }))).toContain('text-ink');
+  });
+
+  it('keeps an explicit tone ahead of the sign', () => {
+    // A spend row subtracts whichever way its figure points, so `neg` must not flip to ink.
+    expect(classOf(line({ label: 'Terpakai', amount: 194_000, tone: 'neg' }))).toContain('text-neg');
+    expect(classOf(line({ label: 'Rollover', amount: -149_239, tone: 'pos' }))).toContain('text-pos');
+  });
+});
