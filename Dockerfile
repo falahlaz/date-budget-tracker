@@ -29,18 +29,20 @@ ENV NODE_ENV=production
 RUN apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates default-mysql-client \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
+COPY --chown=node:node package*.json ./
 # node_modules comes from `build`, not `deps`: `prisma generate` runs there, and it writes
 # the generated client into node_modules/.prisma. Copying the deps stage's copy instead
 # ships an ungenerated client, whose enums are all undefined -- the app then dies on boot
 # reading PaymentMethod.CASH off it, long after migrations have already succeeded.
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/client/dist ./client/dist
-COPY prisma ./prisma
-COPY scripts ./scripts
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/dist ./dist
+COPY --chown=node:node --from=build /app/client/dist ./client/dist
+COPY --chown=node:node prisma ./prisma
+COPY --chown=node:node scripts ./scripts
 COPY docker-entrypoint.sh ./
-RUN chmod +x docker-entrypoint.sh && mkdir -p storage
+RUN chmod +x docker-entrypoint.sh && mkdir -p storage && chown -R node:node /app/storage
+
+USER node
 
 EXPOSE 3000
 ENTRYPOINT ["./docker-entrypoint.sh"]
