@@ -20,6 +20,7 @@ COPY client ./client
 RUN npx prisma generate
 RUN npm --prefix client run build
 RUN npm run build:server
+RUN npm prune --omit=dev
 
 # ---------- stage 3: runtime ----------
 FROM node:22-slim AS runtime
