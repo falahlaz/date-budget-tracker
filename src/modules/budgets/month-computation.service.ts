@@ -4,7 +4,12 @@ import { fromDateOnly, toDateOnly } from '@/common/utils/date-only';
 import { TransactionKind } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { firstDayOfPeriod, lastDayOfPeriod } from '@/modules/reports/engine/calendar';
-import { ExpenseInput, MonthReport, computeMonth } from '@/modules/reports/engine/compute-month';
+import {
+  ExpenseInput,
+  MonthReport,
+  TransferInput,
+  computeMonth,
+} from '@/modules/reports/engine/compute-month';
 import { BudgetsService } from './budgets.service';
 
 /**
@@ -44,6 +49,30 @@ export class MonthComputationService {
   }
 
   /**
+   * Transfers to and from other wallets in this period (PRD v2 6.2).
+   *
+   * Loaded apart from the spending because they behave differently: a transfer has no
+   * weekday or weekend character, it just makes the week it lands in poorer or richer.
+   */
+  async loadTransferInputs(walletId: number, period: string): Promise<TransferInput[]> {
+    const rows = await this.prisma.transaction.findMany({
+      where: {
+        walletId,
+        kind: { in: [TransactionKind.TRANSFER_IN, TransactionKind.TRANSFER_OUT] },
+        deletedAt: null,
+        occurredOn: { gte: toDateOnly(firstDayOfPeriod(period)), lte: toDateOnly(lastDayOfPeriod(period)) },
+      },
+      select: { occurredOn: true, amount: true, direction: true },
+    });
+
+    return rows.map((row) => ({
+      occurredOn: fromDateOnly(row.occurredOn),
+      amount: row.amount,
+      direction: row.direction,
+    }));
+  }
+
+  /**
    * Resolves the carry-in for a period by walking the chain of budgeted months backwards
    * (Appendix A).
    *
@@ -80,6 +109,9 @@ export class MonthComputationService {
         monthlyBudget: budget.amount,
         carryIn: carry,
         expenses: await this.loadExpenseInputs(walletId, budget.period),
+        // Without this the replayed months would ignore transfers, and the carry-over
+        // chain would drift from the month reports that do count them.
+        transfers: await this.loadTransferInputs(walletId, budget.period),
       });
 
       await this.budgets.cacheCarryOut(budget.id, report.carryOut);
@@ -99,13 +131,17 @@ export class MonthComputationService {
   async computeMonthReport(walletId: number, period: string): Promise<MonthReport> {
     const budget = await this.budgets.findOptional(walletId, period);
     const carryIn = budget ? await this.resolveCarryIn(walletId, period) : 0;
-    const expenses = await this.loadExpenseInputs(walletId, period);
+    const [expenses, transfers] = await Promise.all([
+      this.loadExpenseInputs(walletId, period),
+      this.loadTransferInputs(walletId, period),
+    ]);
 
     const report = computeMonth({
       period,
       monthlyBudget: budget?.amount ?? 0,
       carryIn,
       expenses,
+      transfers,
       today: this.clock.today(),
     });
 

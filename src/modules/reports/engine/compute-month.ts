@@ -31,12 +31,32 @@ export interface ExpenseInput {
   amount: number;
 }
 
+/**
+ * Money moved to or from another wallet (PRD v2 6.2).
+ *
+ * A separate list rather than a `kind` on ExpenseInput, deliberately. A transfer is not
+ * spending: it has no weekday/weekend character and no category, it just makes the week
+ * poorer or richer. Keeping it apart is also what lets the v1.1 fixtures call this
+ * function unchanged -- see the note on `transfers` below.
+ */
+export interface TransferInput {
+  /** `YYYY-MM-DD` in Asia/Jakarta. */
+  occurredOn: string;
+  /** Whole rupiah, ALWAYS positive; the sign lives in `direction`. */
+  amount: number;
+  direction: 'IN' | 'OUT';
+}
+
 export interface WeekReport extends WeekSegment {
   /** `dailyWeekdayRate * weekdayDays` -- the weekday allowance for this segment. */
   weekBudget: number;
   weekdaySpent: number;
   /** carryIn + roundingRemainder for W1, previous `weekRemaining` afterwards. */
   rolloverIn: number;
+  /** Moved out to another wallet during this segment (PRD v2 6.2). */
+  transferOut: number;
+  /** Moved in from another wallet during this segment. */
+  transferIn: number;
   /** What is actually available for the weekend. MAY be negative (PRD 4.4). */
   weekendBudget: number;
   weekendSpent: number;
@@ -57,6 +77,9 @@ export interface MonthReport {
   totalSpent: number;
   weekdaySpent: number;
   weekendSpent: number;
+  /** Month totals, for the report header (PRD v2 10.4). */
+  transferOut: number;
+  transferIn: number;
   carryOut: number;
   isOverspent: boolean;
   /** Friendlier alias of carryOut for the UI (PRD 8.6). */
@@ -73,6 +96,15 @@ export interface ComputeMonthInput {
   /** Carry-over from the previous month with a budget; MAY be negative (PRD 4.5). */
   carryIn: number;
   expenses: readonly ExpenseInput[];
+  /**
+   * Transfers to and from other wallets (PRD v2 6.2).
+   *
+   * OPTIONAL, and that is load-bearing rather than convenience: with no transfers the
+   * arithmetic below reduces term for term to v1.1, so the golden fixtures that predate
+   * wallets call this function exactly as they always did and must keep producing the
+   * same numbers (test S11).
+   */
+  transfers?: readonly TransferInput[];
   /**
    * Today in Asia/Jakarta, `YYYY-MM-DD`. Supplied by the caller so this function stays
    * pure and deterministic; omit it and nothing is marked as current.
@@ -121,6 +153,11 @@ export function computeMonth(input: ComputeMonthInput): MonthReport {
   );
   expenses.forEach((expense) => assertInteger(expense.amount, 'expense.amount'));
 
+  const transfers = (input.transfers ?? []).filter(
+    (transfer) => transfer.occurredOn >= monthStart && transfer.occurredOn <= monthEnd,
+  );
+  transfers.forEach((transfer) => assertInteger(transfer.amount, 'transfer.amount'));
+
   const segments = buildWeekSegments(period);
   const weekdayCount = segments.reduce((total, segment) => total + segment.weekdayDays, 0);
 
@@ -150,8 +187,23 @@ export function computeMonth(input: ComputeMonthInput): MonthReport {
       inSegment.filter((e) => dayTypeOf(e.spentOn) === 'WEEKEND').map((e) => e.amount),
     );
 
+    const inSegmentTransfers = transfers.filter(
+      (transfer) =>
+        transfer.occurredOn >= segment.startDate && transfer.occurredOn <= segment.endDate,
+    );
+
+    // A transfer lands in the week its date falls in, not in W1 and not through carryIn
+    // (PRD v2 6.2). Moving 320rb to savings on the 3rd should make *that* weekend poorer,
+    // where the tradeoff is still a decision rather than a surprise at month end.
+    const transferOut = sumMoney(
+      inSegmentTransfers.filter((t) => t.direction === 'OUT').map((t) => t.amount),
+    );
+    const transferIn = sumMoney(
+      inSegmentTransfers.filter((t) => t.direction === 'IN').map((t) => t.amount),
+    );
+
     const weekBudget = dailyWeekdayRate * segment.weekdayDays;
-    const weekendBudget = weekBudget - weekdaySpent + rolloverIn;
+    const weekendBudget = weekBudget - weekdaySpent + rolloverIn - transferOut + transferIn;
     const weekRemaining = weekendBudget - weekendSpent;
 
     weeks.push({
@@ -159,6 +211,8 @@ export function computeMonth(input: ComputeMonthInput): MonthReport {
       weekBudget,
       weekdaySpent,
       rolloverIn,
+      transferOut,
+      transferIn,
       weekendBudget,
       weekendSpent,
       weekRemaining,
@@ -173,8 +227,10 @@ export function computeMonth(input: ComputeMonthInput): MonthReport {
   const weekdaySpent = sumMoney(weeks.map((week) => week.weekdaySpent));
   const weekendSpent = sumMoney(weeks.map((week) => week.weekendSpent));
   const totalSpent = weekdaySpent + weekendSpent;
+  const transferOut = sumMoney(weeks.map((week) => week.transferOut));
+  const transferIn = sumMoney(weeks.map((week) => week.transferIn));
 
-  assertInvariant({ period, monthlyBudget, carryIn, totalSpent, carryOut });
+  assertInvariant({ period, monthlyBudget, carryIn, totalSpent, transferOut, transferIn, carryOut });
 
   const daysTotal = daysInPeriod(period);
 
@@ -191,6 +247,8 @@ export function computeMonth(input: ComputeMonthInput): MonthReport {
     totalSpent,
     weekdaySpent,
     weekendSpent,
+    transferOut,
+    transferIn,
     carryOut,
     isOverspent: carryOut < 0,
     spendableRemaining: carryOut,
@@ -217,9 +275,15 @@ function countDaysElapsed(period: string, today?: string): number {
 }
 
 /**
- * PRD 4.6, the one identity that must hold for every possible distribution of spending:
+ * PRD 4.6 as amended by PRD v2 6.2 -- the one identity that must hold for every possible
+ * distribution of spending and transfers:
  *
- *   carryOut == monthlyBudget + carryIn - totalSpent
+ *   carryOut == monthlyBudget + carryIn - totalSpent - transferOut + transferIn
+ *
+ * The amendment is why *where* a transfer falls cannot change `carryOut`: the month total
+ * appears here whatever week it landed in, so moving it only shifts which week feels it
+ * (test S10). With no transfers the two new terms are zero and this is v1.1's identity
+ * unchanged.
  *
  * If this ever fails the implementation is wrong, so it is checked on every call rather
  * than only under test -- it is a cheap comparison of numbers already computed.
@@ -229,13 +293,22 @@ function assertInvariant(values: {
   monthlyBudget: number;
   carryIn: number;
   totalSpent: number;
+  transferOut: number;
+  transferIn: number;
   carryOut: number;
 }): void {
-  const expected = values.monthlyBudget + values.carryIn - values.totalSpent;
+  const expected =
+    values.monthlyBudget +
+    values.carryIn -
+    values.totalSpent -
+    values.transferOut +
+    values.transferIn;
+
   if (values.carryOut !== expected) {
     throw new Error(
       `budget invariant violated for ${values.period}: carryOut ${values.carryOut} != ` +
-        `monthlyBudget ${values.monthlyBudget} + carryIn ${values.carryIn} - totalSpent ${values.totalSpent}`,
+        `monthlyBudget ${values.monthlyBudget} + carryIn ${values.carryIn} - totalSpent ` +
+        `${values.totalSpent} - transferOut ${values.transferOut} + transferIn ${values.transferIn}`,
     );
   }
 }

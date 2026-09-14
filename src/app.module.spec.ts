@@ -64,6 +64,11 @@ const EXPECTED_ROUTES = [
   'GET /api/wallets/:walletId/advances',
   'DELETE /api/wallets/:walletId/transactions/:id',
 
+  // Transfers (v2 10.4), addressed by group because one side alone is not a thing.
+  'POST /api/transfers',
+  'PATCH /api/transfers/:groupId',
+  'DELETE /api/transfers/:groupId',
+
   // A receipt is addressed by its own id, so these did not move.
   'GET /api/receipts/:id/file',
   'DELETE /api/receipts/:id',

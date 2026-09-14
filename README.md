@@ -140,6 +140,7 @@ src/
     wallets/         wallet CRUD, resolution, and the switcher's per-type summaries
     transactions/    CRUD, filters, merchant autocomplete (was `expenses/` in v1.1)
     savings/         goal, deposits, withdrawals, advances, friction preview
+    transfers/       two-sided moves between wallets
       engine/        compute-savings.ts · allocate-fifo.ts · delay.ts  ← the savings half
     receipts/        upload, sharp normalisation, storage abstraction
     reports/
@@ -156,8 +157,8 @@ client/src/
 ## Testing
 
 ```bash
-npm test                       # 208 unit tests, no database
-npm run test:e2e               # 95 HTTP tests against a real MySQL
+npm test                       # 220 unit tests, no database
+npm run test:e2e               # 113 HTTP tests against a real MySQL
 npm --prefix client test       # formatting and date helpers
 ```
 
@@ -229,6 +230,43 @@ never subtracted from it: the money already left, and the balance already shows 
 
 Unlike the date budget, a savings balance may not go negative — a budget is a plan, a
 balance is a fact about an account.
+
+---
+
+## Transfers
+
+Moving money between wallets is one action that writes two rows — a `TRANSFER_OUT` in the
+source and a `TRANSFER_IN` in the destination, sharing a `transferGroupId`:
+
+```
+POST   /api/transfers            { fromWalletId, toWalletId, amount, occurredOn }
+PATCH  /api/transfers/:groupId   amount, date or note, on both sides at once
+DELETE /api/transfers/:groupId   both sides, together
+```
+
+They are addressed by the group, never by row: `DELETE /api/transactions/:id` on one side
+answers 409 and points here. A half-deleted transfer is money that left one wallet and
+arrived nowhere, and nothing in the reports would flag it.
+
+**A transfer lands in the week its date falls in** — not in week 1, and not through the
+carry-over. Moving 320.000 to savings on the 3rd makes *that* weekend poorer, where the
+tradeoff is still a decision rather than a surprise at the end of the month:
+
+```
+Budget minggu ini (5 × 100rb)      Rp 500.000
+Terpakai di weekday              − Rp  93.000
+Dipindah ke Tabungan             − Rp 320.000
+```
+
+Where a transfer sits cannot change `carryOut`, only which week feels it. That falls out of
+the amended invariant the engine asserts on every call:
+
+```
+carryOut == monthlyBudget + carryIn − totalSpent − transferOut + transferIn
+```
+
+Transfers carry no category and appear in no category, merchant or payment-method
+breakdown.
 
 ---
 
