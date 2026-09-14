@@ -35,3 +35,6 @@ coverage/
 
 # Scratch worktrees created by Claude Code, never part of a commit.
 .claude/worktrees/
+
+# Report snapshots from the M10 migration gate (scripts/report-snapshot.ts)
+snapshots/

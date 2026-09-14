@@ -75,6 +75,8 @@ Open <http://localhost:5173>. The Vite dev server proxies `/api` to Nest.
 | `npm run cli -- categories:recolour` | Move categories off the pre-revamp palette (`--dry-run` first) |
 | `npm run backup` | `mysqldump` + receipt storage into one dated tarball |
 | `npm run prisma:migrate` | Create/apply a migration in development |
+| `npm run migrate:down` | Apply a migration's `down.sql` (see **Migrations** below) |
+| `npm run snapshot:before` / `:after` / `:diff` | The migration comparison gate (see **Migrations**) |
 
 API docs are served at `/api/docs` in non-production environments only.
 
@@ -135,6 +137,7 @@ src/
     users/           user creation + default category seed
     categories/      CRUD, archive instead of delete
     budgets/         budget CRUD, carry-over resolution, cache invalidation
+    wallets/         wallet resolution; every transaction belongs to one
     expenses/        CRUD, filters, merchant autocomplete
     receipts/        upload, sharp normalisation, storage abstraction
     reports/
@@ -151,7 +154,7 @@ client/src/
 ## Testing
 
 ```bash
-npm test                       # 111 unit tests, no database
+npm test                       # 142 unit tests, no database
 npm run test:e2e               # E1–E15 from PRD 12.2, needs MySQL
 npm --prefix client test       # formatting and date helpers
 ```
@@ -160,6 +163,40 @@ The unit suite covers T1–T13 from PRD 12.1, including all three golden fixture
 1000-case invariant property test, and 24 months of week-segment continuity. It also boots
 the whole Nest application against a stubbed database to prove every route in PRD section 8
 registers and resolves.
+
+---
+
+## Migrations
+
+Money data is the whole point of this app, so schema changes carry two things a plain
+`prisma migrate` does not.
+
+**A down migration.** Prisma has no native rollback, so any migration that is not a
+straightforward add-a-column ships a `down.sql` next to its `migration.sql`, applied with:
+
+```bash
+npm run backup                 # always first
+npm run migrate:down           # the newest migration
+npm run migrate:down 20260914120000_wallets_and_transactions
+```
+
+A `down.sql` refuses rather than destroys: if rolling back would drop rows the older schema
+cannot represent, it aborts before touching anything and names what is in the way.
+
+**A before/after comparison.** The v2 migration renames `expenses` to `transactions`, and
+the gate on it is that every month's report comes back byte-identical:
+
+```bash
+npm run snapshot:before        # old code, pre-migration database
+# ... apply the migration, deploy the new code ...
+npm run snapshot:after
+npm run snapshot:diff          # exits non-zero on any difference
+```
+
+Both snapshots must be taken on the same WIB day — the report includes `daysElapsed` and
+`isCurrent`, and `snapshot:diff` refuses to compare across a date boundary rather than
+blanking those fields. If the diff fails, the migration is wrong; fix the migration rather
+than compensating in the application layer.
 
 ---
 

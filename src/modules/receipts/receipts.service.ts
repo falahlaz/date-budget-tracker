@@ -45,9 +45,9 @@ export class ReceiptsService {
    * every variant a phone camera might produce.
    */
   async attach(userId: number, expenseId: number, files: UploadedFile[]): Promise<Receipt[]> {
-    const expense = await this.prisma.expense.findFirst({
+    const expense = await this.prisma.transaction.findFirst({
       where: { id: expenseId, userId, deletedAt: null },
-      select: { id: true, spentOn: true },
+      select: { id: true, occurredOn: true },
     });
 
     if (!expense) {
@@ -61,7 +61,7 @@ export class ReceiptsService {
     }
 
     const existing = await this.prisma.receipt.count({
-      where: { expenseId, deletedAt: null },
+      where: { transactionId: expenseId, deletedAt: null },
     });
 
     if (existing + files.length > this.maxPerExpense) {
@@ -70,7 +70,7 @@ export class ReceiptsService {
       );
     }
 
-    const spentOn = fromDateOnly(expense.spentOn);
+    const spentOn = fromDateOnly(expense.occurredOn);
     const created: Receipt[] = [];
 
     for (const file of files) {
@@ -172,7 +172,7 @@ export class ReceiptsService {
 
     return this.prisma.receipt.create({
       data: {
-        expenseId,
+        transactionId: expenseId,
         userId,
         storageKey,
         thumbKey,

@@ -23,16 +23,16 @@ export class MonthComputationService {
 
   /** Amounts and dates only -- everything the engine needs and nothing it does not. */
   async loadExpenseInputs(userId: number, period: string): Promise<ExpenseInput[]> {
-    const rows = await this.prisma.expense.findMany({
+    const rows = await this.prisma.transaction.findMany({
       where: {
         userId,
         deletedAt: null,
-        spentOn: { gte: toDateOnly(firstDayOfPeriod(period)), lte: toDateOnly(lastDayOfPeriod(period)) },
+        occurredOn: { gte: toDateOnly(firstDayOfPeriod(period)), lte: toDateOnly(lastDayOfPeriod(period)) },
       },
-      select: { spentOn: true, amount: true },
+      select: { occurredOn: true, amount: true },
     });
 
-    return rows.map((row) => ({ spentOn: fromDateOnly(row.spentOn), amount: row.amount }));
+    return rows.map((row) => ({ spentOn: fromDateOnly(row.occurredOn), amount: row.amount }));
   }
 
   /**

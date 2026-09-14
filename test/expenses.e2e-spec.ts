@@ -1,4 +1,11 @@
-import { createHarness, firstCategoryId, Harness, tomorrowWib, yesterdayWib } from './app-harness';
+import {
+  createHarness,
+  defaultWalletId,
+  firstCategoryId,
+  Harness,
+  tomorrowWib,
+  yesterdayWib,
+} from './app-harness';
 
 describe('Expenses (PRD 8.4)', () => {
   let harness: Harness;
@@ -16,11 +23,29 @@ describe('Expenses (PRD 8.4)', () => {
 
   beforeEach(async () => {
     await harness.prisma.receipt.deleteMany();
-    await harness.prisma.expense.deleteMany();
+    await harness.prisma.transaction.deleteMany();
   });
 
   const post = (body: Record<string, unknown>) =>
     harness.http().post('/api/expenses').set('Authorization', harness.auth).send(body);
+
+  /**
+   * PRD v2 4.2 / 9.2. This endpoint never names a wallet, so the row has to land in the
+   * default one with the kind and direction filled in by the server. Asserted against the
+   * database rather than the response, because none of it is in the v1.1 API shape --
+   * which is exactly how it could rot unnoticed until M12 goes looking for it.
+   */
+  it('files a new expense in the default wallet as an outgoing SPEND', async () => {
+    const created = await post({ spentOn, amount: 42_000, categoryId }).expect(201);
+
+    const row = await harness.prisma.transaction.findUniqueOrThrow({
+      where: { id: created.body.id },
+    });
+
+    expect(row.walletId).toBe(await defaultWalletId(harness));
+    expect(row.kind).toBe('SPEND');
+    expect(row.direction).toBe('OUT');
+  });
 
   it('creates an expense and derives dayType, weekIndex and merchantKey', async () => {
     const response = await post({
@@ -146,7 +171,7 @@ describe('Expenses (PRD 8.4)', () => {
     expect(list.body.sumAmount).toBe(0);
 
     // The row survives for audit, but with a deletion timestamp.
-    const row = await harness.prisma.expense.findUnique({ where: { id: created.body.id } });
+    const row = await harness.prisma.transaction.findUnique({ where: { id: created.body.id } });
     expect(row?.deletedAt).not.toBeNull();
 
     await harness
