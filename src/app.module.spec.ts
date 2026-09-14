@@ -53,6 +53,17 @@ const EXPECTED_ROUTES = [
   'GET /api/transactions/merchants',
   'POST /api/transactions/:id/receipts',
 
+  // Savings (v2 10.3)
+  'POST /api/wallets/:walletId/goal',
+  'GET /api/wallets/:walletId/goal',
+  'PATCH /api/wallets/:walletId/goal',
+  'POST /api/wallets/:walletId/goal/archive',
+  'POST /api/wallets/:walletId/deposits',
+  'POST /api/wallets/:walletId/withdrawals',
+  'POST /api/wallets/:walletId/withdrawals/preview',
+  'GET /api/wallets/:walletId/advances',
+  'DELETE /api/wallets/:walletId/transactions/:id',
+
   // A receipt is addressed by its own id, so these did not move.
   'GET /api/receipts/:id/file',
   'DELETE /api/receipts/:id',
@@ -101,6 +112,16 @@ describe('AppModule wiring', () => {
 
   it('exposes a health probe for the container check', () => {
     expect(routes).toContain('GET /api/health');
+  });
+
+  /**
+   * Same ordering trap as merchants: `/goal/archive` would be swallowed by nothing here,
+   * but `/withdrawals/preview` sits under `/withdrawals`, so declaring the bare route
+   * first would make the preview a withdrawal -- one that writes.
+   */
+  it('declares /withdrawals/preview before it could be taken for a withdrawal', () => {
+    expect(routes).toContain('POST /api/wallets/:walletId/withdrawals/preview');
+    expect(routes).toContain('POST /api/wallets/:walletId/withdrawals');
   });
 
   it('declares /transactions/merchants before /transactions/:id so it is not shadowed', () => {

@@ -12,6 +12,7 @@ import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
+import { SavingsModule } from './modules/savings/savings.module';
 import { WalletsModule } from './modules/wallets/wallets.module';
 
 @Module({
@@ -44,6 +45,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
     UsersModule,
     CategoriesModule,
     WalletsModule,
+    SavingsModule,
     BudgetsModule,
     TransactionsModule,
     ReceiptsModule,

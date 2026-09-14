@@ -166,6 +166,7 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
   let walletId: number;
   let savingsWalletId: number;
   let categoryId: number;
+  let savingsCategoryId: number;
 
   beforeAll(async () => {
     harness = await createHarness({ today: FIXED_TODAY });
@@ -185,6 +186,13 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
       .set('Authorization', harness.auth)
       .expect(200);
     categoryId = categories.body[0].id;
+
+    const savingsCategories = await harness
+      .http()
+      .get('/api/categories?walletType=SAVINGS')
+      .set('Authorization', harness.auth)
+      .expect(200);
+    savingsCategoryId = savingsCategories.body[0].id;
   });
 
   afterAll(async () => {
@@ -197,6 +205,25 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
 
   const post = (body: Record<string, unknown>) =>
     harness.http().post('/api/transactions').set('Authorization', harness.auth).send(body);
+
+  const deposit = (amount: number) =>
+    harness
+      .http()
+      .post(`/api/wallets/${savingsWalletId}/deposits`)
+      .set('Authorization', harness.auth)
+      .send({ amount, occurredOn: '2026-09-14' });
+
+  const withdraw = (amount: number) =>
+    harness
+      .http()
+      .post(`/api/wallets/${savingsWalletId}/withdrawals`)
+      .set('Authorization', harness.auth)
+      .send({
+        amount,
+        occurredOn: '2026-09-14',
+        reason: 'test',
+        categoryId: savingsCategoryId,
+      });
 
   // E30
   it('files a transaction with no walletId in the default wallet (4.2)', async () => {
@@ -228,40 +255,43 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
     }).expect(422);
   });
 
-  it('defaults a savings wallet transaction to a DEPOSIT, flowing in', async () => {
-    const created = await post({
-      walletId: savingsWalletId,
-      occurredOn: '2026-09-14',
-      amount: 500_000,
-    }).expect(201);
-
-    expect(created.body).toMatchObject({
+  /**
+   * One door per concept (8.13, 10.3). A deposit may settle advances and a withdrawal
+   * needs a reason and a balance floor, so neither is a plain row this endpoint writes --
+   * and the error has to say where to go instead.
+   */
+  it('refuses savings kinds here and names the endpoint that takes them', async () => {
+    const deposit = await post({
       walletId: savingsWalletId,
       kind: 'DEPOSIT',
-      direction: 'IN',
-    });
-  });
+      occurredOn: '2026-09-14',
+      amount: 500_000,
+    }).expect(422);
+    expect(deposit.body.message).toMatch(/POST \/api\/wallets\/:walletId\/deposits/);
 
-  /**
-   * The sign of money is not something a caller gets a say in (9.2). A client that sends
-   * the wrong direction gets the right one anyway rather than a validation error, because
-   * `direction` is not an input at all -- it is derived.
-   */
-  it('ignores a client-supplied direction', async () => {
-    const created = await post({
+    const withdrawal = await post({
       walletId: savingsWalletId,
       kind: 'WITHDRAW',
-      direction: 'IN',
       occurredOn: '2026-09-14',
       amount: 100_000,
-    }).expect(201);
+    }).expect(422);
+    expect(withdrawal.body.message).toMatch(/POST \/api\/wallets\/:walletId\/withdrawals/);
+  });
 
-    expect(created.body.direction).toBe('OUT');
+  it('refuses a transfer kind here and points at the transfer endpoint', async () => {
+    const response = await post({
+      walletId,
+      kind: 'TRANSFER_OUT',
+      occurredOn: '2026-09-14',
+      amount: 50_000,
+    }).expect(422);
+
+    expect(response.body.message).toMatch(/POST \/api\/transfers/);
   });
 
   it('keeps each wallet\'s list to its own rows (4.1)', async () => {
     await post({ walletId, occurredOn: '2026-09-14', amount: 11_000, categoryId }).expect(201);
-    await post({ walletId: savingsWalletId, occurredOn: '2026-09-14', amount: 22_000 }).expect(201);
+    await deposit(22_000).expect(201);
 
     const dateWallet = await harness
       .http()
@@ -283,8 +313,8 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
   });
 
   it('filters by kind', async () => {
-    await post({ walletId: savingsWalletId, kind: 'DEPOSIT', occurredOn: '2026-09-14', amount: 50_000 }).expect(201);
-    await post({ walletId: savingsWalletId, kind: 'WITHDRAW', occurredOn: '2026-09-14', amount: 20_000 }).expect(201);
+    await deposit(50_000).expect(201);
+    await withdraw(20_000).expect(201);
 
     const withdrawals = await harness
       .http()

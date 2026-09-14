@@ -66,3 +66,33 @@ export function assertKindSuitsWallet(kind: TransactionKind, type: WalletType): 
 
   return kind;
 }
+
+/** Where a kind that this endpoint will not create has to be sent instead. */
+const OWN_ENDPOINT: Partial<Record<TransactionKind, string>> = {
+  [TransactionKind.DEPOSIT]: 'POST /api/wallets/:walletId/deposits',
+  [TransactionKind.WITHDRAW]: 'POST /api/wallets/:walletId/withdrawals',
+  [TransactionKind.TRANSFER_IN]: 'POST /api/transfers',
+  [TransactionKind.TRANSFER_OUT]: 'POST /api/transfers',
+};
+
+/**
+ * Only a SPEND is a plain row (PRD v2 8.13, 10.3).
+ *
+ * Every other kind carries side effects that only its own endpoint performs: a withdrawal
+ * needs a reason and a balance floor, a deposit may settle advances, a transfer is two
+ * rows at once. Letting this endpoint create them too would mean a second copy of each of
+ * those rules -- and section 8.13's "a withdrawal cannot be saved without a reason" would
+ * be one forgotten copy away from being false. One door per concept instead.
+ */
+export function assertCreatableHere(kind: TransactionKind): TransactionKind {
+  const elsewhere = OWN_ENDPOINT[kind];
+
+  if (elsewhere) {
+    throw AppException.validation(
+      `a ${kind} is not created here because it does more than write one row; use ${elsewhere}`,
+      [{ field: 'kind', constraint: 'wrongEndpoint' }],
+    );
+  }
+
+  return kind;
+}

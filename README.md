@@ -139,7 +139,7 @@ src/
     budgets/         budget CRUD, carry-over resolution, cache invalidation
     wallets/         wallet CRUD, resolution, and the switcher's per-type summaries
     transactions/    CRUD, filters, merchant autocomplete (was `expenses/` in v1.1)
-    savings/
+    savings/         goal, deposits, withdrawals, advances, friction preview
       engine/        compute-savings.ts · allocate-fifo.ts · delay.ts  ← the savings half
     receipts/        upload, sharp normalisation, storage abstraction
     reports/
@@ -156,8 +156,8 @@ client/src/
 ## Testing
 
 ```bash
-npm test                       # 198 unit tests, no database
-npm run test:e2e               # 66 HTTP tests against a real MySQL
+npm test                       # 208 unit tests, no database
+npm run test:e2e               # 95 HTTP tests against a real MySQL
 npm --prefix client test       # formatting and date helpers
 ```
 
@@ -193,6 +193,42 @@ GET  /api/transactions?walletId=2&kind=WITHDRAW
 Leaving `walletId` out means the default wallet — the one the migration created, and the
 only one that cannot be archived. `kind` must suit the wallet type (a `DEPOSIT` into a
 date-budget wallet is a 422), and `direction` is always derived from `kind` by the server.
+
+---
+
+## Savings
+
+A savings wallet has one goal — a target and a deadline — and the engine answers the
+opposite question to the date budget: not "how much may I still spend?" but "how much do I
+still have to put in?".
+
+```
+POST /api/wallets/:walletId/goal              { name, targetAmount, startDate, deadline }
+GET  /api/wallets/:walletId/goal              the goal plus every derived figure
+POST /api/wallets/:walletId/deposits          { amount, occurredOn, applyToAdvances? }
+POST /api/wallets/:walletId/withdrawals       { amount, occurredOn, reason, categoryId }
+POST /api/wallets/:walletId/withdrawals/preview   what it costs, in time — writes nothing
+GET  /api/wallets/:walletId/advances          what you still owe yourself
+```
+
+Three rules are worth knowing because they are deliberate, not incidental:
+
+**A withdrawal cannot be saved without a reason.** Not a soft requirement — `reason` is
+required by the request schema, trimmed before it is checked, and the savings kinds are
+refused by `POST /api/transactions` precisely so there is no second door around it. The
+whole feature exists because money used to leave the account with no record of where it
+went.
+
+**A deposit that repays a debt is not progress.** `POST .../deposits` answers with
+`{ repaid, fresh }`. A 2.000.000 deposit that settles 600.000 of earlier withdrawals is
+1.400.000 of actual progress, and it is `fresh` — never the deposit total — that any pace
+figure is compared against.
+
+**`outstandingAdvance` is a memo, not a debit.** It is reported next to the balance and
+never subtracted from it: the money already left, and the balance already shows that.
+
+Unlike the date budget, a savings balance may not go negative — a budget is a plan, a
+balance is a fact about an account.
 
 ---
 

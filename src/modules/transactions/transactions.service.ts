@@ -7,7 +7,12 @@ import { normalizeMerchant } from '@/common/utils/merchant';
 import { PrismaService } from '@/prisma/prisma.service';
 import { BudgetCacheService } from '@/modules/budgets/budget-cache.service';
 import { WalletsService } from '@/modules/wallets/wallets.service';
-import { assertKindSuitsWallet, defaultKindFor, directionOf } from './transaction-kind';
+import {
+  assertCreatableHere,
+  assertKindSuitsWallet,
+  defaultKindFor,
+  directionOf,
+} from './transaction-kind';
 import {
   buildWeekSegments,
   dayTypeOf,
@@ -62,6 +67,9 @@ export class TransactionsService {
     // The kind has to suit the wallet, and the direction follows from the kind. A client
     // value for `direction` is ignored on purpose (PRD v2 9.2).
     const kind = assertKindSuitsWallet(dto.kind ?? defaultKindFor(wallet.type), wallet.type);
+    // ...and only a SPEND is a plain row this endpoint may write. See the comment on
+    // assertCreatableHere: this is what keeps section 8.13 unbypassable.
+    assertCreatableHere(kind);
 
     return this.prisma.$transaction(async (tx) => {
       const expense = await tx.transaction.create({

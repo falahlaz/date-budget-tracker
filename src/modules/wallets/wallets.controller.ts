@@ -40,7 +40,7 @@ export class WalletsController {
     // wallet, and a personal account has a handful of wallets, not hundreds.
     const responses: WalletResponse[] = [];
     for (const wallet of wallets) {
-      responses.push(toWalletResponse(wallet, await this.summaries.summarise(userId, wallet)));
+      responses.push(toWalletResponse(wallet, await this.summaries.summarise(wallet)));
     }
 
     return responses;
