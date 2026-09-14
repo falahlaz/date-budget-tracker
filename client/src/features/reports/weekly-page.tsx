@@ -147,6 +147,42 @@ export function weekStatus(
 }
 
 /**
+ * The transfer rows of the weekly receipt (PRD v2 11.6).
+ *
+ * They earn lines of their own rather than disappearing into "terpakai": money moved to
+ * savings is not money spent, but it does cut this week's weekend budget, and the receipt
+ * has to say which of the two happened.
+ *
+ * A row appears only when it has a figure. Most weeks have no transfer at all, and two
+ * permanent "Rp 0" lines would push the rows that always matter further down the card for
+ * nothing -- so the rule is a function rather than two conditionals in the JSX, because it
+ * is the rule and not the markup that is worth testing.
+ */
+export function transferRows(week: Pick<WeekReport, 'transferOut' | 'transferIn'>) {
+  const rows: {
+    label: string;
+    amount: number;
+    tone: 'pos' | 'neg';
+    signed: boolean | 'minus';
+  }[] = [];
+
+  if (week.transferOut > 0) {
+    rows.push({
+      label: 'Dipindah ke dompet lain',
+      amount: week.transferOut,
+      tone: 'neg',
+      signed: 'minus',
+    });
+  }
+
+  if (week.transferIn > 0) {
+    rows.push({ label: 'Masuk dari dompet lain', amount: week.transferIn, tone: 'pos', signed: true });
+  }
+
+  return rows;
+}
+
+/**
  * The receipt (PRD 9.4).
  *
  * A running total rather than a set of statistics, because the point is to make the chain
@@ -171,6 +207,10 @@ function Breakdown({ week }: { week: WeekReport }) {
           tone={week.rolloverIn < 0 ? 'neg' : 'pos'}
           signed
         />
+
+        {transferRows(week).map((row) => (
+          <ReceiptLine key={row.label} {...row} />
+        ))}
 
         <ReceiptRule />
 

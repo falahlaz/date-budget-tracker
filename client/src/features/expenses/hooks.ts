@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, queryString } from '@/lib/api';
 import { invalidateReports, queryKeys } from '@/lib/query';
-import { useActiveWalletId } from '@/features/wallets/hooks';
+import { useActiveWalletId } from '@/features/wallets/wallet-context';
 import type {
   MerchantSuggestion,
   PaymentMethod,

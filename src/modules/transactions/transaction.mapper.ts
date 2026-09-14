@@ -27,6 +27,27 @@ export interface TransactionResponse {
   merchantKey: string | null;
   paymentMethod: string;
   note: string | null;
+
+  /**
+   * The savings fields (PRD v2 5.1, 10.5).
+   *
+   * On the response for every kind, null and false for the ones they mean nothing to. The
+   * history screen reads one list for the whole wallet, and a withdrawal has to show its
+   * reason as its headline there -- a second endpoint shaped per kind would buy nothing
+   * and would let the two drift.
+   */
+  reason: string | null;
+  expectedReturn: boolean;
+  returnedAmount: number;
+  settled: boolean;
+  /**
+   * Set on both halves of a transfer. The client uses it to send a delete to
+   * `/api/transfers/:groupId`, which removes both sides, rather than to
+   * `/api/transactions/:id`, which refuses with a 409 (v2 8.9).
+   */
+  transferGroupId: string | null;
+  counterpartWalletId: number | null;
+
   category: { id: number; name: string; color: string; icon: string | null } | null;
   receipts: ReceiptResponse[];
   createdAt: string;
@@ -76,6 +97,12 @@ export function toTransactionResponse(expense: TransactionWithRelations): Transa
     merchantKey: expense.merchantKey,
     paymentMethod: expense.paymentMethod,
     note: expense.note,
+    reason: expense.reason,
+    expectedReturn: expense.expectedReturn,
+    returnedAmount: expense.returnedAmount,
+    settled: expense.settledAt !== null,
+    transferGroupId: expense.transferGroupId,
+    counterpartWalletId: expense.counterpartWalletId,
     category: expense.category
       ? {
           id: expense.category.id,

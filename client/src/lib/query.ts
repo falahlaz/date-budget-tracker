@@ -29,6 +29,13 @@ export const queryKeys = {
   currentWeekReport: (walletId: number | undefined) =>
     ['reports', 'week', 'current', walletId] as const,
   todayReport: (walletId: number | undefined) => ['reports', 'today', walletId] as const,
+
+  // Savings (v2 10.3, 10.5). Under the `reports` prefix where the figures are derived, so
+  // `invalidateReports` reaches them too: a deposit moves the goal and the month alike.
+  goal: (walletId: number | undefined) => ['reports', 'goal', walletId] as const,
+  advances: (walletId: number | undefined) => ['reports', 'advances', walletId] as const,
+  savingsMonthReport: (walletId: number | undefined, period: string) =>
+    ['reports', 'savings', walletId, period] as const,
 };
 
 export function createQueryClient(): QueryClient {

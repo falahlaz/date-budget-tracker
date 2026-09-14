@@ -1,8 +1,15 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/query';
-import type { Wallet } from '@/types/api';
+import type { Wallet, WalletType } from '@/types/api';
 
+/**
+ * The wallet list (PRD v2 10.2).
+ *
+ * Deliberately query-only: which wallet is *active* is a UI decision and lives in
+ * `wallet-context.tsx`. Keeping the two apart is what stops this module and the context
+ * from importing each other.
+ */
 export function useWallets(includeArchived = false) {
   return useQuery({
     queryKey: queryKeys.wallets(includeArchived),
@@ -14,26 +21,39 @@ export function useWallets(includeArchived = false) {
   });
 }
 
-/**
- * The wallet every other request is scoped to.
- *
- * Every endpoint below this point needs a wallet id, so this is the one place that decides
- * which. Today it is the default wallet; when the switcher lands (PRD v2 11.1) only the
- * body of this hook changes, and because the id is already part of every query key, the
- * screens refetch on a switch instead of showing the previous wallet's numbers.
- *
- * `undefined` while the wallet list is still loading -- callers pass that straight to
- * `enabled`, so nothing fires against a guessed id.
- */
-export function useActiveWalletId(): number | undefined {
-  const { data } = useWallets();
-
-  return data?.find((wallet) => wallet.isDefault)?.id ?? data?.[0]?.id;
+export interface CreateWalletInput {
+  name: string;
+  type: WalletType;
+  color?: string;
+  icon?: string | null;
 }
 
-export function useActiveWallet(): Wallet | undefined {
-  const { data } = useWallets();
-  const activeId = useActiveWalletId();
+export function useCreateWallet() {
+  const client = useQueryClient();
 
-  return data?.find((wallet) => wallet.id === activeId);
+  return useMutation({
+    mutationFn: (input: CreateWalletInput) => api.post<Wallet>('/wallets', input),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wallets'] }),
+  });
+}
+
+export function useUpdateWallet() {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: number } & Partial<CreateWalletInput> & {
+      isDefault?: boolean;
+      isArchived?: boolean;
+    }) => api.patch<Wallet>(`/wallets/${id}`, input),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wallets'] }),
+  });
+}
+
+export function useArchiveWallet() {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: number) => api.delete<void>(`/wallets/${id}`),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['wallets'] }),
+  });
 }

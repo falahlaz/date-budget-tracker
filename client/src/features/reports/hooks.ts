@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { queryKeys } from '@/lib/query';
-import { useActiveWalletId } from '@/features/wallets/hooks';
+import { useActiveWalletId } from '@/features/wallets/wallet-context';
 import type { MonthReport, TodayReport, WeekReport } from '@/types/api';
 
 /**

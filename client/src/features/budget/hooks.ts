@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, api } from '@/lib/api';
 import { invalidateReports, queryKeys } from '@/lib/query';
-import { useActiveWalletId } from '@/features/wallets/hooks';
+import { useActiveWalletId } from '@/features/wallets/wallet-context';
 import type { Budget, BudgetHistoryRow } from '@/types/api';
 
 /** Budgets belong to a wallet from v2 on, and only ever a date-budget one (PRD v2 10.1). */
