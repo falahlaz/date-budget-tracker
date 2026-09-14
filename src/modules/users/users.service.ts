@@ -4,6 +4,7 @@ import * as argon2 from 'argon2';
 import { AppException } from '@/common/errors';
 import { PrismaService } from '@/prisma/prisma.service';
 import { DEFAULT_CATEGORIES } from '../categories/default-categories';
+import { createDefaultWallet } from '../wallets/default-wallet';
 
 /**
  * argon2id parameters (PRD 8.2). These are the argon2 library defaults for the id variant,
@@ -48,8 +49,11 @@ export class UsersService {
   }
 
   /**
-   * Creates a user together with their default categories, in one transaction so a user
-   * can never exist with a half-seeded category list.
+   * Creates a user together with their default wallet and categories, in one transaction
+   * so a user can never exist half-seeded.
+   *
+   * The wallet is not optional: from v2 on, a transaction belongs to a wallet, so an
+   * account without one cannot record anything (PRD v2 section 4.2).
    *
    * There is no public registration endpoint (PRD 3); this is reached only from the CLI
    * or the empty-database bootstrap.
@@ -67,6 +71,8 @@ export class UsersService {
         const user = await tx.user.create({
           data: { email, passwordHash, displayName: input.displayName },
         });
+
+        await createDefaultWallet(tx, user.id);
 
         await tx.category.createMany({
           data: DEFAULT_CATEGORIES.map((category, index) => ({

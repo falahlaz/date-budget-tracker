@@ -1,11 +1,12 @@
 import { Injectable } from '@nestjs/common';
-import { Expense, PaymentMethod, Prisma } from '@prisma/client';
+import { Direction, PaymentMethod, Prisma, Transaction, TransactionKind } from '@prisma/client';
 import { ClockService } from '@/common/clock/clock.service';
 import { AppException } from '@/common/errors';
 import { fromDateOnly, toDateOnly } from '@/common/utils/date-only';
 import { normalizeMerchant } from '@/common/utils/merchant';
 import { PrismaService } from '@/prisma/prisma.service';
 import { BudgetCacheService } from '@/modules/budgets/budget-cache.service';
+import { WalletsService } from '@/modules/wallets/wallets.service';
 import {
   buildWeekSegments,
   dayTypeOf,
@@ -35,7 +36,21 @@ export interface MerchantSuggestion {
   lastSpentOn: string;
 }
 
-const SORTABLE_FIELDS = new Set(['spentOn', 'amount', 'createdAt', 'id']);
+/**
+ * Sort keys a client may ask for, mapped to the column that answers them.
+ *
+ * v2 renamed `spent_on` to `occurred_on`, but the query parameter is part of the API and
+ * does not move until M12. The two names being different is exactly why this is a map and
+ * not a set -- passing the client's spelling straight to Prisma would look fine and throw
+ * at runtime.
+ */
+const SORTABLE_FIELDS = new Map<string, string>([
+  ['spentOn', 'occurredOn'],
+  ['occurredOn', 'occurredOn'],
+  ['amount', 'amount'],
+  ['createdAt', 'createdAt'],
+  ['id', 'id'],
+]);
 /** A dayType filter is resolved to an explicit date list, so the range must stay bounded. */
 const MAX_DAY_TYPE_RANGE_DAYS = 400;
 
@@ -45,6 +60,7 @@ export class ExpensesService {
     private readonly prisma: PrismaService,
     private readonly clock: ClockService,
     private readonly cache: BudgetCacheService,
+    private readonly wallets: WalletsService,
   ) {}
 
   async create(userId: number, dto: CreateExpenseDto): Promise<ExpenseWithRelations> {
@@ -52,13 +68,20 @@ export class ExpensesService {
     await this.assertCategoryOwned(userId, dto.categoryId ?? null);
 
     const merchant = this.cleanMerchant(dto.merchant);
+    // This endpoint never names a wallet, so it means the default one (PRD v2 section 4.2).
+    // Choosing the wallet here rather than in the controller keeps the API unchanged in
+    // M10; taking `walletId` from the request is M12.
+    const walletId = await this.wallets.findDefaultId(userId);
 
     return this.prisma.$transaction(async (tx) => {
-      const expense = await tx.expense.create({
+      const expense = await tx.transaction.create({
         data: {
           userId,
+          walletId,
+          kind: TransactionKind.SPEND,
+          direction: Direction.OUT,
           categoryId: dto.categoryId ?? null,
-          spentOn: toDateOnly(spentOn),
+          occurredOn: toDateOnly(spentOn),
           amount: dto.amount,
           merchant: merchant.value,
           // Always derived here; a client-supplied merchantKey never reaches this point.
@@ -75,7 +98,7 @@ export class ExpensesService {
   }
 
   async findOne(userId: number, id: number): Promise<ExpenseWithRelations> {
-    const expense = await this.prisma.expense.findFirst({
+    const expense = await this.prisma.transaction.findFirst({
       where: { id, userId, deletedAt: null },
       include: { category: true, receipts: { where: { deletedAt: null } } },
     });
@@ -95,14 +118,14 @@ export class ExpensesService {
    */
   async update(userId: number, id: number, dto: UpdateExpenseDto): Promise<ExpenseWithRelations> {
     const existing = await this.findOne(userId, id);
-    const previousPeriod = periodOf(fromDateOnly(existing.spentOn));
+    const previousPeriod = periodOf(fromDateOnly(existing.occurredOn));
 
-    const data: Prisma.ExpenseUpdateInput = {};
+    const data: Prisma.TransactionUpdateInput = {};
     let nextPeriod = previousPeriod;
 
     if (dto.spentOn !== undefined) {
       const spentOn = this.assertUsableDate(dto.spentOn);
-      data.spentOn = toDateOnly(spentOn);
+      data.occurredOn = toDateOnly(spentOn);
       nextPeriod = periodOf(spentOn);
     }
 
@@ -124,7 +147,7 @@ export class ExpensesService {
     }
 
     return this.prisma.$transaction(async (tx) => {
-      const expense = await tx.expense.update({
+      const expense = await tx.transaction.update({
         where: { id },
         data,
         include: { category: true, receipts: { where: { deletedAt: null } } },
@@ -138,10 +161,10 @@ export class ExpensesService {
   /** Soft delete: the row stays for audit but leaves every list and every calculation. */
   async remove(userId: number, id: number): Promise<void> {
     const existing = await this.findOne(userId, id);
-    const period = periodOf(fromDateOnly(existing.spentOn));
+    const period = periodOf(fromDateOnly(existing.occurredOn));
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.expense.update({ where: { id }, data: { deletedAt: new Date() } });
+      await tx.transaction.update({ where: { id }, data: { deletedAt: new Date() } });
       await this.cache.invalidateFrom(userId, period, tx);
     });
   }
@@ -155,15 +178,15 @@ export class ExpensesService {
     const skip = query.offset ?? 0;
 
     const [items, total, sum] = await Promise.all([
-      this.prisma.expense.findMany({
+      this.prisma.transaction.findMany({
         where,
         include: { category: true, receipts: { where: { deletedAt: null } } },
         orderBy: this.buildOrderBy(query.sort),
         take,
         skip,
       }),
-      this.prisma.expense.count({ where }),
-      this.prisma.expense.aggregate({ where, _sum: { amount: true } }),
+      this.prisma.transaction.count({ where }),
+      this.prisma.transaction.aggregate({ where, _sum: { amount: true } }),
     ]);
 
     return { items, total, sumAmount: sum._sum.amount ?? 0 };
@@ -181,18 +204,18 @@ export class ExpensesService {
     const limit = query.limit ?? 10;
     const key = normalizeMerchant(query.q);
 
-    const where: Prisma.ExpenseWhereInput = {
+    const where: Prisma.TransactionWhereInput = {
       userId,
       deletedAt: null,
       merchantKey: key ? { contains: key } : { not: null },
     };
 
-    const groups = await this.prisma.expense.groupBy({
+    const groups = await this.prisma.transaction.groupBy({
       by: ['merchantKey'],
       where,
       _count: { _all: true },
-      _max: { spentOn: true },
-      orderBy: [{ _count: { merchantKey: 'desc' } }, { _max: { spentOn: 'desc' } }],
+      _max: { occurredOn: true },
+      orderBy: [{ _count: { merchantKey: 'desc' } }, { _max: { occurredOn: 'desc' } }],
       take: limit,
     });
 
@@ -203,15 +226,15 @@ export class ExpensesService {
     if (keys.length === 0) return [];
 
     // One extra query for the newest row per key; the spelling last typed wins (PRD 6.16).
-    const recent = await this.prisma.expense.findMany({
+    const recent = await this.prisma.transaction.findMany({
       where: { userId, deletedAt: null, merchantKey: { in: keys } },
-      orderBy: [{ spentOn: 'desc' }, { id: 'desc' }],
+      orderBy: [{ occurredOn: 'desc' }, { id: 'desc' }],
       select: {
         merchantKey: true,
         merchant: true,
         categoryId: true,
         paymentMethod: true,
-        spentOn: true,
+        occurredOn: true,
       },
     });
 
@@ -235,7 +258,7 @@ export class ExpensesService {
           lastCategoryId: latest.categoryId,
           lastPaymentMethod: latest.paymentMethod,
           usageCount: group._count._all,
-          lastSpentOn: fromDateOnly(group._max.spentOn ?? latest.spentOn),
+          lastSpentOn: fromDateOnly(group._max.occurredOn ?? latest.occurredOn),
         },
       ];
     });
@@ -243,17 +266,17 @@ export class ExpensesService {
 
   /** Loads full rows for a period, for the report aggregations. */
   loadForPeriod(userId: number, period: string): Promise<ExpenseWithRelations[]> {
-    return this.prisma.expense.findMany({
+    return this.prisma.transaction.findMany({
       where: {
         userId,
         deletedAt: null,
-        spentOn: {
+        occurredOn: {
           gte: toDateOnly(firstDayOfPeriod(period)),
           lte: toDateOnly(lastDayOfPeriod(period)),
         },
       },
       include: { category: true },
-      orderBy: [{ spentOn: 'asc' }, { id: 'asc' }],
+      orderBy: [{ occurredOn: 'asc' }, { id: 'asc' }],
     });
   }
 
@@ -297,8 +320,8 @@ export class ExpensesService {
     return { value: (raw as string).trim(), key };
   }
 
-  private buildWhere(userId: number, query: QueryExpensesDto): Prisma.ExpenseWhereInput {
-    const where: Prisma.ExpenseWhereInput = { userId, deletedAt: null };
+  private buildWhere(userId: number, query: QueryExpensesDto): Prisma.TransactionWhereInput {
+    const where: Prisma.TransactionWhereInput = { userId, deletedAt: null };
     const range = this.resolveRange(query);
 
     if (query.categoryId !== undefined) where.categoryId = query.categoryId;
@@ -314,9 +337,9 @@ export class ExpensesService {
       const dates = eachDateInRange(range.from, range.to).filter(
         (date) => dayTypeOf(date) === query.dayType,
       );
-      where.spentOn = { in: dates.map(toDateOnly) };
+      where.occurredOn = { in: dates.map(toDateOnly) };
     } else {
-      where.spentOn = { gte: toDateOnly(range.from), lte: toDateOnly(range.to) };
+      where.occurredOn = { gte: toDateOnly(range.from), lte: toDateOnly(range.to) };
     }
 
     return where;
@@ -382,19 +405,20 @@ export class ExpensesService {
   }
 
   /** Parses `field:dir,field:dir`, falling back to the documented default. */
-  private buildOrderBy(sort?: string): Prisma.ExpenseOrderByWithRelationInput[] {
+  private buildOrderBy(sort?: string): Prisma.TransactionOrderByWithRelationInput[] {
     const parsed = (sort ?? DEFAULT_EXPENSE_SORT)
       .split(',')
       .map((token) => token.trim())
       .filter(Boolean)
       .flatMap((token) => {
         const [field, direction = 'desc'] = token.split(':');
-        if (!SORTABLE_FIELDS.has(field)) return [];
-        return [{ [field]: direction === 'asc' ? 'asc' : 'desc' } as Prisma.ExpenseOrderByWithRelationInput];
+        const column = SORTABLE_FIELDS.get(field);
+        if (!column) return [];
+        return [{ [column]: direction === 'asc' ? 'asc' : 'desc' } as Prisma.TransactionOrderByWithRelationInput];
       });
 
-    return parsed.length > 0 ? parsed : [{ spentOn: 'desc' }, { id: 'desc' }];
+    return parsed.length > 0 ? parsed : [{ occurredOn: 'desc' }, { id: 'desc' }];
   }
 }
 
-export type { Expense };
+export type { Transaction };

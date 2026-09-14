@@ -108,14 +108,33 @@ export async function createHarness(
   };
 }
 
-/** Wipes every table in dependency order. */
+/**
+ * Wipes every table in dependency order.
+ *
+ * The order is the foreign keys read backwards, and two of them bite: allocations point at
+ * transactions with ON DELETE RESTRICT, so they have to go first, and transactions point at
+ * wallets, so wallets cannot go before them.
+ */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.repaymentAllocation.deleteMany();
   await prisma.receipt.deleteMany();
-  await prisma.expense.deleteMany();
+  await prisma.transaction.deleteMany();
+  await prisma.savingsGoal.deleteMany();
   await prisma.monthlyBudget.deleteMany();
+  await prisma.wallet.deleteMany();
   await prisma.category.deleteMany();
   await prisma.refreshToken.deleteMany();
   await prisma.user.deleteMany();
+}
+
+/** The wallet every seeded user gets (PRD v2 section 4.2). */
+export async function defaultWalletId(harness: Harness): Promise<number> {
+  const wallet = await harness.prisma.wallet.findFirst({
+    where: { userId: harness.userId, isDefault: true },
+  });
+
+  if (!wallet) throw new Error('the seeded user has no default wallet');
+  return wallet.id;
 }
 
 export async function firstCategoryId(harness: Harness): Promise<number> {

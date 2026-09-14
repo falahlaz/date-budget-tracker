@@ -1,4 +1,4 @@
-import { Category, Expense, Receipt } from '@prisma/client';
+import { Category, Receipt, Transaction } from '@prisma/client';
 import { fromDateOnly } from '@/common/utils/date-only';
 import { DayType, buildWeekSegments, dayTypeOf, findSegmentForDate, periodOf } from '@/modules/reports/engine/calendar';
 
@@ -29,7 +29,7 @@ export interface ExpenseResponse {
   updatedAt: string;
 }
 
-export type ExpenseWithRelations = Expense & {
+export type ExpenseWithRelations = Transaction & {
   category?: Category | null;
   receipts?: Receipt[];
 };
@@ -48,11 +48,14 @@ export function toReceiptResponse(receipt: Receipt): ReceiptResponse {
  * Maps a database row onto the API shape (PRD 8.4).
  *
  * `dayType` and `weekIndex` are computed here rather than stored, so they can never drift
- * out of sync with `spent_on` -- the same reason the whole engine recomputes rather than
- * caches.
+ * out of sync with `occurred_on` -- the same reason the whole engine recomputes rather
+ * than caches.
+ *
+ * The response still says `spentOn`: v2 renames the column, not the API. The endpoints
+ * move to /api/transactions with `occurredOn` in M12, as one deliberate break.
  */
 export function toExpenseResponse(expense: ExpenseWithRelations): ExpenseResponse {
-  const spentOn = fromDateOnly(expense.spentOn);
+  const spentOn = fromDateOnly(expense.occurredOn);
   const segments = buildWeekSegments(periodOf(spentOn));
 
   return {

@@ -15,7 +15,7 @@ describe('Budgets and categories (PRD 8.3, 8.7)', () => {
   });
 
   beforeEach(async () => {
-    await harness.prisma.expense.deleteMany();
+    await harness.prisma.transaction.deleteMany();
     await harness.prisma.monthlyBudget.deleteMany();
   });
 

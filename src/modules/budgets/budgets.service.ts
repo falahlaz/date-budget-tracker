@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { MonthlyBudget } from '@prisma/client';
 import { AppException } from '@/common/errors';
 import { PrismaService } from '@/prisma/prisma.service';
+import { WalletsService } from '@/modules/wallets/wallets.service';
 import { BudgetCacheService } from './budget-cache.service';
 import { UpsertBudgetDto } from './dto/upsert-budget.dto';
 
@@ -10,7 +11,17 @@ export class BudgetsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: BudgetCacheService,
+    private readonly wallets: WalletsService,
   ) {}
+
+  /**
+   * Budgets are keyed on a wallet from v2 on (section 9.1), but these endpoints do not
+   * name one until M12 moves them under /api/wallets/:walletId. Until then every budget
+   * belongs to the default wallet, which is the one the migration created.
+   */
+  private walletIdFor(userId: number): Promise<number> {
+    return this.wallets.findDefaultId(userId);
+  }
 
   /**
    * Creates or replaces the budget for a month (PRD 8.3).
@@ -20,10 +31,12 @@ export class BudgetsService {
    * (PRD 6.7) -- both simply invalidate the carry-over chain from here on.
    */
   async upsert(userId: number, period: string, dto: UpsertBudgetDto): Promise<MonthlyBudget> {
+    const walletId = await this.walletIdFor(userId);
+
     return this.prisma.$transaction(async (tx) => {
       const budget = await tx.monthlyBudget.upsert({
-        where: { userId_period: { userId, period } },
-        create: { userId, period, amount: dto.amount, note: dto.note ?? null },
+        where: { walletId_period: { walletId, period } },
+        create: { userId, walletId, period, amount: dto.amount, note: dto.note ?? null },
         update: {
           amount: dto.amount,
           ...(dto.note !== undefined ? { note: dto.note } : {}),
@@ -38,7 +51,7 @@ export class BudgetsService {
 
   async findOne(userId: number, period: string): Promise<MonthlyBudget> {
     const budget = await this.prisma.monthlyBudget.findUnique({
-      where: { userId_period: { userId, period } },
+      where: { walletId_period: { walletId: await this.walletIdFor(userId), period } },
     });
 
     if (!budget) {
@@ -48,9 +61,9 @@ export class BudgetsService {
     return budget;
   }
 
-  findOptional(userId: number, period: string): Promise<MonthlyBudget | null> {
+  async findOptional(userId: number, period: string): Promise<MonthlyBudget | null> {
     return this.prisma.monthlyBudget.findUnique({
-      where: { userId_period: { userId, period } },
+      where: { walletId_period: { walletId: await this.walletIdFor(userId), period } },
     });
   }
 
@@ -71,9 +84,14 @@ export class BudgetsService {
   /** Removes the budget for a month. Expenses in that month are untouched (PRD 8.3). */
   async remove(userId: number, period: string): Promise<void> {
     await this.findOne(userId, period);
+    // Resolved before the transaction opens: a query issued inside the callback but off
+    // `this.prisma` runs on a second connection while the first one is held open.
+    const walletId = await this.walletIdFor(userId);
 
     await this.prisma.$transaction(async (tx) => {
-      await tx.monthlyBudget.delete({ where: { userId_period: { userId, period } } });
+      await tx.monthlyBudget.delete({
+        where: { walletId_period: { walletId, period } },
+      });
       // The month drops out of the carry-over chain entirely (PRD 4.5), so everything
       // from here on has to be recomputed.
       await this.cache.invalidateFrom(userId, period, tx);

@@ -1,10 +1,16 @@
 // Prisma schema for datebud.
-// NORMATIVE SOURCE: PRD section 7.2 (DDL, MySQL 8.0). This schema is a derivation of
-// that DDL and must match it exactly -- on any conflict, the DDL wins.
+// NORMATIVE SOURCE: PRD v1.1 section 7.2, as amended by PRD v2 section 9 (DDL, MySQL 8.0).
+// This schema is a derivation of that DDL and must match it exactly -- on any conflict,
+// the DDL wins. Where v2 contradicts v1.1, v2 wins (v2 section 0).
 //
 // Money is always `Int` (signed 32-bit, whole rupiah). Never Decimal, Float or BigInt.
-// `spentOn` is a bare DATE (no time) to sidestep the entire timezone bug class.
-// `createdAt` / `updatedAt` are DATETIME stored in UTC.
+// `occurredOn`, `startDate` and `deadline` are bare DATEs (no time) to sidestep the entire
+// timezone bug class. `createdAt` / `updatedAt` are DATETIME stored in UTC.
+//
+// v2 vocabulary: there are no "expenses" any more. One `transactions` table holds every
+// movement in every wallet; `walletId` and `kind` are what tell them apart, `amount` is
+// ALWAYS positive, and `direction` -- filled in by the server, never the client -- carries
+// which way the money went (v2 section 4.1).
 
 generator client {
   provider = "prisma-client-js"
@@ -25,6 +31,34 @@ enum PaymentMethod {
   OTHER
 }
 
+/// Which engine computes a wallet's numbers (v2 section 4.1).
+enum WalletType {
+  DATE_BUDGET
+  SAVINGS
+}
+
+/// What a transaction *is*. Determines which engine sees it, and its `direction`.
+enum TransactionKind {
+  SPEND
+  DEPOSIT
+  WITHDRAW
+  TRANSFER_IN
+  TRANSFER_OUT
+}
+
+/// Which way the money moved. A deterministic function of `kind` (v2 section 9.2), stored
+/// so aggregation is one `SUM ... GROUP BY direction` rather than a CASE over five kinds.
+enum Direction {
+  IN
+  OUT
+}
+
+enum GoalStatus {
+  ACTIVE
+  ACHIEVED
+  ARCHIVED
+}
+
 model User {
   id           Int      @id @default(autoincrement()) @db.UnsignedInt
   email        String   @db.VarChar(191)
@@ -33,11 +67,14 @@ model User {
   createdAt    DateTime @default(now()) @map("created_at") @db.DateTime(0)
   updatedAt    DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  refreshTokens  RefreshToken[]
-  categories     Category[]
-  monthlyBudgets MonthlyBudget[]
-  expenses       Expense[]
-  receipts       Receipt[]
+  refreshTokens        RefreshToken[]
+  categories           Category[]
+  monthlyBudgets       MonthlyBudget[]
+  transactions         Transaction[]
+  receipts             Receipt[]
+  wallets              Wallet[]
+  savingsGoals         SavingsGoal[]
+  repaymentAllocations RepaymentAllocation[]
 
   @@unique([email], map: "uq_users_email")
   @@map("users")
@@ -60,29 +97,61 @@ model RefreshToken {
   @@map("refresh_tokens")
 }
 
-model Category {
-  id         Int      @id @default(autoincrement()) @db.UnsignedInt
-  userId     Int      @map("user_id") @db.UnsignedInt
-  name       String   @db.VarChar(50)
-  /// hex colour used by the dashboard charts
-  color      String   @default("#64748B") @db.Char(7)
+/// A wallet (v2 section 4). One user has many; `type` picks the engine.
+model Wallet {
+  id     Int        @id @default(autoincrement()) @db.UnsignedInt
+  userId Int        @map("user_id") @db.UnsignedInt
+  name   String     @db.VarChar(60)
+  type   WalletType
+  /// hex identity colour shown in the switcher
+  color  String     @default("#5C63C4") @db.Char(7)
   /// lucide-react icon name
-  icon       String?  @db.VarChar(40)
-  sortOrder  Int      @default(0) @map("sort_order") @db.SmallInt
+  icon   String?    @db.VarChar(40)
+  /// Exactly one per user. Enforced in a DB transaction, not by validation (v2 section 4.2).
+  isDefault  Boolean  @default(false) @map("is_default")
   isArchived Boolean  @default(false) @map("is_archived")
+  sortOrder  Int      @default(0) @map("sort_order") @db.SmallInt
   createdAt  DateTime @default(now()) @map("created_at") @db.DateTime(0)
   updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  user     User      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_category_user")
-  expenses Expense[]
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_wallet_user")
+  transactions   Transaction[]
+  monthlyBudgets MonthlyBudget[]
+  savingsGoals   SavingsGoal[]
 
-  @@unique([userId, name], map: "uq_category_user_name")
+  @@unique([userId, name], map: "uq_wallet_user_name")
+  @@index([userId, isArchived], map: "idx_wallet_user")
+  @@map("wallets")
+}
+
+model Category {
+  id     Int        @id @default(autoincrement()) @db.UnsignedInt
+  userId Int        @map("user_id") @db.UnsignedInt
+  /// Which kind of wallet this category belongs to. Spending categories and withdrawal
+  /// categories are different vocabularies, so the same name may exist in both.
+  walletType WalletType @default(DATE_BUDGET) @map("wallet_type")
+  name       String     @db.VarChar(50)
+  /// hex colour used by the dashboard charts
+  color      String     @default("#64748B") @db.Char(7)
+  /// lucide-react icon name
+  icon       String?    @db.VarChar(40)
+  sortOrder  Int        @default(0) @map("sort_order") @db.SmallInt
+  isArchived Boolean    @default(false) @map("is_archived")
+  createdAt  DateTime   @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt  DateTime   @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_category_user")
+  transactions Transaction[]
+
+  @@unique([userId, walletType, name], map: "uq_category_user_type_name")
   @@map("categories")
 }
 
 model MonthlyBudget {
-  id             Int      @id @default(autoincrement()) @db.UnsignedInt
-  userId         Int      @map("user_id") @db.UnsignedInt
+  id       Int @id @default(autoincrement()) @db.UnsignedInt
+  userId   Int @map("user_id") @db.UnsignedInt
+  /// Budgets belong to a wallet, and only ever a DATE_BUDGET one (v2 section 10.1).
+  walletId Int @map("wallet_id") @db.UnsignedInt
   /// 'YYYY-MM'
   period         String   @db.Char(7)
   /// whole rupiah, >= 1
@@ -93,58 +162,148 @@ model MonthlyBudget {
   createdAt      DateTime @default(now()) @map("created_at") @db.DateTime(0)
   updatedAt      DateTime @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_budget_user")
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_budget_user")
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade, map: "fk_budget_wallet")
 
-  @@unique([userId, period], map: "uq_budget_user_period")
+  @@unique([walletId, period], map: "uq_budget_wallet_period")
+  /// Backs `fk_budget_user` now that the unique key is keyed on wallet, and still serves
+  /// the user-scoped budget listing.
+  @@index([userId], map: "idx_budget_user")
   @@map("monthly_budgets")
 }
 
-model Expense {
-  id            Int           @id @default(autoincrement()) @db.UnsignedInt
-  userId        Int           @map("user_id") @db.UnsignedInt
-  categoryId    Int?          @map("category_id") @db.UnsignedInt
+/// Every movement of money, in every wallet (v2 section 4.1). Was `expenses` in v1.1.
+model Transaction {
+  id            Int             @id @default(autoincrement()) @db.UnsignedInt
+  userId        Int             @map("user_id") @db.UnsignedInt
+  walletId      Int             @map("wallet_id") @db.UnsignedInt
+  kind          TransactionKind @default(SPEND)
+  /// Derived from `kind` by the server. A client-supplied value is ignored (v2 section 9.2).
+  direction     Direction       @default(OUT)
+  categoryId    Int?            @map("category_id") @db.UnsignedInt
   /// WIB calendar date, no time component
-  spentOn       DateTime      @map("spent_on") @db.Date
-  /// whole rupiah, >= 1
+  occurredOn    DateTime        @map("occurred_on") @db.Date
+  /// whole rupiah, ALWAYS >= 1. Direction lives in `direction`, never in the sign --
+  /// storing a negative amount is the classic money-app bug and is closed off here.
   amount        Int
   /// place name, stored verbatim as the user typed it -- this is what the UI shows
-  merchant      String?       @db.VarChar(120)
+  merchant      String?         @db.VarChar(120)
   /// normalizeMerchant(merchant); the ONLY column allowed for grouping/dedupe/matching
-  merchantKey   String?       @map("merchant_key") @db.VarChar(120)
-  paymentMethod PaymentMethod @default(CASH) @map("payment_method")
-  note          String?       @db.VarChar(500)
-  createdAt     DateTime      @default(now()) @map("created_at") @db.DateTime(0)
-  updatedAt     DateTime      @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
-  deletedAt     DateTime?     @map("deleted_at") @db.DateTime(0)
+  merchantKey   String?         @map("merchant_key") @db.VarChar(120)
+  paymentMethod PaymentMethod   @default(CASH) @map("payment_method")
+  note          String?         @db.VarChar(500)
 
+  /// Both sides of one transfer share this uuid v4 and are always written, edited and
+  /// deleted together (v2 section 6.1).
+  transferGroupId     String? @map("transfer_group_id") @db.Char(36)
+  counterpartWalletId Int?    @map("counterpart_wallet_id") @db.UnsignedInt
+
+  /// Why the money left the savings wallet. Mandatory on WITHDRAW -- this is goal G2 and
+  /// is not to be relaxed into an optional field (v2 section 8.13).
+  reason         String?   @db.VarChar(200)
+  /// "bakal gw balikin": marks a withdrawal as a debt to yourself (v2 section 5.1).
+  expectedReturn Boolean   @default(false) @map("expected_return")
+  returnedAmount Int       @default(0) @map("returned_amount")
+  settledAt      DateTime? @map("settled_at") @db.DateTime(0)
+
+  createdAt DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+  deletedAt DateTime? @map("deleted_at") @db.DateTime(0)
+
+  // The two inherited foreign keys keep their v1.1 names. Renaming a constraint means
+  // dropping and re-adding it, which re-validates every row against the parent table --
+  // real work on the one table this migration must not put at risk. Renaming an *index*
+  // costs nothing (metadata only), so those did move to idx_txn_*.
   user     User      @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_expense_user")
+  wallet   Wallet    @relation(fields: [walletId], references: [id], onDelete: Cascade, map: "fk_txn_wallet")
   category Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull, map: "fk_expense_category")
   receipts Receipt[]
 
-  @@index([userId, spentOn, deletedAt], map: "idx_expense_user_date")
-  @@index([categoryId], map: "idx_expense_category")
-  @@index([userId, merchantKey, deletedAt], map: "idx_expense_merchant")
-  @@map("expenses")
+  depositAllocations    RepaymentAllocation[] @relation("AllocationDeposit")
+  withdrawalAllocations RepaymentAllocation[] @relation("AllocationWithdrawal")
+
+  @@index([walletId, occurredOn, deletedAt], map: "idx_txn_wallet_date")
+  @@index([walletId, kind, deletedAt], map: "idx_txn_kind")
+  @@index([transferGroupId], map: "idx_txn_transfer")
+  @@index([walletId, expectedReturn, settledAt], map: "idx_txn_advance")
+  @@index([categoryId], map: "idx_txn_category")
+  /// Also the index that backs `fk_expense_user`, now that idx_expense_user_date is gone.
+  /// Do not drop it without adding another `user_id`-leftmost index first.
+  @@index([userId, merchantKey, deletedAt], map: "idx_txn_merchant")
+  @@map("transactions")
+}
+
+/// One goal per savings wallet in v2 -- multi-goal is v2.1 (v2 section 3).
+model SavingsGoal {
+  id             Int        @id @default(autoincrement()) @db.UnsignedInt
+  userId         Int        @map("user_id") @db.UnsignedInt
+  walletId       Int        @map("wallet_id") @db.UnsignedInt
+  name           String     @db.VarChar(80)
+  /// whole rupiah, >= 1
+  targetAmount   Int        @map("target_amount")
+  /// what was already in the account when the goal was created; >= 0
+  openingBalance Int        @default(0) @map("opening_balance")
+  startDate      DateTime   @map("start_date") @db.Date
+  /// must be >= startDate; same month is valid and means a one-month plan (v2 section 8.11)
+  deadline       DateTime   @db.Date
+  /// Locked when the goal is created, so the pace baseline does not drift with the balance.
+  planPerMonth   Int        @map("plan_per_month")
+  planRevisedAt  DateTime?  @map("plan_revised_at") @db.DateTime(0)
+  status         GoalStatus @default(ACTIVE)
+  achievedAt     DateTime?  @map("achieved_at") @db.DateTime(0)
+  note           String?    @db.VarChar(255)
+  createdAt      DateTime   @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt      DateTime   @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_goal_user")
+  wallet Wallet @relation(fields: [walletId], references: [id], onDelete: Cascade, map: "fk_goal_wallet")
+
+  // At most one ACTIVE goal per wallet. MySQL 8 has no partial unique index, so this is
+  // enforced in the service layer inside a DB transaction (v2 section 9.3).
+  @@index([walletId, status], map: "idx_goal_wallet")
+  @@map("savings_goals")
+}
+
+/// Which deposit paid back which advance, and by how much (v2 section 5.4).
+model RepaymentAllocation {
+  id                      Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId                  Int      @map("user_id") @db.UnsignedInt
+  depositTransactionId    Int      @map("deposit_transaction_id") @db.UnsignedInt
+  withdrawalTransactionId Int      @map("withdrawal_transaction_id") @db.UnsignedInt
+  /// whole rupiah, >= 1
+  amount                  Int
+  createdAt               DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_alloc_user")
+  /// Deleting a deposit releases its allocations (v2 section 8.7).
+  deposit Transaction @relation("AllocationDeposit", fields: [depositTransactionId], references: [id], onDelete: Cascade, map: "fk_alloc_deposit")
+  /// RESTRICT is what enforces v2 section 8.8 at the database, not just in the service:
+  /// a partly repaid advance cannot be deleted out from under the deposits pointing at it.
+  withdrawal Transaction @relation("AllocationWithdrawal", fields: [withdrawalTransactionId], references: [id], onDelete: Restrict, map: "fk_alloc_withdraw")
+
+  @@unique([depositTransactionId, withdrawalTransactionId], map: "uq_alloc_pair")
+  @@index([withdrawalTransactionId], map: "idx_alloc_withdrawal")
+  @@map("repayment_allocations")
 }
 
 model Receipt {
-  id           Int       @id @default(autoincrement()) @db.UnsignedInt
-  expenseId    Int       @map("expense_id") @db.UnsignedInt
-  userId       Int       @map("user_id") @db.UnsignedInt
+  id            Int       @id @default(autoincrement()) @db.UnsignedInt
+  transactionId Int       @map("transaction_id") @db.UnsignedInt
+  userId        Int       @map("user_id") @db.UnsignedInt
   /// relative path, e.g. 'receipts/2026/09/uuid.webp'
-  storageKey   String    @map("storage_key") @db.VarChar(255)
-  thumbKey     String?   @map("thumb_key") @db.VarChar(255)
-  mimeType     String    @map("mime_type") @db.VarChar(60)
-  sizeBytes    Int       @map("size_bytes") @db.UnsignedInt
-  width        Int?      @db.UnsignedSmallInt
-  height       Int?      @db.UnsignedSmallInt
-  originalName String?   @map("original_name") @db.VarChar(255)
-  createdAt    DateTime  @default(now()) @map("created_at") @db.DateTime(0)
-  deletedAt    DateTime? @map("deleted_at") @db.DateTime(0)
+  storageKey    String    @map("storage_key") @db.VarChar(255)
+  thumbKey      String?   @map("thumb_key") @db.VarChar(255)
+  mimeType      String    @map("mime_type") @db.VarChar(60)
+  sizeBytes     Int       @map("size_bytes") @db.UnsignedInt
+  width         Int?      @db.UnsignedSmallInt
+  height        Int?      @db.UnsignedSmallInt
+  originalName  String?   @map("original_name") @db.VarChar(255)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  deletedAt     DateTime? @map("deleted_at") @db.DateTime(0)
 
-  expense Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade, map: "fk_receipt_expense")
-  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_receipt_user")
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade, map: "fk_receipt_transaction")
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_receipt_user")
 
-  @@index([expenseId], map: "idx_receipt_expense")
+  @@index([transactionId], map: "idx_receipt_transaction")
   @@map("receipts")
 }

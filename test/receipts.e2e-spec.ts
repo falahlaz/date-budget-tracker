@@ -24,7 +24,7 @@ describe('Receipts (PRD 8.5)', () => {
 
   beforeEach(async () => {
     await harness.prisma.receipt.deleteMany();
-    await harness.prisma.expense.deleteMany();
+    await harness.prisma.transaction.deleteMany();
 
     const created = await harness
       .http()

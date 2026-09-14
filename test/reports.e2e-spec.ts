@@ -35,7 +35,7 @@ describe('Reports (PRD 8.6)', () => {
   });
 
   beforeEach(async () => {
-    await harness.prisma.expense.deleteMany();
+    await harness.prisma.transaction.deleteMany();
     await harness.prisma.monthlyBudget.deleteMany();
   });
 

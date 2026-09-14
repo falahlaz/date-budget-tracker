@@ -73,7 +73,7 @@ export interface TodayReportResponse {
 function toAggregatable(expense: ExpenseWithRelations): AggregatableExpense {
   return {
     id: expense.id,
-    spentOn: fromDateOnly(expense.spentOn),
+    spentOn: fromDateOnly(expense.occurredOn),
     amount: expense.amount,
     merchant: expense.merchant,
     merchantKey: expense.merchantKey,
