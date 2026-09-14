@@ -1,4 +1,4 @@
-import { createHarness, firstCategoryId, Harness } from './app-harness';
+import { createHarness, defaultWalletId, firstCategoryId, Harness } from './app-harness';
 
 /**
  * Fixture B from PRD 5.2, driven end to end through the HTTP API.
@@ -10,24 +10,28 @@ import { createHarness, firstCategoryId, Harness } from './app-harness';
 const FIXED_TODAY = '2026-12-01';
 
 const FIXTURE_B_EXPENSES = [
-  { spentOn: '2026-09-02', amount: 150_000 },
-  { spentOn: '2026-09-05', amount: 250_000 },
-  { spentOn: '2026-09-08', amount: 150_000 },
-  { spentOn: '2026-09-12', amount: 250_000 },
-  { spentOn: '2026-09-15', amount: 200_000 },
-  { spentOn: '2026-09-19', amount: 400_000 },
-  { spentOn: '2026-09-22', amount: 100_000 },
-  { spentOn: '2026-09-26', amount: 500_000 },
-  { spentOn: '2026-09-29', amount: 120_000 },
+  { occurredOn: '2026-09-02', amount: 150_000 },
+  { occurredOn: '2026-09-05', amount: 250_000 },
+  { occurredOn: '2026-09-08', amount: 150_000 },
+  { occurredOn: '2026-09-12', amount: 250_000 },
+  { occurredOn: '2026-09-15', amount: 200_000 },
+  { occurredOn: '2026-09-19', amount: 400_000 },
+  { occurredOn: '2026-09-22', amount: 100_000 },
+  { occurredOn: '2026-09-26', amount: 500_000 },
+  { occurredOn: '2026-09-29', amount: 120_000 },
 ];
 
 describe('Reports (PRD 8.6)', () => {
   let harness: Harness;
   let categoryId: number;
+  // Budgets and reports live under their wallet from v2 on (PRD v2 10.1). The numbers
+  // below must not move -- only the URL they are fetched from.
+  let walletId: number;
 
   beforeAll(async () => {
     harness = await createHarness({ today: FIXED_TODAY });
     categoryId = await firstCategoryId(harness);
+    walletId = await defaultWalletId(harness);
   });
 
   afterAll(async () => {
@@ -42,24 +46,24 @@ describe('Reports (PRD 8.6)', () => {
   const auth = () => harness.auth;
 
   const setBudget = (period: string, amount: number) =>
-    harness.http().put(`/api/budgets/${period}`).set('Authorization', auth()).send({ amount });
+    harness.http().put(`/api/wallets/${walletId}/budgets/${period}`).set('Authorization', auth()).send({ amount });
 
   const addExpense = (body: Record<string, unknown>) =>
-    harness.http().post('/api/expenses').set('Authorization', auth()).send(body);
+    harness.http().post('/api/transactions').set('Authorization', auth()).send(body);
 
   const monthReport = (period: string) =>
-    harness.http().get(`/api/reports/month/${period}`).set('Authorization', auth());
+    harness.http().get(`/api/wallets/${walletId}/reports/month/${period}`).set('Authorization', auth());
 
   const weekReport = (period: string, weekIndex: number) =>
-    harness.http().get(`/api/reports/week/${period}/${weekIndex}`).set('Authorization', auth());
+    harness.http().get(`/api/wallets/${walletId}/reports/week/${period}/${weekIndex}`).set('Authorization', auth());
 
   // E1
   it('reports correct numbers after a budget and three expenses', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
 
-    await addExpense({ spentOn: '2026-09-02', amount: 150_000, categoryId }).expect(201);
-    await addExpense({ spentOn: '2026-09-05', amount: 250_000 }).expect(201);
-    await addExpense({ spentOn: '2026-09-08', amount: 100_000 }).expect(201);
+    await addExpense({ occurredOn: '2026-09-02', amount: 150_000, categoryId }).expect(201);
+    await addExpense({ occurredOn: '2026-09-05', amount: 250_000 }).expect(201);
+    await addExpense({ occurredOn: '2026-09-08', amount: 100_000 }).expect(201);
 
     const response = await monthReport('2026-09').expect(200);
 
@@ -123,10 +127,10 @@ describe('Reports (PRD 8.6)', () => {
 
   it('skips a month with no budget in the carry-over chain (PRD 4.5, 6.5)', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
-    await addExpense({ spentOn: '2026-09-02', amount: 200_000 }).expect(201);
+    await addExpense({ occurredOn: '2026-09-02', amount: 200_000 }).expect(201);
 
     // October gets no budget at all, but does get spending.
-    await addExpense({ spentOn: '2026-10-05', amount: 300_000 }).expect(201);
+    await addExpense({ occurredOn: '2026-10-05', amount: 300_000 }).expect(201);
     await setBudget('2026-11', 1_000_000).expect(200);
 
     const october = await monthReport('2026-10').expect(200);
@@ -145,7 +149,7 @@ describe('Reports (PRD 8.6)', () => {
     await setBudget('2026-09', 2_200_000).expect(200);
     await setBudget('2026-10', 2_200_000).expect(200);
 
-    const created = await addExpense({ spentOn: '2026-10-05', amount: 500_000 }).expect(201);
+    const created = await addExpense({ occurredOn: '2026-10-05', amount: 500_000 }).expect(201);
 
     // Prime the cache for both months.
     await monthReport('2026-09').expect(200);
@@ -156,9 +160,9 @@ describe('Reports (PRD 8.6)', () => {
 
     await harness
       .http()
-      .patch(`/api/expenses/${created.body.id}`)
+      .patch(`/api/transactions/${created.body.id}`)
       .set('Authorization', auth())
-      .send({ spentOn: '2026-09-05' })
+      .send({ occurredOn: '2026-09-05' })
       .expect(200);
 
     // Moving it back invalidates September and everything after it.
@@ -176,7 +180,7 @@ describe('Reports (PRD 8.6)', () => {
 
   it('recomputes when the budget itself changes (PRD 6.7)', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
-    await addExpense({ spentOn: '2026-09-02', amount: 200_000 }).expect(201);
+    await addExpense({ occurredOn: '2026-09-02', amount: 200_000 }).expect(201);
 
     expect((await monthReport('2026-09').expect(200)).body.carryOut).toBe(2_000_000);
 
@@ -188,9 +192,9 @@ describe('Reports (PRD 8.6)', () => {
   it('merges different spellings of a place into one byMerchant entry', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
 
-    await addExpense({ spentOn: '2026-09-02', amount: 100_000, merchant: 'Bakmi GM' }).expect(201);
-    await addExpense({ spentOn: '2026-09-03', amount: 120_000, merchant: 'bakmi gm ' }).expect(201);
-    await addExpense({ spentOn: '2026-09-04', amount: 200_000, merchant: 'Bakmi-GM' }).expect(201);
+    await addExpense({ occurredOn: '2026-09-02', amount: 100_000, merchant: 'Bakmi GM' }).expect(201);
+    await addExpense({ occurredOn: '2026-09-03', amount: 120_000, merchant: 'bakmi gm ' }).expect(201);
+    await addExpense({ occurredOn: '2026-09-04', amount: 200_000, merchant: 'Bakmi-GM' }).expect(201);
 
     const { body } = await monthReport('2026-09').expect(200);
     const bakmi = body.byMerchant.filter((row: { merchantKey: string }) => row.merchantKey === 'bakmigm');
@@ -202,8 +206,8 @@ describe('Reports (PRD 8.6)', () => {
 
   it('keeps expenses with no place in a bottom-pinned entry (PRD 6.18)', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
-    await addExpense({ spentOn: '2026-09-02', amount: 5_000_000 }).expect(201);
-    await addExpense({ spentOn: '2026-09-03', amount: 10_000, merchant: 'Bakmi GM' }).expect(201);
+    await addExpense({ occurredOn: '2026-09-02', amount: 5_000_000 }).expect(201);
+    await addExpense({ occurredOn: '2026-09-03', amount: 10_000, merchant: 'Bakmi GM' }).expect(201);
 
     const { body } = await monthReport('2026-09').expect(200);
     const last = body.byMerchant[body.byMerchant.length - 1];
@@ -214,13 +218,13 @@ describe('Reports (PRD 8.6)', () => {
   });
 
   it('serves the today and current-week widgets', async () => {
-    const today = await harness.http().get('/api/reports/today').set('Authorization', auth()).expect(200);
+    const today = await harness.http().get(`/api/wallets/${walletId}/reports/today`).set('Authorization', auth()).expect(200);
     expect(today.body).toMatchObject({ dayType: expect.stringMatching(/WEEKDAY|WEEKEND/) });
     expect(typeof today.body.monthRemaining).toBe('number');
 
     const week = await harness
       .http()
-      .get('/api/reports/week/current')
+      .get(`/api/wallets/${walletId}/reports/week/current`)
       .set('Authorization', auth())
       .expect(200);
 
@@ -261,7 +265,7 @@ describe('Reports (PRD 8.6)', () => {
   });
 
   it('rejects a malformed period', async () => {
-    await harness.http().get('/api/reports/month/2026-9').set('Authorization', auth()).expect(422);
-    await harness.http().get('/api/reports/month/not-a-period').set('Authorization', auth()).expect(422);
+    await harness.http().get(`/api/wallets/${walletId}/reports/month/2026-9`).set('Authorization', auth()).expect(422);
+    await harness.http().get(`/api/wallets/${walletId}/reports/month/not-a-period`).set('Authorization', auth()).expect(422);
   });
 });

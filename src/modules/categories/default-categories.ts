@@ -18,6 +18,9 @@
  *
  * These are per-user rows, so they are created when a user is created rather than in a
  * migration -- a migration has no user to attach them to.
+ *
+ * DATE_BUDGET only: these are the things a date costs. Withdrawal categories are a
+ * separate vocabulary, below.
  */
 export const DEFAULT_CATEGORIES: ReadonlyArray<{ name: string; color: string; icon: string }> = [
   { name: 'Makan', color: '#9D6DE4', icon: 'utensils' },
@@ -27,6 +30,27 @@ export const DEFAULT_CATEGORIES: ReadonlyArray<{ name: string; color: string; ic
   { name: 'Aktivitas', color: '#E24D98', icon: 'ticket' },
   { name: 'Gift', color: '#E25662', icon: 'gift' },
   { name: 'Lain-lain', color: '#858499', icon: 'ellipsis' },
+];
+
+/**
+ * Withdrawal categories for a savings wallet (PRD v2 9.4).
+ *
+ * Seeded the first time a user creates a SAVINGS wallet, for the same reason as above.
+ * They can share a name with a spending category -- "Lain-lain" exists in both -- which is
+ * exactly why the unique key moved to (user_id, wallet_type, name) in v2.
+ *
+ * "Impulsif" is deliberate, and deliberately named that. If it turns out to be the largest
+ * slice after three months, that is the most useful thing this feature will have told
+ * Falah, and a politer label would have buried it.
+ */
+export const SAVINGS_CATEGORIES: ReadonlyArray<{ name: string; color: string; icon: string }> = [
+  { name: 'Darurat', color: '#C2536A', icon: 'siren' },
+  { name: 'Kesehatan', color: '#3E8C74', icon: 'heart-pulse' },
+  { name: 'Keluarga', color: '#8E479D', icon: 'users' },
+  { name: 'Servis & perbaikan', color: '#C88B00', icon: 'wrench' },
+  { name: 'Elektronik', color: '#6B6CD0', icon: 'smartphone' },
+  { name: 'Impulsif', color: '#B14576', icon: 'zap' },
+  { name: 'Lain-lain', color: '#8A8DA6', icon: 'ellipsis' },
 ];
 
 /**

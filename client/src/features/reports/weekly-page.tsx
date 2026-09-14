@@ -260,7 +260,7 @@ function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number
     period,
     weekIndex,
     limit: 100,
-    sort: 'spentOn:asc,id:asc',
+    sort: 'occurredOn:asc,id:asc',
   });
 
   if (isLoading) return <LoadingBlock />;
@@ -270,7 +270,7 @@ function WeekExpenses({ period, weekIndex }: { period: string; weekIndex: number
 
   const byDate = new Map<string, typeof data.items>();
   for (const expense of data.items) {
-    byDate.set(expense.spentOn, [...(byDate.get(expense.spentOn) ?? []), expense]);
+    byDate.set(expense.occurredOn, [...(byDate.get(expense.occurredOn) ?? []), expense]);
   }
 
   return (

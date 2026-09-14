@@ -137,8 +137,10 @@ src/
     users/           user creation + default category seed
     categories/      CRUD, archive instead of delete
     budgets/         budget CRUD, carry-over resolution, cache invalidation
-    wallets/         wallet resolution; every transaction belongs to one
-    expenses/        CRUD, filters, merchant autocomplete
+    wallets/         wallet CRUD, resolution, and the switcher's per-type summaries
+    transactions/    CRUD, filters, merchant autocomplete (was `expenses/` in v1.1)
+    savings/
+      engine/        compute-savings.ts · allocate-fifo.ts · delay.ts  ← the savings half
     receipts/        upload, sharp normalisation, storage abstraction
     reports/
       engine/        calendar.ts · compute-month.ts · aggregate.ts  ← the heart
@@ -154,8 +156,8 @@ client/src/
 ## Testing
 
 ```bash
-npm test                       # 142 unit tests, no database
-npm run test:e2e               # E1–E15 from PRD 12.2, needs MySQL
+npm test                       # 198 unit tests, no database
+npm run test:e2e               # 66 HTTP tests against a real MySQL
 npm --prefix client test       # formatting and date helpers
 ```
 
@@ -163,6 +165,34 @@ The unit suite covers T1–T13 from PRD 12.1, including all three golden fixture
 1000-case invariant property test, and 24 months of week-segment continuity. It also boots
 the whole Nest application against a stubbed database to prove every route in PRD section 8
 registers and resolves.
+
+---
+
+## Wallets
+
+From v2 on, an account has many wallets and each wallet's `type` decides which engine
+computes its numbers: `DATE_BUDGET` answers "how much may I still spend?", `SAVINGS`
+answers "how much do I still have to put in?".
+
+That shape runs through the API. Budgets and reports belong to a wallet:
+
+```
+GET  /api/wallets                              # each with the summary its type calls for
+PUT  /api/wallets/:walletId/budgets/:period
+GET  /api/wallets/:walletId/reports/month/:period
+```
+
+Transactions stay at the top level and name their wallet in the body or the query, so
+recording a spend does not need one in the URL:
+
+```
+POST /api/transactions          { occurredOn, amount, ... }   # default wallet
+GET  /api/transactions?walletId=2&kind=WITHDRAW
+```
+
+Leaving `walletId` out means the default wallet — the one the migration created, and the
+only one that cannot be archived. `kind` must suit the wallet type (a `DEPOSIT` into a
+date-budget wallet is a 422), and `direction` is always derived from `kind` by the server.
 
 ---
 

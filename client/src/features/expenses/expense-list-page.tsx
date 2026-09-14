@@ -22,7 +22,7 @@ export function ExpenseListPage() {
   const [params, setParams] = useSearchParams();
   // Archived categories still show up in the monthly donut, so a tap-through can land
   // here filtering on one. Fetching them keeps that filter nameable and clearable.
-  const categories = useCategories(true);
+  const categories = useCategories('DATE_BUDGET', true);
 
   const period = params.get('period') ?? currentPeriod();
   const merchantKey = params.get('merchantKey') ?? undefined;

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Category, Prisma } from '@prisma/client';
+import { Category, Prisma, WalletType } from '@prisma/client';
 import { AppException } from '@/common/errors';
 import { PrismaService } from '@/prisma/prisma.service';
 import { pickCategoryColor } from './default-categories';
@@ -10,10 +10,19 @@ import { UpdateCategoryDto } from './dto/update-category.dto';
 export class CategoriesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Archived categories are hidden by default so they stop appearing in pickers (PRD 6.12). */
-  list(userId: number, includeArchived = false): Promise<Category[]> {
+  /**
+   * Archived categories are hidden by default so they stop appearing in pickers (PRD 6.12).
+   *
+   * Scoped to a wallet type: the withdrawal picker must not offer "Nonton", and the spend
+   * picker must not offer "Darurat" (PRD v2 9.4).
+   */
+  list(
+    userId: number,
+    walletType: WalletType = WalletType.DATE_BUDGET,
+    includeArchived = false,
+  ): Promise<Category[]> {
     return this.prisma.category.findMany({
-      where: { userId, ...(includeArchived ? {} : { isArchived: false }) },
+      where: { userId, walletType, ...(includeArchived ? {} : { isArchived: false }) },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
     });
   }
@@ -29,10 +38,12 @@ export class CategoriesService {
   }
 
   async create(userId: number, dto: CreateCategoryDto): Promise<Category> {
+    const walletType = dto.walletType ?? WalletType.DATE_BUDGET;
+
     // Archived categories count too: they still own their colour and their slot in the
     // order, and un-archiving one must not collide with whatever was added meanwhile.
     const existing = await this.prisma.category.findMany({
-      where: { userId },
+      where: { userId, walletType },
       select: { color: true },
     });
 
@@ -40,6 +51,7 @@ export class CategoriesService {
       return await this.prisma.category.create({
         data: {
           userId,
+          walletType,
           name: dto.name.trim(),
           // Quick-add creates categories mid-expense and never asks for a colour, so one is
           // chosen here rather than letting every such category default to the same grey.

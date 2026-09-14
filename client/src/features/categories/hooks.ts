@@ -1,13 +1,22 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ApiError, api } from '@/lib/api';
 import { queryKeys } from '@/lib/query';
-import type { Category } from '@/types/api';
+import type { Category, WalletType } from '@/types/api';
 
-export function useCategories(includeArchived = false) {
+/**
+ * Categories for one wallet type (PRD v2 9.4).
+ *
+ * Spending and withdrawal categories are separate vocabularies that may share a name, so
+ * the type is part of the request and of the cache key -- without it the withdrawal picker
+ * would happily serve up "Nonton" from the spend list.
+ */
+export function useCategories(walletType: WalletType = 'DATE_BUDGET', includeArchived = false) {
   return useQuery({
-    queryKey: queryKeys.categories(includeArchived),
+    queryKey: queryKeys.categories(walletType, includeArchived),
     queryFn: () =>
-      api.get<Category[]>(`/categories${includeArchived ? '?includeArchived=true' : ''}`),
+      api.get<Category[]>(
+        `/categories?walletType=${walletType}${includeArchived ? '&includeArchived=true' : ''}`,
+      ),
     staleTime: 5 * 60_000,
   });
 }
@@ -16,7 +25,7 @@ export function useCreateCategory() {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: (input: { name: string; color?: string; icon?: string }) =>
+    mutationFn: (input: { name: string; color?: string; icon?: string; walletType?: WalletType }) =>
       api.post<Category>('/categories', input),
     onSuccess: () => client.invalidateQueries({ queryKey: ['categories'] }),
   });
@@ -33,17 +42,24 @@ export function useAddCategory() {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: async (name: string) => {
+    mutationFn: async ({
+      name,
+      walletType = 'DATE_BUDGET',
+    }: {
+      name: string;
+      walletType?: WalletType;
+    }) => {
       const trimmed = name.trim();
 
       try {
-        return await api.post<Category>('/categories', { name: trimmed });
+        return await api.post<Category>('/categories', { name: trimmed, walletType });
       } catch (error) {
         if (!(error instanceof ApiError) || error.status !== 409) throw error;
 
         const all = await client.fetchQuery({
-          queryKey: queryKeys.categories(true),
-          queryFn: () => api.get<Category[]>('/categories?includeArchived=true'),
+          queryKey: queryKeys.categories(walletType, true),
+          queryFn: () =>
+            api.get<Category[]>(`/categories?walletType=${walletType}&includeArchived=true`),
         });
         const archived = all.find(
           (category) =>

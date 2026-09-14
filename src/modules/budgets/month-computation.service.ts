@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ClockService } from '@/common/clock/clock.service';
 import { fromDateOnly, toDateOnly } from '@/common/utils/date-only';
+import { TransactionKind } from '@prisma/client';
 import { PrismaService } from '@/prisma/prisma.service';
 import { firstDayOfPeriod, lastDayOfPeriod } from '@/modules/reports/engine/calendar';
 import { ExpenseInput, MonthReport, computeMonth } from '@/modules/reports/engine/compute-month';
@@ -21,11 +22,18 @@ export class MonthComputationService {
     private readonly clock: ClockService,
   ) {}
 
-  /** Amounts and dates only -- everything the engine needs and nothing it does not. */
-  async loadExpenseInputs(userId: number, period: string): Promise<ExpenseInput[]> {
+  /**
+   * Amounts and dates only -- everything the engine needs and nothing it does not.
+   *
+   * `kind: SPEND` is the important filter. The date-budget engine sees spending and
+   * transfers and nothing else (PRD v2 4.1), and transfers reach it by a separate route in
+   * M14 because they land on the week rather than on a weekday or weekend.
+   */
+  async loadExpenseInputs(walletId: number, period: string): Promise<ExpenseInput[]> {
     const rows = await this.prisma.transaction.findMany({
       where: {
-        userId,
+        walletId,
+        kind: TransactionKind.SPEND,
         deletedAt: null,
         occurredOn: { gte: toDateOnly(firstDayOfPeriod(period)), lte: toDateOnly(lastDayOfPeriod(period)) },
       },
@@ -46,14 +54,14 @@ export class MonthComputationService {
    * Written as a loop rather than the PRD's recursion: the semantics are identical, but a
    * user with years of history cannot blow the stack, and each month is computed once.
    */
-  async resolveCarryIn(userId: number, period: string): Promise<number> {
+  async resolveCarryIn(walletId: number, period: string): Promise<number> {
     const uncachedChain: { id: number; period: string; amount: number }[] = [];
 
     let cursor = period;
     let carry = 0;
 
     for (;;) {
-      const previous = await this.budgets.findPreviousBudgetPeriod(userId, cursor);
+      const previous = await this.budgets.findPreviousBudgetPeriod(walletId, cursor);
 
       if (!previous) break; // base case: nothing earlier has a budget
       if (previous.carryOutCached !== null) {
@@ -71,7 +79,7 @@ export class MonthComputationService {
         period: budget.period,
         monthlyBudget: budget.amount,
         carryIn: carry,
-        expenses: await this.loadExpenseInputs(userId, budget.period),
+        expenses: await this.loadExpenseInputs(walletId, budget.period),
       });
 
       await this.budgets.cacheCarryOut(budget.id, report.carryOut);
@@ -88,10 +96,10 @@ export class MonthComputationService {
    * excluded from the carry-over chain (PRD 6.5), so the previous month's surplus stays
    * reserved for the next month that actually has a budget.
    */
-  async computeMonthReport(userId: number, period: string): Promise<MonthReport> {
-    const budget = await this.budgets.findOptional(userId, period);
-    const carryIn = budget ? await this.resolveCarryIn(userId, period) : 0;
-    const expenses = await this.loadExpenseInputs(userId, period);
+  async computeMonthReport(walletId: number, period: string): Promise<MonthReport> {
+    const budget = await this.budgets.findOptional(walletId, period);
+    const carryIn = budget ? await this.resolveCarryIn(walletId, period) : 0;
+    const expenses = await this.loadExpenseInputs(walletId, period);
 
     const report = computeMonth({
       period,

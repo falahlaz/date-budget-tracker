@@ -7,7 +7,11 @@ import { PrismaService } from './prisma/prisma.service';
  *
  * This catches the two failure modes that a type-check cannot: a provider that does not
  * resolve at runtime, and a route that never registers -- including the ordering trap where
- * `/expenses/:id` is declared before `/expenses/merchants` and silently swallows it.
+ * `/transactions/:id` is declared before `/transactions/merchants` and silently swallows it.
+ *
+ * It is also what makes an API path rename deliberate rather than accidental: moving a
+ * route without updating this list fails the build, which is exactly what happened when
+ * v2 moved budgets and reports under their wallet.
  */
 const prismaStub = {
   $connect: async () => undefined,
@@ -16,30 +20,43 @@ const prismaStub = {
   user: { count: async () => 1, findUnique: async () => null, findFirst: async () => null },
 };
 
-/** Every endpoint named in PRD section 8. */
+/** Every endpoint named in PRD section 8, as amended by PRD v2 section 10.1. */
 const EXPECTED_ROUTES = [
   'POST /api/auth/login',
   'POST /api/auth/refresh',
   'POST /api/auth/logout',
   'GET /api/auth/me',
   'POST /api/auth/change-password',
-  'PUT /api/budgets/:period',
-  'GET /api/budgets/:period',
-  'GET /api/budgets',
-  'DELETE /api/budgets/:period',
-  'POST /api/expenses',
-  'GET /api/expenses',
-  'GET /api/expenses/:id',
-  'PATCH /api/expenses/:id',
-  'DELETE /api/expenses/:id',
-  'GET /api/expenses/merchants',
-  'POST /api/expenses/:id/receipts',
+
+  // v2 10.2
+  'GET /api/wallets',
+  'POST /api/wallets',
+  'PATCH /api/wallets/:id',
+  'DELETE /api/wallets/:id',
+
+  // Budgets and reports belong to a wallet from v2 on (10.1).
+  'PUT /api/wallets/:walletId/budgets/:period',
+  'GET /api/wallets/:walletId/budgets/:period',
+  'GET /api/wallets/:walletId/budgets',
+  'DELETE /api/wallets/:walletId/budgets/:period',
+  'GET /api/wallets/:walletId/reports/month/:period',
+  'GET /api/wallets/:walletId/reports/week/current',
+  'GET /api/wallets/:walletId/reports/week/:period/:weekIndex',
+  'GET /api/wallets/:walletId/reports/today',
+
+  // Transactions stay at the top level and carry the wallet in the body or query (10.1).
+  'POST /api/transactions',
+  'GET /api/transactions',
+  'GET /api/transactions/:id',
+  'PATCH /api/transactions/:id',
+  'DELETE /api/transactions/:id',
+  'GET /api/transactions/merchants',
+  'POST /api/transactions/:id/receipts',
+
+  // A receipt is addressed by its own id, so these did not move.
   'GET /api/receipts/:id/file',
   'DELETE /api/receipts/:id',
-  'GET /api/reports/month/:period',
-  'GET /api/reports/week/current',
-  'GET /api/reports/week/:period/:weekIndex',
-  'GET /api/reports/today',
+
   'GET /api/categories',
   'POST /api/categories',
   'PATCH /api/categories/:id',
@@ -86,9 +103,17 @@ describe('AppModule wiring', () => {
     expect(routes).toContain('GET /api/health');
   });
 
-  it('declares /expenses/merchants before /expenses/:id so it is not shadowed', () => {
-    expect(routes.indexOf('GET /api/expenses/merchants')).toBeLessThan(
-      routes.indexOf('GET /api/expenses/:id'),
+  it('declares /transactions/merchants before /transactions/:id so it is not shadowed', () => {
+    expect(routes.indexOf('GET /api/transactions/merchants')).toBeLessThan(
+      routes.indexOf('GET /api/transactions/:id'),
     );
+  });
+
+  /** The v1.1 paths are gone, not proxied: nothing should answer on them (v2 10.1). */
+  it('no longer answers on the v1.1 paths', () => {
+    expect(routes).not.toContain('GET /api/expenses');
+    expect(routes).not.toContain('POST /api/expenses');
+    expect(routes).not.toContain('GET /api/budgets');
+    expect(routes).not.toContain('GET /api/reports/month/:period');
   });
 });

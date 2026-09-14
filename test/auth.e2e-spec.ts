@@ -13,12 +13,12 @@ describe('Auth (PRD 8.2)', () => {
 
   // E2
   it('rejects an unauthenticated request with 401 in the standard envelope', async () => {
-    const response = await harness.http().get('/api/expenses').expect(401);
+    const response = await harness.http().get('/api/transactions').expect(401);
 
     expect(response.body).toMatchObject({
       statusCode: 401,
       error: 'UNAUTHORIZED',
-      path: '/api/expenses',
+      path: '/api/transactions',
     });
     expect(typeof response.body.timestamp).toBe('string');
   });

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Chip, ChipRow } from '@/components/ui/chip';
 import { Field, Input } from '@/components/ui/input';
 import { ApiError } from '@/lib/api';
+import type { WalletType } from '@/types/api';
 import { useAddCategory, useCategories } from './hooks';
 
 const MAX_NAME_LENGTH = 50;
@@ -21,12 +22,18 @@ export function CategoryPicker({
   value,
   onChange,
   hint = 'opsional',
+  walletType = 'DATE_BUDGET',
 }: {
   value: number | null;
   onChange: (id: number | null) => void;
   hint?: string;
+  /**
+   * Which vocabulary to offer (PRD v2 9.4). Spending and withdrawal categories are
+   * separate lists, so the same component serves both sheets without mixing them.
+   */
+  walletType?: WalletType;
 }) {
-  const categories = useCategories();
+  const categories = useCategories(walletType);
   const addCategory = useAddCategory();
 
   const [adding, setAdding] = useState(false);
@@ -79,7 +86,7 @@ export function CategoryPicker({
     }
 
     try {
-      const created = await addCategory.mutateAsync(trimmed);
+      const created = await addCategory.mutateAsync({ name: trimmed, walletType });
       onChange(created.id);
       cancel();
       toast.success(`${created.name} ditambahkan`);

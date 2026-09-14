@@ -57,7 +57,7 @@ export function ExpenseDetailPage() {
           {expense.dayType === 'WEEKEND' ? 'Weekend' : 'Hari kerja'} · Minggu ke-{expense.weekIndex}
         </div>
         <p className="amount-display text-[32px] text-ink">{formatRupiah(expense.amount)}</p>
-        <p className="mt-1.5 text-[13px] text-ink-2">{formatDateLong(expense.spentOn)}</p>
+        <p className="mt-1.5 text-[13px] text-ink-2">{formatDateLong(expense.occurredOn)}</p>
 
         <dl className="mt-5 grid grid-cols-2 gap-4 border-t border-line pt-4 text-sm">
           <Detail label="Tempat" value={expense.merchant ?? '—'} />
@@ -152,7 +152,7 @@ function EditSheet({
   expenseId: number;
   initial: {
     amount: number;
-    spentOn: string;
+    occurredOn: string;
     merchant: string | null;
     note: string | null;
     paymentMethod: PaymentMethod;
@@ -163,7 +163,7 @@ function EditSheet({
   const update = useUpdateExpense();
 
   const [amountText, setAmountText] = useState(formatAmountInput(String(initial.amount)));
-  const [spentOn, setSpentOn] = useState(initial.spentOn);
+  const [spentOn, setSpentOn] = useState(initial.occurredOn);
   const [merchant, setMerchant] = useState(initial.merchant ?? '');
   const [note, setNote] = useState(initial.note ?? '');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(initial.paymentMethod);
@@ -173,7 +173,7 @@ function EditSheet({
     await update.mutateAsync({
       id: expenseId,
       amount: parseAmountInput(amountText),
-      spentOn,
+      occurredOn: spentOn,
       // Changing the spelling here only affects this row; other expenses at the same place
       // keep theirs (PRD 6.17).
       merchant: merchant.trim() === '' ? null : merchant.trim(),

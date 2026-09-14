@@ -590,7 +590,7 @@ function TopExpenses({ report }: { report: MonthReport }) {
                   {expense.merchant ?? expense.categoryName ?? 'Tanpa tempat'}
                 </span>
                 <span className="block truncate text-[11.5px] text-ink-3">
-                  {formatDayShort(expense.spentOn)}
+                  {formatDayShort(expense.occurredOn)}
                   {expense.note ? ` · ${expense.note}` : ''}
                 </span>
               </span>

@@ -1,7 +1,17 @@
 import { ApiPropertyOptional, ApiProperty } from '@nestjs/swagger';
-import { IsHexColor, IsOptional, IsString, Length, MaxLength } from 'class-validator';
+import { WalletType } from '@prisma/client';
+import { IsEnum, IsHexColor, IsOptional, IsString, Length, MaxLength } from 'class-validator';
 
 export class CreateCategoryDto {
+  /**
+   * Which vocabulary this belongs to (PRD v2 9.4). Spending categories and withdrawal
+   * categories are separate lists, and the same name may exist in both.
+   */
+  @ApiPropertyOptional({ enum: WalletType, default: WalletType.DATE_BUDGET })
+  @IsOptional()
+  @IsEnum(WalletType, { message: 'walletType must be DATE_BUDGET or SAVINGS' })
+  walletType?: WalletType;
+
   @ApiProperty({ maxLength: 50, example: 'Makan' })
   @IsString()
   @Length(1, 50, { message: 'name must be between 1 and 50 characters' })

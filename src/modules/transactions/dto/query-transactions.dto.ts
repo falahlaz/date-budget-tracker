@@ -1,12 +1,35 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
+import { TransactionKind } from '@prisma/client';
 import { Type } from 'class-transformer';
-import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import {
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  Matches,
+  Max,
+  MaxLength,
+  Min,
+} from 'class-validator';
 
-export const DEFAULT_EXPENSE_LIMIT = 50;
-export const MAX_EXPENSE_LIMIT = 200;
-export const DEFAULT_EXPENSE_SORT = 'spentOn:desc,id:desc';
+export const DEFAULT_TRANSACTION_LIMIT = 50;
+export const MAX_TRANSACTION_LIMIT = 200;
+export const DEFAULT_TRANSACTION_SORT = 'occurredOn:desc,id:desc';
 
-export class QueryExpensesDto {
+export class QueryTransactionsDto {
+  @ApiPropertyOptional({ description: 'Defaults to the default wallet (PRD v2 4.2).' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  walletId?: number;
+
+  @ApiPropertyOptional({ enum: TransactionKind, description: 'Filter by kind (PRD v2 10.1).' })
+  @IsOptional()
+  @IsEnum(TransactionKind, { message: 'kind is not a supported transaction kind' })
+  kind?: TransactionKind;
+
   @ApiPropertyOptional({ example: '2026-09' })
   @IsOptional()
   @Matches(/^\d{4}-(0[1-9]|1[0-2])$/, { message: 'period must be formatted YYYY-MM' })
@@ -54,12 +77,12 @@ export class QueryExpensesDto {
   @Max(6)
   weekIndex?: number;
 
-  @ApiPropertyOptional({ default: DEFAULT_EXPENSE_LIMIT, maximum: MAX_EXPENSE_LIMIT })
+  @ApiPropertyOptional({ default: DEFAULT_TRANSACTION_LIMIT, maximum: MAX_TRANSACTION_LIMIT })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(MAX_EXPENSE_LIMIT, { message: `limit must be at most ${MAX_EXPENSE_LIMIT}` })
+  @Max(MAX_TRANSACTION_LIMIT, { message: `limit must be at most ${MAX_TRANSACTION_LIMIT}` })
   limit?: number;
 
   @ApiPropertyOptional({ default: 0 })
@@ -69,7 +92,7 @@ export class QueryExpensesDto {
   @Min(0)
   offset?: number;
 
-  @ApiPropertyOptional({ default: DEFAULT_EXPENSE_SORT, example: 'amount:desc' })
+  @ApiPropertyOptional({ default: DEFAULT_TRANSACTION_SORT, example: 'amount:desc' })
   @IsOptional()
   @IsString()
   @MaxLength(60)
@@ -77,6 +100,13 @@ export class QueryExpensesDto {
 }
 
 export class QueryMerchantsDto {
+  @ApiPropertyOptional({ description: 'Defaults to the default wallet (PRD v2 4.2).' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  walletId?: number;
+
   @ApiPropertyOptional({ description: 'Normalised server-side before matching' })
   @IsOptional()
   @IsString()

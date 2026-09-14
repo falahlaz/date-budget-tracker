@@ -3,23 +3,32 @@ import { QueryClient } from '@tanstack/react-query';
 /**
  * Query keys.
  *
- * Every mutation invalidates `reports` wholesale (PRD 10.1): changing one expense can move
- * the numbers for its week, its month, and every month after it, so a surgical
+ * Every mutation invalidates `reports` wholesale (PRD 10.1): changing one transaction can
+ * move the numbers for its week, its month, and every month after it, so a surgical
  * invalidation would be wrong more often than right.
+ *
+ * Anything scoped to a wallet carries the wallet id in its key. Without that, switching
+ * wallets would show the previous wallet's cached figures under the new wallet's name --
+ * the one bug in a multi-wallet app that a user would not think to doubt.
  */
 export const queryKeys = {
   me: ['me'] as const,
-  categories: (includeArchived = false) => ['categories', includeArchived] as const,
-  budgets: ['budgets'] as const,
-  budget: (period: string) => ['budget', period] as const,
-  expenses: (filters: Record<string, unknown>) => ['expenses', filters] as const,
-  expense: (id: number) => ['expense', id] as const,
-  merchants: (q: string) => ['merchants', q] as const,
+  wallets: (includeArchived = false) => ['wallets', includeArchived] as const,
+  categories: (walletType: string, includeArchived = false) =>
+    ['categories', walletType, includeArchived] as const,
+  budgets: (walletId?: number) => ['budgets', walletId] as const,
+  budget: (walletId: number | undefined, period: string) => ['budget', walletId, period] as const,
+  transactions: (filters: Record<string, unknown>) => ['transactions', filters] as const,
+  transaction: (id: number) => ['transaction', id] as const,
+  merchants: (walletId: number | undefined, q: string) => ['merchants', walletId, q] as const,
   reports: ['reports'] as const,
-  monthReport: (period: string) => ['reports', 'month', period] as const,
-  weekReport: (period: string, weekIndex: number) => ['reports', 'week', period, weekIndex] as const,
-  currentWeekReport: ['reports', 'week', 'current'] as const,
-  todayReport: ['reports', 'today'] as const,
+  monthReport: (walletId: number | undefined, period: string) =>
+    ['reports', 'month', walletId, period] as const,
+  weekReport: (walletId: number | undefined, period: string, weekIndex: number) =>
+    ['reports', 'week', walletId, period, weekIndex] as const,
+  currentWeekReport: (walletId: number | undefined) =>
+    ['reports', 'week', 'current', walletId] as const,
+  todayReport: (walletId: number | undefined) => ['reports', 'today', walletId] as const,
 };
 
 export function createQueryClient(): QueryClient {
@@ -39,12 +48,19 @@ export function createQueryClient(): QueryClient {
   });
 }
 
-/** Called after any mutation that can move a budget number. */
+/**
+ * Called after any mutation that can move a budget number.
+ *
+ * Invalidates by prefix rather than by exact key, so it does not need to know which wallet
+ * the change landed in -- a transfer moves two wallets at once, and getting that wrong
+ * would leave one of them stale.
+ */
 export async function invalidateReports(client: QueryClient): Promise<void> {
   await Promise.all([
     client.invalidateQueries({ queryKey: queryKeys.reports }),
-    client.invalidateQueries({ queryKey: ['expenses'] }),
-    client.invalidateQueries({ queryKey: queryKeys.budgets }),
+    client.invalidateQueries({ queryKey: ['transactions'] }),
+    client.invalidateQueries({ queryKey: ['budgets'] }),
     client.invalidateQueries({ queryKey: ['merchants'] }),
+    client.invalidateQueries({ queryKey: ['wallets'] }),
   ]);
 }

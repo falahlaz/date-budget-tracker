@@ -47,6 +47,39 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
+export type WalletType = 'DATE_BUDGET' | 'SAVINGS';
+export type TransactionKind = 'SPEND' | 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER_IN' | 'TRANSFER_OUT';
+export type Direction = 'IN' | 'OUT';
+
+/** Shown in the switcher for a date-budget wallet (PRD v2 10.2). */
+export interface DateBudgetSummary {
+  period: string;
+  dayRemaining: number;
+  weekendBudgetProjected: number;
+  monthRemaining: number;
+}
+
+/** Every goal-derived field is null until a goal exists on the wallet. */
+export interface SavingsSummary {
+  balance: number;
+  goalName: string | null;
+  progress: number | null;
+  paceDelta: number | null;
+  outstandingAdvance: number;
+}
+
+export interface Wallet {
+  id: number;
+  name: string;
+  type: WalletType;
+  color: string;
+  icon: string | null;
+  isDefault: boolean;
+  isArchived: boolean;
+  sortOrder: number;
+  summary?: DateBudgetSummary | SavingsSummary;
+}
+
 export interface Category {
   id: number;
   name: string;
@@ -64,9 +97,12 @@ export interface Receipt {
   sizeBytes: number;
 }
 
-export interface Expense {
+export interface Transaction {
   id: number;
-  spentOn: string;
+  walletId: number;
+  kind: TransactionKind;
+  direction: Direction;
+  occurredOn: string;
   amount: number;
   dayType: DayType;
   weekIndex: number;
@@ -80,8 +116,8 @@ export interface Expense {
   updatedAt: string;
 }
 
-export interface ExpenseList {
-  items: Expense[];
+export interface TransactionList {
+  items: Transaction[];
   total: number;
   sumAmount: number;
 }
@@ -92,7 +128,7 @@ export interface MerchantSuggestion {
   lastCategoryId: number | null;
   lastPaymentMethod: PaymentMethod;
   usageCount: number;
-  lastSpentOn: string;
+  lastOccurredOn: string;
 }
 
 export interface Budget {
@@ -153,7 +189,7 @@ export interface MerchantBreakdown {
 
 export interface TopExpense {
   id: number;
-  spentOn: string;
+  occurredOn: string;
   amount: number;
   merchant: string | null;
   categoryName: string | null;

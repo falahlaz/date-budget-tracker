@@ -1,4 +1,4 @@
-import { Category, Receipt, Transaction } from '@prisma/client';
+import { Category, Direction, Receipt, Transaction, TransactionKind } from '@prisma/client';
 import { fromDateOnly } from '@/common/utils/date-only';
 import { DayType, buildWeekSegments, dayTypeOf, findSegmentForDate, periodOf } from '@/modules/reports/engine/calendar';
 
@@ -10,9 +10,13 @@ export interface ReceiptResponse {
   sizeBytes: number;
 }
 
-export interface ExpenseResponse {
+export interface TransactionResponse {
   id: number;
-  spentOn: string;
+  walletId: number;
+  kind: TransactionKind;
+  /** Derived from `kind` by the server; a client-sent value is ignored (PRD v2 9.2). */
+  direction: Direction;
+  occurredOn: string;
   amount: number;
   /** Derived, never stored (PRD 8.4). */
   dayType: DayType;
@@ -29,7 +33,7 @@ export interface ExpenseResponse {
   updatedAt: string;
 }
 
-export type ExpenseWithRelations = Transaction & {
+export type TransactionWithRelations = Transaction & {
   category?: Category | null;
   receipts?: Receipt[];
 };
@@ -51,19 +55,23 @@ export function toReceiptResponse(receipt: Receipt): ReceiptResponse {
  * out of sync with `occurred_on` -- the same reason the whole engine recomputes rather
  * than caches.
  *
- * The response still says `spentOn`: v2 renames the column, not the API. The endpoints
- * move to /api/transactions with `occurredOn` in M12, as one deliberate break.
+ * They stay on the response even for kinds that have no notion of a weekend, because the
+ * field set is what the date-budget screens already read and splitting the shape by kind
+ * would buy nothing.
  */
-export function toExpenseResponse(expense: ExpenseWithRelations): ExpenseResponse {
-  const spentOn = fromDateOnly(expense.occurredOn);
-  const segments = buildWeekSegments(periodOf(spentOn));
+export function toTransactionResponse(expense: TransactionWithRelations): TransactionResponse {
+  const occurredOn = fromDateOnly(expense.occurredOn);
+  const segments = buildWeekSegments(periodOf(occurredOn));
 
   return {
     id: expense.id,
-    spentOn,
+    walletId: expense.walletId,
+    kind: expense.kind,
+    direction: expense.direction,
+    occurredOn,
     amount: expense.amount,
-    dayType: dayTypeOf(spentOn),
-    weekIndex: findSegmentForDate(segments, spentOn)?.weekIndex ?? 1,
+    dayType: dayTypeOf(occurredOn),
+    weekIndex: findSegmentForDate(segments, occurredOn)?.weekIndex ?? 1,
     merchant: expense.merchant,
     merchantKey: expense.merchantKey,
     paymentMethod: expense.paymentMethod,

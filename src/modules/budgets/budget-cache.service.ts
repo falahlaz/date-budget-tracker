@@ -10,15 +10,18 @@ type PrismaLike = PrismaService | Prisma.TransactionClient;
  * carryOut is a chain: changing anything in month M changes M and every month after it.
  * So invalidation is always "this period and everything later", never a single row. The
  * cache is an optimisation only -- a NULL simply means "recompute", never "zero".
+ *
+ * Keyed on the wallet from v2 on: each wallet runs its own carry-over chain, and spending
+ * in one must not invalidate another's cache.
  */
 @Injectable()
 export class BudgetCacheService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Clears the cache for `period` and every later period. */
-  async invalidateFrom(userId: number, period: string, client: PrismaLike = this.prisma): Promise<void> {
+  /** Clears the cache for `period` and every later period, in one wallet. */
+  async invalidateFrom(walletId: number, period: string, client: PrismaLike = this.prisma): Promise<void> {
     await client.monthlyBudget.updateMany({
-      where: { userId, period: { gte: period } },
+      where: { walletId, period: { gte: period } },
       data: { carryOutCached: null },
     });
   }
@@ -30,7 +33,7 @@ export class BudgetCacheService {
    * are affected, and invalidating from the earlier of the two covers everything between.
    */
   async invalidateFromEarliest(
-    userId: number,
+    walletId: number,
     periods: readonly string[],
     client: PrismaLike = this.prisma,
   ): Promise<void> {
@@ -38,6 +41,6 @@ export class BudgetCacheService {
     if (candidates.length === 0) return;
 
     // 'YYYY-MM' sorts correctly as a plain string.
-    await this.invalidateFrom(userId, [...candidates].sort()[0], client);
+    await this.invalidateFrom(walletId, [...candidates].sort()[0], client);
   }
 }

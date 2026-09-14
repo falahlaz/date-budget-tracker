@@ -15,7 +15,7 @@ export interface AggregatableCategory {
 
 export interface AggregatableExpense {
   id: number;
-  spentOn: string;
+  occurredOn: string;
   amount: number;
   /** Verbatim as typed; this is what gets displayed. */
   merchant: string | null;
@@ -54,7 +54,7 @@ export interface MerchantBreakdown {
 
 export interface TopExpense {
   id: number;
-  spentOn: string;
+  occurredOn: string;
   amount: number;
   merchant: string | null;
   categoryName: string | null;
@@ -175,11 +175,11 @@ export function topExpenses(
   limit = TOP_EXPENSE_LIMIT,
 ): TopExpense[] {
   return [...expenses]
-    .sort((a, b) => b.amount - a.amount || b.spentOn.localeCompare(a.spentOn) || b.id - a.id)
+    .sort((a, b) => b.amount - a.amount || b.occurredOn.localeCompare(a.occurredOn) || b.id - a.id)
     .slice(0, limit)
     .map((expense) => ({
       id: expense.id,
-      spentOn: expense.spentOn,
+      occurredOn: expense.occurredOn,
       amount: expense.amount,
       merchant: expense.merchant,
       categoryName: expense.category?.name ?? null,
@@ -190,7 +190,7 @@ export function topExpenses(
 /** The spelling from the most recent expense in the group (PRD 6.16). */
 function latestSpelling(group: readonly AggregatableExpense[]): string {
   const latest = [...group].sort(
-    (a, b) => b.spentOn.localeCompare(a.spentOn) || b.id - a.id,
+    (a, b) => b.occurredOn.localeCompare(a.occurredOn) || b.id - a.id,
   )[0];
   return latest.merchant ?? NO_MERCHANT_LABEL;
 }

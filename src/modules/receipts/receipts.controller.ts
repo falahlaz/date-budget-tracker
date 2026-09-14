@@ -17,7 +17,7 @@ import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import { memoryStorage } from 'multer';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { ReceiptResponse, toReceiptResponse } from '@/modules/expenses/expense.mapper';
+import { ReceiptResponse, toReceiptResponse } from '@/modules/transactions/transaction.mapper';
 import { ReceiptsService, UploadedFile } from './receipts.service';
 
 /**
@@ -35,7 +35,7 @@ const MAX_UPLOAD_BYTES = (Number(process.env.MAX_UPLOAD_MB ?? 10) || 10) * 1024 
 export class ReceiptsController {
   constructor(private readonly receipts: ReceiptsService) {}
 
-  @Post('expenses/:id/receipts')
+  @Post('transactions/:id/receipts')
   @UseInterceptors(
     FilesInterceptor('files', MAX_FILES_PER_REQUEST, {
       storage: memoryStorage(),

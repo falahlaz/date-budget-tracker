@@ -28,16 +28,16 @@ describe('Receipts (PRD 8.5)', () => {
 
     const created = await harness
       .http()
-      .post('/api/expenses')
+      .post('/api/transactions')
       .set('Authorization', harness.auth)
-      .send({ spentOn: yesterdayWib(), amount: 50_000 })
+      .send({ occurredOn: yesterdayWib(), amount: 50_000 })
       .expect(201);
 
     expenseId = created.body.id;
   });
 
   const upload = () =>
-    harness.http().post(`/api/expenses/${expenseId}/receipts`).set('Authorization', harness.auth);
+    harness.http().post(`/api/transactions/${expenseId}/receipts`).set('Authorization', harness.auth);
 
   // E3
   it('stores a PNG upload as WebP with a thumbnail', async () => {

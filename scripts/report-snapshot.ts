@@ -114,20 +114,29 @@ async function login(): Promise<string> {
  * M10 leaves the v1.1 paths alone; M12 moves them under a wallet. Probing rather than
  * taking a flag means the same script captures both sides of either migration.
  */
-async function resolveReportPath(token: string): Promise<(period: string) => string> {
+async function resolveWallet(token: string): Promise<{
+  walletId: number | null;
+  reportPath: (period: string) => string;
+}> {
   try {
-    const wallets = await api<{ id: number; isDefault: boolean }[]>('/api/wallets', token);
-    const fallback = wallets[0];
-    const chosen = wallets.find((wallet) => wallet.isDefault) ?? fallback;
+    const wallets = await api<{ id: number; isDefault: boolean; type: string }[]>(
+      '/api/wallets',
+      token,
+    );
+    const dateBudget = wallets.filter((wallet) => wallet.type === 'DATE_BUDGET');
+    const chosen = dateBudget.find((wallet) => wallet.isDefault) ?? dateBudget[0];
 
     if (chosen) {
-      return (period) => `/api/wallets/${chosen.id}/reports/month/${period}`;
+      return {
+        walletId: chosen.id,
+        reportPath: (period) => `/api/wallets/${chosen.id}/reports/month/${period}`,
+      };
     }
   } catch {
     // No /api/wallets yet -- this is a pre-M12 server.
   }
 
-  return (period) => `/api/reports/month/${period}`;
+  return { walletId: null, reportPath: (period) => `/api/reports/month/${period}` };
 }
 
 /** The list endpoints cap `limit` at 200, so every collection here has to page. */
@@ -140,10 +149,13 @@ const PAGE_SIZE = 200;
  * Paging is not a detail to skip. Stopping at one page would quietly drop the oldest
  * months from the comparison and let M1 "pass" without having looked at them.
  */
-async function collectPeriods(token: string): Promise<string[]> {
+async function collectPeriods(token: string, walletId: number | null): Promise<string[]> {
   const periods = new Set<string>();
 
-  for await (const budget of pages<{ period: string }>(token, '/api/budgets')) {
+  // Budgets moved under their wallet in M12; before that they were top-level.
+  const budgetsPath = walletId === null ? '/api/budgets' : `/api/wallets/${walletId}/budgets`;
+
+  for await (const budget of pages<{ period: string }>(token, budgetsPath)) {
     periods.add(budget.period);
   }
 
@@ -189,16 +201,21 @@ async function* pages<T>(token: string, path: string): AsyncGenerator<T> {
 }
 
 async function capture(label: 'before' | 'after'): Promise<void> {
+  const dir = join(ROOT, label);
+
+  // Cleared FIRST, before anything that can fail. Leaving the previous run's files in
+  // place would let `snapshot:diff` compare an old capture against a fresh one and report
+  // a pass -- which is exactly what a migration gate must never do.
+  rmSync(dir, { recursive: true, force: true });
+
   const token = await login();
-  const reportPath = await resolveReportPath(token);
-  const periods = await collectPeriods(token);
+  const { walletId, reportPath } = await resolveWallet(token);
+  const periods = await collectPeriods(token, walletId);
 
   if (periods.length === 0) {
     throw new Error('no periods with data found -- nothing to compare, refusing to write an empty snapshot');
   }
 
-  const dir = join(ROOT, label);
-  rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
 
   for (const period of periods) {
@@ -215,7 +232,15 @@ async function capture(label: 'before' | 'after'): Promise<void> {
 }
 
 function readManifest(label: string): Manifest {
-  return JSON.parse(readFileSync(join(ROOT, label, 'manifest.json'), 'utf8')) as Manifest;
+  try {
+    return JSON.parse(readFileSync(join(ROOT, label, 'manifest.json'), 'utf8')) as Manifest;
+  } catch {
+    console.error(
+      `[snapshot:diff] no "${label}" snapshot. Run \`npm run snapshot:${label}\` first --\n` +
+        '  and if it failed, fix that rather than diffing what is left over.',
+    );
+    process.exit(1);
+  }
 }
 
 function digest(label: string, period: string): string {
