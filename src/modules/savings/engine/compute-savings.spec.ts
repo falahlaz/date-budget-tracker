@@ -1,9 +1,10 @@
+import { SavingsTxnInput, computeSavings, planPerMonthFor } from './compute-savings';
 import {
-  AllocationInput,
-  SavingsTxnInput,
-  computeSavings,
-  planPerMonthFor,
-} from './compute-savings';
+  FIXTURE_D_ALLOCATIONS,
+  FIXTURE_D_GOAL,
+  FIXTURE_D_TODAY,
+  FIXTURE_D_TXNS,
+} from './fixture-d.fixture';
 import { monthSpan } from './month-span';
 
 /** Picks the fields the PRD v2 fixture tables actually assert on. */
@@ -18,41 +19,8 @@ function monthRows(report: ReturnType<typeof computeSavings>) {
   }));
 }
 
-const GOAL = {
-  targetAmount: 30_000_000,
-  openingBalance: 0,
-  startDate: '2026-05-01',
-  deadline: '2027-08-31',
-  planPerMonth: 1_875_000,
-};
-
-const TODAY = '2026-09-14';
-
-/**
- * Fixture D (PRD v2 section 7.1).
- *
- * The August withdrawal is deliberately two rows rather than one of 1.200.000: one
- * withdrawal is one reason, and only the 700.000 is money Falah said he would put back.
- */
-const FIXTURE_D_TXNS: SavingsTxnInput[] = [
-  { occurredOn: '2026-05-12', amount: 2_000_000, kind: 'DEPOSIT' },
-
-  { occurredOn: '2026-06-10', amount: 1_800_000, kind: 'DEPOSIT' },
-  { occurredOn: '2026-06-18', amount: 600_000, kind: 'WITHDRAW', expectedReturn: true, returnedAmount: 600_000 },
-
-  // The 600.000 of this deposit is allocated against June's advance, below.
-  { occurredOn: '2026-07-09', amount: 2_000_000, kind: 'DEPOSIT' },
-
-  { occurredOn: '2026-08-05', amount: 1_500_000, kind: 'DEPOSIT' },
-  { occurredOn: '2026-08-09', amount: 700_000, kind: 'WITHDRAW', expectedReturn: true, returnedAmount: 0 },
-  { occurredOn: '2026-08-22', amount: 500_000, kind: 'WITHDRAW', expectedReturn: false },
-
-  { occurredOn: '2026-09-03', amount: 1_000_000, kind: 'DEPOSIT' },
-];
-
-const FIXTURE_D_ALLOCATIONS: AllocationInput[] = [
-  { amount: 600_000, depositOccurredOn: '2026-07-09' },
-];
+const GOAL = FIXTURE_D_GOAL;
+const TODAY = FIXTURE_D_TODAY;
 
 describe('computeSavings - Fixture D (PRD v2 7.1)', () => {
   const report = computeSavings({

@@ -10,6 +10,7 @@ import {
   computeSavings,
 } from './engine/compute-savings';
 import { AllocatableAdvance } from './engine/allocate-fifo';
+import { AdvanceInput } from './engine/month-report';
 
 /**
  * Bridges the database to the savings engine.
@@ -121,12 +122,44 @@ export class SavingsComputationService {
   async loadAllocations(walletId: number): Promise<AllocationInput[]> {
     const rows = await this.prisma.repaymentAllocation.findMany({
       where: { deposit: { walletId, deletedAt: null } },
-      select: { amount: true, deposit: { select: { occurredOn: true } } },
+      select: {
+        amount: true,
+        withdrawalTransactionId: true,
+        deposit: { select: { occurredOn: true } },
+      },
     });
 
     return rows.map((row) => ({
+      withdrawalId: row.withdrawalTransactionId,
       amount: row.amount,
       depositOccurredOn: fromDateOnly(row.deposit.occurredOn),
+    }));
+  }
+
+  /**
+   * Every advance the wallet has ever taken, settled ones included (PRD v2 10.5).
+   *
+   * `loadOpenAdvances` deliberately filters to the unsettled ones, because FIFO allocation
+   * only has business with those. `outstandingAdvanceAsOf` needs the opposite: an advance
+   * settled last month was still owed the month before, and leaving it out would report
+   * that month as debt-free.
+   */
+  async loadAdvances(walletId: number): Promise<AdvanceInput[]> {
+    const rows = await this.prisma.transaction.findMany({
+      where: {
+        walletId,
+        kind: TransactionKind.WITHDRAW,
+        expectedReturn: true,
+        deletedAt: null,
+      },
+      orderBy: [{ occurredOn: 'asc' }, { id: 'asc' }],
+      select: { id: true, occurredOn: true, amount: true },
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      occurredOn: fromDateOnly(row.occurredOn),
+      amount: row.amount,
     }));
   }
 

@@ -49,13 +49,19 @@ export interface SavingsTxnInput {
 }
 
 /**
- * One repayment, identified by the month of the deposit that paid it.
+ * One repayment: an advance, and the deposit that paid part of it back.
  *
- * The deposit's month is what matters, not the advance's: a repayment reduces the month
- * in which the money went in, which is the month whose progress would otherwise be
- * overstated (section 5.3).
+ * The deposit's month is what matters to the monthly rows, not the advance's: a repayment
+ * reduces the month in which the money went in, which is the month whose progress would
+ * otherwise be overstated (section 5.3).
+ *
+ * `withdrawalId` is not used by `computeSavings` at all -- it is here because
+ * `outstandingAdvanceAsOf` (month-report.ts) cannot attribute a repayment to an advance
+ * without it, and one loader feeding two functions beats two loaders that can drift apart.
  */
 export interface AllocationInput {
+  /** The advance this paid down -- a WITHDRAW row's id. */
+  withdrawalId: number;
   amount: number;
   depositOccurredOn: string;
 }
@@ -166,7 +172,7 @@ export function computeSavings(input: ComputeSavingsInput): SavingsReport {
   const elapsed = elapsedMonths(goal.startDate, today);
   const expectedBalance = Math.round(goal.openingBalance + goal.planPerMonth * elapsed);
 
-  const monthly = buildMonthlyRows(txns, allocations);
+  const monthly = monthlyRows(txns, allocations);
   const { rate, rateBasis } = resolveRate(monthly, goal, today);
 
   // Section 8.2. Every division below this line is guarded by it -- a flat or falling
@@ -212,8 +218,11 @@ function daysBetween(from: string, to: string): number {
  * Months with nothing in them are deliberately absent here; `resolveRate` puts the zeroes
  * back where they matter, because a month with no activity means no progress and the rate
  * has to feel that.
+ *
+ * Exported because the month report (section 10.5) needs exactly these rows but has no
+ * goal to hand -- a wallet can hold deposits before anyone sets a target on it.
  */
-function buildMonthlyRows(
+export function monthlyRows(
   txns: readonly SavingsTxnInput[],
   allocations: readonly AllocationInput[],
 ): SavingsMonthRow[] {

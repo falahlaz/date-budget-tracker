@@ -222,6 +222,148 @@ describe('Savings API (PRD v2 10.3)', () => {
 
       expect(await harness.prisma.transaction.count()).toBe(before);
     });
+
+    // --------------------------------------------------- month report (10.5)
+
+    describe('month report', () => {
+      const report = (period: string) =>
+        authed('get', `/api/wallets/${walletId}/reports/savings/${period}`);
+
+      /** August is the month section 10.5 prints in full. Every figure is from there. */
+      it('reproduces the section 10.5 body for August', async () => {
+        const august = await report('2026-08').expect(200);
+
+        expect(august.body).toMatchObject({
+          period: '2026-08',
+          openingBalance: 5_200_000,
+          closingBalance: 5_500_000,
+          depositTotal: 1_500_000,
+          repaymentTotal: 0,
+          freshContribution: 1_500_000,
+          withdrawTotal: 1_200_000,
+          net: 300_000,
+          planPerMonth: 1_875_000,
+          vsPlan: -375_000,
+          outstandingAdvanceAtClose: 700_000,
+        });
+      });
+
+      /**
+       * The deliverable for G2: one row per withdrawal, with the sentence that explains it,
+       * in date order. Not a donut, not a percentage.
+       */
+      it('lists both August withdrawals with their reasons (11.5)', async () => {
+        const august = await report('2026-08').expect(200);
+
+        expect(august.body.withdrawals).toMatchObject([
+          {
+            occurredOn: '2026-08-09',
+            amount: 700_000,
+            reason: 'Kado nikahan sepupu',
+            categoryName: 'Keluarga',
+            expectedReturn: true,
+            returnedAmount: 0,
+            settled: false,
+          },
+          {
+            occurredOn: '2026-08-22',
+            amount: 500_000,
+            reason: 'Beli headphone',
+            categoryName: 'Impulsif',
+            expectedReturn: false,
+            returnedAmount: 0,
+            settled: false,
+          },
+        ]);
+
+        expect(august.body.withdrawalsByCategory).toMatchObject([
+          { name: 'Keluarga', amount: 700_000, count: 1 },
+          { name: 'Impulsif', amount: 500_000, count: 1 },
+        ]);
+      });
+
+      /**
+       * July's deposit is the second largest of the five months and its real contribution
+       * the smallest, because 600.000 of it only put back what June took out. `vsPlan` has
+       * to feel that, or the month screen would congratulate a month that stood still.
+       */
+      it('measures July against fresh contribution, not the gross deposit (5.3, G6)', async () => {
+        const july = await report('2026-07').expect(200);
+
+        expect(july.body).toMatchObject({
+          depositTotal: 2_000_000,
+          repaymentTotal: 600_000,
+          freshContribution: 1_400_000,
+          vsPlan: 1_400_000 - 1_875_000,
+        });
+
+        // The trap this assertion exists to catch.
+        expect(july.body.vsPlan).not.toBe(2_000_000 - 1_875_000);
+      });
+
+      it('does not let July\'s repayment rewrite June\'s outstanding advance', async () => {
+        const june = await report('2026-06').expect(200);
+        const july = await report('2026-07').expect(200);
+
+        expect(june.body.outstandingAdvanceAtClose).toBe(600_000);
+        expect(july.body.outstandingAdvanceAtClose).toBe(0);
+      });
+
+      it('carries the balance through a month with no activity', async () => {
+        const october = await report('2026-10').expect(200);
+
+        expect(october.body).toMatchObject({
+          period: '2026-10',
+          openingBalance: 6_500_000,
+          closingBalance: 6_500_000,
+          depositTotal: 0,
+          withdrawTotal: 0,
+          net: 0,
+          withdrawals: [],
+          withdrawalsByCategory: [],
+          outstandingAdvanceAtClose: 700_000,
+        });
+      });
+
+      it('closes every month where the next one opens', async () => {
+        const periods = ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09'];
+        const bodies: Record<string, number>[] = [];
+
+        for (const period of periods) {
+          bodies.push((await report(period).expect(200)).body);
+        }
+
+        bodies.forEach((body, index) => {
+          expect(body.closingBalance).toBe(body.openingBalance + body.net);
+          if (index > 0) {
+            expect(body.openingBalance).toBe(bodies[index - 1].closingBalance);
+          }
+        });
+
+        expect(bodies[bodies.length - 1].closingBalance).toBe(6_500_000);
+      });
+
+      it('rejects a malformed period', async () => {
+        await report('2026-8').expect(422);
+      });
+
+      it('refuses a date-budget wallet (10.5)', async () => {
+        const wallets = await authed('get', '/api/wallets').expect(200);
+        const dateBudget = wallets.body.find((w: { type: string }) => w.type === 'DATE_BUDGET');
+
+        await authed('get', `/api/wallets/${dateBudget.id}/reports/savings/2026-08`).expect(422);
+      });
+
+      it('404s on another user\'s wallet', async () => {
+        await harness
+          .http()
+          .get(`/api/wallets/${walletId}/reports/savings/2026-08`)
+          .set('Authorization', harness.auth)
+          .expect(200);
+
+        await authed('get', '/api/wallets/999999/reports/savings/2026-08').expect(404);
+      });
+    });
   });
 
   // ------------------------------------------------------------- withdrawals

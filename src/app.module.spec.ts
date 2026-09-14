@@ -43,6 +43,8 @@ const EXPECTED_ROUTES = [
   'GET /api/wallets/:walletId/reports/week/current',
   'GET /api/wallets/:walletId/reports/week/:period/:weekIndex',
   'GET /api/wallets/:walletId/reports/today',
+  // The savings half of the same prefix (10.5).
+  'GET /api/wallets/:walletId/reports/savings/:period',
 
   // Transactions stay at the top level and carry the wallet in the body or query (10.1).
   'POST /api/transactions',

@@ -3,6 +3,8 @@ import { PrismaModule } from '@/prisma/prisma.module';
 import { WalletsCoreModule } from '../wallets/wallets-core.module';
 import { SavingsComputationService } from './savings-computation.service';
 import { SavingsController } from './savings.controller';
+import { SavingsReportService } from './savings-report.service';
+import { SavingsReportsController } from './savings-reports.controller';
 import { SavingsService } from './savings.service';
 
 /**
@@ -11,8 +13,8 @@ import { SavingsService } from './savings.service';
  */
 @Module({
   imports: [PrismaModule, WalletsCoreModule],
-  controllers: [SavingsController],
-  providers: [SavingsService, SavingsComputationService],
+  controllers: [SavingsController, SavingsReportsController],
+  providers: [SavingsService, SavingsComputationService, SavingsReportService],
   exports: [SavingsComputationService],
 })
 export class SavingsModule {}
