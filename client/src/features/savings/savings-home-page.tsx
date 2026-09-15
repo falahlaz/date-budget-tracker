@@ -8,10 +8,11 @@ import { MoneyHero } from '@/components/ui/money';
 import { SectionHead } from '@/components/ui/section';
 import { useExpenses } from '@/features/expenses/hooks';
 import { formatPeriodLong, formatRupiah } from '@/lib/format';
-import type { GoalWithReport } from '@/types/api';
+import type { GoalWithReport, Transaction } from '@/types/api';
 import { DepositSheet } from './deposit-sheet';
 import { GoalSheet } from './goal-sheet';
 import { SavingsActivityRow } from './savings-activity-row';
+import { SavingsDetailSheet } from './savings-detail-sheet';
 import { useGoal } from './hooks';
 import { projectionSentence } from './lateness';
 
@@ -220,6 +221,7 @@ function ProjectionCard({ goal }: { goal: GoalWithReport }) {
  */
 function RecentActivity() {
   const { data, isLoading } = useExpenses({ limit: 5 });
+  const [editing, setEditing] = useState<Transaction | null>(null);
 
   return (
     <section>
@@ -234,7 +236,11 @@ function RecentActivity() {
       ) : data && data.items.length > 0 ? (
         <ul className="divide-y divide-line">
           {data.items.map((transaction) => (
-            <SavingsActivityRow key={transaction.id} transaction={transaction} />
+            <SavingsActivityRow
+              key={transaction.id}
+              transaction={transaction}
+              onSelect={setEditing}
+            />
           ))}
         </ul>
       ) : (
@@ -244,6 +250,8 @@ function RecentActivity() {
           description="Tap Setor buat nyatat setoran pertama."
         />
       )}
+
+      <SavingsDetailSheet transaction={editing} onClose={() => setEditing(null)} />
     </section>
   );
 }

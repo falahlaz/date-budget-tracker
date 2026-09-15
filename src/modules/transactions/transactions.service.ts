@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Direction, PaymentMethod, Prisma, Transaction, TransactionKind } from '@prisma/client';
+import { PaymentMethod, Prisma, Transaction, TransactionKind } from '@prisma/client';
 import { ClockService } from '@/common/clock/clock.service';
 import { AppException } from '@/common/errors';
 import { fromDateOnly, toDateOnly } from '@/common/utils/date-only';
@@ -9,6 +9,7 @@ import { BudgetCacheService } from '@/modules/budgets/budget-cache.service';
 import { WalletsService } from '@/modules/wallets/wallets.service';
 import {
   assertCreatableHere,
+  assertEditableHere,
   assertKindSuitsWallet,
   defaultKindFor,
   directionOf,
@@ -116,6 +117,12 @@ export class TransactionsService {
    */
   async update(userId: number, id: number, dto: UpdateTransactionDto): Promise<TransactionWithRelations> {
     const existing = await this.findOne(userId, id);
+
+    // Both guards, in this order, for the same reason `remove` has them: one side of a
+    // transfer edited alone is two wallets disagreeing about how much moved, and a savings
+    // row edited here would skip the invariants only its own endpoint enforces.
+    this.assertOwnDoor(existing, 'PATCH');
+
     const previousPeriod = periodOf(fromDateOnly(existing.occurredOn));
 
     const data: Prisma.TransactionUpdateInput = {};
@@ -160,14 +167,7 @@ export class TransactionsService {
   async remove(userId: number, id: number): Promise<void> {
     const existing = await this.findOne(userId, id);
 
-    // One side of a transfer is not a thing that can be deleted on its own -- doing so
-    // would leave money that left one wallet and arrived nowhere (PRD v2 8.9, test E24).
-    if (existing.transferGroupId !== null) {
-      throw AppException.conflict(
-        `transaction ${id} is one side of a transfer; delete it through ` +
-          `DELETE /api/transfers/${existing.transferGroupId} so both sides go together`,
-      );
-    }
+    this.assertOwnDoor(existing, 'DELETE');
 
     const period = periodOf(fromDateOnly(existing.occurredOn));
 
@@ -175,6 +175,28 @@ export class TransactionsService {
       await tx.transaction.update({ where: { id }, data: { deletedAt: new Date() } });
       await this.cache.invalidateFrom(existing.walletId, period, tx);
     });
+  }
+
+  /**
+   * Refuses a row this endpoint has no business mutating (PRD v2 8.7, 8.8, 8.9, 8.16).
+   *
+   * Transfers first, because they get a message naming their own group. A transfer edited
+   * or deleted on one side alone is money that left one wallet and arrived nowhere, and
+   * nothing in the reports would flag it (test E24).
+   */
+  private assertOwnDoor(
+    row: { id: number; kind: TransactionKind; transferGroupId: string | null },
+    verb: 'PATCH' | 'DELETE',
+  ): void {
+    if (row.transferGroupId !== null) {
+      throw AppException.conflict(
+        `transaction ${row.id} is one side of a transfer; ` +
+          `${verb === 'PATCH' ? 'edit' : 'delete'} it through ` +
+          `${verb} /api/transfers/${row.transferGroupId} so both sides stay in step`,
+      );
+    }
+
+    assertEditableHere(row.kind, verb);
   }
 
   async list(

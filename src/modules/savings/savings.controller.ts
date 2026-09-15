@@ -19,7 +19,11 @@ import { WalletsService } from '@/modules/wallets/wallets.service';
 import { TransactionResponse, toTransactionResponse } from '@/modules/transactions/transaction.mapper';
 import { CreateDepositDto } from './dto/deposit.dto';
 import { CreateGoalDto, UpdateGoalDto } from './dto/goal.dto';
-import { CreateWithdrawalDto, PreviewWithdrawalDto } from './dto/withdrawal.dto';
+import {
+  CreateWithdrawalDto,
+  PreviewWithdrawalDto,
+  UpdateSavingsTransactionDto,
+} from './dto/withdrawal.dto';
 import { addMonthsTo } from './engine/month-span';
 import {
   AdvanceResponse,
@@ -186,6 +190,18 @@ export class SavingsController {
       items,
       outstanding: items.reduce((total, item) => total + item.outstanding, 0),
     };
+  }
+
+  @Patch('transactions/:id')
+  @ApiOperation({ summary: 'Correct a deposit or withdrawal (8.7, 8.16)' })
+  async updateTransaction(
+    @CurrentUser('id') userId: number,
+    @Param('walletId', ParseIntPipe) walletId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateSavingsTransactionDto,
+  ): Promise<TransactionResponse> {
+    const resolved = await this.walletIdFor(userId, walletId);
+    return toTransactionResponse(await this.savings.updateTransaction(userId, resolved, id, dto));
   }
 
   @Delete('transactions/:id')

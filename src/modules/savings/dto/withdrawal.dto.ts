@@ -66,3 +66,55 @@ export class PreviewWithdrawalDto {
   @Min(1, { message: 'amount must be at least 1' })
   amount!: number;
 }
+
+/**
+ * Editing a savings transaction (PRD v2 8.7, 8.16).
+ *
+ * `reason` is present but never nullable: section 8.13 is about a withdrawal *having* a
+ * reason, and an edit that could blank it would be the same hole through a different door.
+ * It is trimmed before the length check for exactly the reason the create DTO is.
+ *
+ * The wallet, the kind and the allocations are absent on purpose. Moving a row to another
+ * wallet or turning a deposit into a withdrawal is a different transaction; expressing it
+ * as an edit would mean unwinding one balance and reapplying it elsewhere, and deleting
+ * and re-recording says the same thing without the trap.
+ */
+export class UpdateSavingsTransactionDto {
+  @ApiPropertyOptional({ minimum: 1, example: 1_500_000 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt({ message: 'amount must be a whole number of rupiah' })
+  @Min(1, { message: 'amount must be at least 1' })
+  amount?: number;
+
+  @ApiPropertyOptional({ example: '2026-08-09' })
+  @IsOptional()
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'occurredOn must be formatted YYYY-MM-DD' })
+  occurredOn?: string;
+
+  @ApiPropertyOptional({ maxLength: 200, example: 'Kado nikahan sepupu' })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString({ message: 'reason is required' })
+  @MinLength(1, { message: 'reason is required' })
+  @MaxLength(200, { message: 'reason must be at most 200 characters' })
+  reason?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  categoryId?: number;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsBoolean()
+  expectedReturn?: boolean;
+
+  @ApiPropertyOptional({ maxLength: 500 })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  note?: string | null;
+}

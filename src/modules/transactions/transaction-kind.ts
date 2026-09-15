@@ -96,3 +96,43 @@ export function assertCreatableHere(kind: TransactionKind): TransactionKind {
 
   return kind;
 }
+
+/** Where a kind that this endpoint will not edit or delete has to be sent instead. */
+const OWN_EDIT_ENDPOINT: Partial<Record<TransactionKind, string>> = {
+  [TransactionKind.DEPOSIT]: '/api/wallets/:walletId/transactions/:id',
+  [TransactionKind.WITHDRAW]: '/api/wallets/:walletId/transactions/:id',
+};
+
+/**
+ * The same one-door rule, applied to editing and deleting (PRD v2 8.7, 8.8, 8.16).
+ *
+ * `assertCreatableHere` closed the front door; this closes the other two, and they matter
+ * just as much. Deleting a deposit here would soft-delete the row and leave its
+ * `repayment_allocations` behind, still crediting advances that were never actually repaid.
+ * Deleting a part-repaid advance is meant to be refused (8.8) -- and the FK RESTRICT that
+ * is supposed to back that up never fires, because these deletes are soft. Editing a
+ * deposit's amount below what is already allocated against it breaks 8.16 outright.
+ *
+ * `SavingsService.removeTransaction` and `updateTransaction` already handle every one of
+ * those cases. Sending callers there keeps one copy of the rules rather than two that can
+ * drift apart.
+ *
+ * Transfers are not listed here: both sides always carry a `transferGroupId`, and the
+ * service refuses on that first with a 409 naming the group (8.9, test E24).
+ */
+export function assertEditableHere(
+  kind: TransactionKind,
+  verb: 'PATCH' | 'DELETE',
+): TransactionKind {
+  const elsewhere = OWN_EDIT_ENDPOINT[kind];
+
+  if (elsewhere) {
+    throw AppException.validation(
+      `a ${kind} is not ${verb === 'PATCH' ? 'edited' : 'deleted'} here because it does more ` +
+        `than touch one row; use ${verb} ${elsewhere}`,
+      [{ field: 'kind', constraint: 'wrongEndpoint' }],
+    );
+  }
+
+  return kind;
+}

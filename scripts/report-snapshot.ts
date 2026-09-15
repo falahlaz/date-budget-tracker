@@ -17,6 +17,15 @@
  * The report carries `daysElapsed` and `isCurrent`, which follow the WIB calendar. Rather
  * than blanking those fields -- which would quietly stop testing them -- each run records
  * the WIB date it ran on, and the diff refuses to compare runs from different days.
+ *
+ * TWO v2 SURFACE CHANGES ARE ALLOWED FOR, AND ONLY TWO. v2 deliberately renamed `spentOn`
+ * to `occurredOn` (PRD v2 10.1) and added `transferIn` / `transferOut` to the month and
+ * week rows (10.4). Both were decided before this gate ran, so a literal byte comparison
+ * would fail on the rename rather than on anything the migration did. The allowances below
+ * are written to be as narrow as possible -- a transfer field that is NOT zero stays in the
+ * comparison, because a migration that invented a transfer is exactly the kind of thing
+ * this gate exists to catch -- and every pass prints which of them it used, so the gate can
+ * never quietly forgive something. `SNAPSHOT_STRICT=1` turns them off entirely.
  */
 
 import { createHash } from 'node:crypto';
@@ -63,6 +72,48 @@ function wibToday(): string {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
+}
+
+const STRICT = process.env.SNAPSHOT_STRICT === '1';
+
+/** Which allowances a diff actually used, so the pass line can name them. */
+const allowancesUsed = new Set<string>();
+
+/**
+ * Reconciles the two documented v2 surface changes, and nothing else.
+ *
+ * Applied at comparison time rather than at capture time on purpose: the files on disk stay
+ * the raw, unedited responses, so anyone can diff them by hand and see everything.
+ */
+function reconcile(label: 'before' | 'after', value: unknown): unknown {
+  if (STRICT) return value;
+
+  if (Array.isArray(value)) return value.map((item) => reconcile(label, item));
+  if (!value || typeof value !== 'object') return value;
+
+  const row = { ...(value as Record<string, unknown>) };
+
+  // v2 10.1: one date field, one name, across every kind of transaction.
+  if (label === 'before' && 'spentOn' in row) {
+    row.occurredOn = row.spentOn;
+    delete row.spentOn;
+    allowancesUsed.add('spentOn -> occurredOn (v2 10.1)');
+  }
+
+  // v2 10.4: additive, and only ignorable while they are zero. A non-zero figure here on a
+  // freshly migrated database would mean the migration created a transfer out of nothing,
+  // so it is left in place and the comparison fails on it.
+  if (label === 'after' && row.transferIn === 0 && row.transferOut === 0) {
+    delete row.transferIn;
+    delete row.transferOut;
+    allowancesUsed.add('transferIn/transferOut, both zero (v2 10.4)');
+  }
+
+  for (const [key, nested] of Object.entries(row)) {
+    row[key] = reconcile(label, nested);
+  }
+
+  return row;
 }
 
 /** Stable JSON: object keys sorted at every depth, so a diff is about values only. */
@@ -243,9 +294,11 @@ function readManifest(label: string): Manifest {
   }
 }
 
-function digest(label: string, period: string): string {
+function digest(label: 'before' | 'after', period: string): string {
+  const raw = JSON.parse(readFileSync(join(ROOT, label, `${period}.json`), 'utf8')) as unknown;
+
   return createHash('sha256')
-    .update(readFileSync(join(ROOT, label, `${period}.json`)))
+    .update(JSON.stringify(canonical(reconcile(label, raw))))
     .digest('hex');
 }
 
@@ -290,6 +343,14 @@ function diff(): void {
   }
 
   console.log(`[snapshot:diff] M1 PASSED -- ${periods.length} period(s) identical: ${periods.join(', ')}`);
+
+  if (allowancesUsed.size > 0) {
+    console.log('[snapshot:diff] every figure matched. Reconciled, as documented in this file:');
+    [...allowancesUsed].sort().forEach((allowance) => console.log(`  - ${allowance}`));
+    console.log('  Run with SNAPSHOT_STRICT=1 for a literal byte comparison.');
+  } else {
+    console.log('[snapshot:diff] byte-identical; no v2 surface allowance was needed.');
+  }
 }
 
 function listSnapshots(): void {

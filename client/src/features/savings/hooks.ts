@@ -192,3 +192,33 @@ export function planFifo(
 
   return plan;
 }
+
+export interface SavingsTransactionUpdate {
+  amount?: number;
+  occurredOn?: string;
+  reason?: string;
+  categoryId?: number;
+  expectedReturn?: boolean;
+  note?: string | null;
+}
+
+/**
+ * Corrects a savings row through the door that enforces its invariants (v2 8.7, 8.16).
+ *
+ * `PATCH /api/transactions/:id` answers 422 for these kinds on purpose: it would skip the
+ * allocation checks, and a deposit lowered below what it already repays would leave every
+ * advance it credits reporting a debt that was never paid.
+ */
+export function useUpdateSavingsTransaction() {
+  const client = useQueryClient();
+  const walletId = useActiveWalletId();
+
+  return useMutation({
+    mutationFn: ({ id, ...input }: { id: number } & SavingsTransactionUpdate) =>
+      api.patch<Transaction>(`/wallets/${walletId}/transactions/${id}`, input),
+    onSuccess: async (_data, variables) => {
+      await client.invalidateQueries({ queryKey: queryKeys.transaction(variables.id) });
+      await invalidateReports(client);
+    },
+  });
+}

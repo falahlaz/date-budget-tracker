@@ -10,6 +10,7 @@ import { Sheet } from '@/components/ui/sheet';
 import { useAuth } from '@/features/auth/auth-context';
 import { ApiError, api } from '@/lib/api';
 import { useTheme, type ThemePreference } from '@/lib/theme';
+import type { WalletType } from '@/types/api';
 import { useArchiveCategory, useCategories, useCreateCategory } from './hooks';
 
 const APP_VERSION = '1.0.0';
@@ -30,9 +31,20 @@ const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = 
 ];
 
 /** S9 Settings (PRD 9.2): categories, password, sign out, version. */
+/**
+ * Spending and withdrawal categories are separate vocabularies (PRD v2 9.4), and both need
+ * managing here. Without the switch, the savings palette seeded with the first savings
+ * wallet could never be renamed, recoloured or archived from anywhere in the app.
+ */
+const CATEGORY_SCOPES: ReadonlyArray<{ value: WalletType; label: string }> = [
+  { value: 'DATE_BUDGET', label: 'Kencan' },
+  { value: 'SAVINGS', label: 'Tabungan' },
+];
+
 export function SettingsPage() {
   const { user, logout } = useAuth();
-  const categories = useCategories();
+  const [scope, setScope] = useState<WalletType>('DATE_BUDGET');
+  const categories = useCategories(scope);
   const createCategory = useCreateCategory();
   const archiveCategory = useArchiveCategory();
 
@@ -44,7 +56,7 @@ export function SettingsPage() {
 
   const addCategory = async () => {
     try {
-      await createCategory.mutateAsync({ name: newName.trim(), color: newColor });
+      await createCategory.mutateAsync({ name: newName.trim(), color: newColor, walletType: scope });
       toast.success('Kategori ditambahkan');
       setNewName('');
       setAdding(false);
@@ -82,18 +94,23 @@ export function SettingsPage() {
         <SectionHead
           title="Kategori"
           action={
-            <Button
-              variant="secondary"
-              size="icon"
-              onClick={() => setAdding(true)}
-              aria-label="Tambah kategori"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Segmented label="Jenis kategori" value={scope} onChange={setScope} options={CATEGORY_SCOPES} />
+              <Button
+                variant="secondary"
+                size="icon"
+                onClick={() => setAdding(true)}
+                aria-label="Tambah kategori"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
           }
         />
         <p className="mb-2 text-[11.5px] text-ink-3">
-          Kategori yang diarsip ga muncul lagi pas nyatat, tapi pengeluaran lama tetap kebaca.
+          {scope === 'SAVINGS'
+            ? 'Kategori buat alasan penarikan tabungan. Terpisah dari kategori pengeluaran.'
+            : 'Kategori yang diarsip ga muncul lagi pas nyatat, tapi pengeluaran lama tetap kebaca.'}
         </p>
 
         {categories.isLoading ? (
@@ -140,7 +157,11 @@ export function SettingsPage() {
 
       <p className="label-micro text-center">datebud v{APP_VERSION}</p>
 
-      <Sheet open={adding} onOpenChange={setAdding} title="Kategori baru">
+      <Sheet
+        open={adding}
+        onOpenChange={setAdding}
+        title={scope === 'SAVINGS' ? 'Kategori penarikan baru' : 'Kategori baru'}
+      >
         <div className="flex flex-col gap-4">
           <Field label="Nama" required>
             <Input

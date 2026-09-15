@@ -40,7 +40,7 @@ describe('Savings API (PRD v2 10.3)', () => {
     impulsifId = categories.body.find((c: { name: string }) => c.name === 'Impulsif').id;
   });
 
-  const authed = (method: 'get' | 'post' | 'patch' | 'delete', path: string) =>
+  const authed = (method: 'get' | 'post' | 'patch' | 'delete' | 'put', path: string) =>
     harness.http()[method](path).set('Authorization', harness.auth);
 
   const createGoal = (overrides: Record<string, unknown> = {}) =>
@@ -125,6 +125,211 @@ describe('Savings API (PRD v2 10.3)', () => {
     });
   });
 
+  // -------------------------------------------------- one door per concept
+
+  /**
+   * The generic transaction endpoints must refuse savings rows (PRD v2 8.7, 8.8, 8.16).
+   *
+   * These are not stylistic. `DELETE /api/transactions/:id` is a SOFT delete, so the FK
+   * `ON DELETE RESTRICT` that section 8.8 relies on never fires: the row would simply drop
+   * out of every query while the allocations crediting it stayed behind. The savings door
+   * is the only one that unwinds what a deposit caused.
+   */
+  describe('savings rows are not editable through the generic endpoint', () => {
+    let depositId: number;
+    let advanceId: number;
+
+    beforeEach(async () => {
+      await createGoal().expect(201);
+
+      const advance = await withdrawAfterFunding();
+      advanceId = advance.advanceId;
+      depositId = advance.depositId;
+    });
+
+    /** Funds the wallet, takes an advance, then repays it so allocations exist. */
+    const withdrawAfterFunding = async () => {
+      await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
+
+      const withdrawal = await withdraw({
+        amount: 600_000,
+        occurredOn: '2026-06-18',
+        reason: 'Pinjam dulu',
+        expectedReturn: true,
+      }).expect(201);
+
+      const repayment = await deposit({
+        amount: 1_000_000,
+        occurredOn: '2026-07-09',
+        applyToAdvances: true,
+      }).expect(201);
+
+      return { advanceId: withdrawal.body.id, depositId: repayment.body.transaction.id };
+    };
+
+    it('refuses to delete a deposit, naming the endpoint that can (8.7)', async () => {
+      const refused = await authed('delete', `/api/transactions/${depositId}`).expect(422);
+
+      expect(refused.body.message).toContain('/api/wallets/:walletId/transactions/:id');
+
+      // And nothing moved: the advance is still settled by that deposit.
+      const advances = await authed('get', `/api/wallets/${walletId}/advances`).expect(200);
+      expect(advances.body.outstanding).toBe(0);
+    });
+
+    it('refuses to delete a withdrawal through it too (8.8)', async () => {
+      await authed('delete', `/api/transactions/${advanceId}`).expect(422);
+    });
+
+    it('refuses to patch a savings row', async () => {
+      await authed('patch', `/api/transactions/${depositId}`).send({ amount: 100_000 }).expect(422);
+
+      const unchanged = await authed('get', `/api/transactions/${depositId}`).expect(200);
+      expect(unchanged.body.amount).toBe(1_000_000);
+    });
+
+    /**
+     * The point of refusing: the savings door does the work the generic one skipped.
+     * Deleting the deposit puts the debt back and un-settles the advance (8.7, E26).
+     */
+    it('still deletes through the savings door, undoing the repayment', async () => {
+      await authed('delete', `/api/wallets/${walletId}/transactions/${depositId}`).expect(204);
+
+      const advances = await authed('get', `/api/wallets/${walletId}/advances`).expect(200);
+      expect(advances.body.outstanding).toBe(600_000);
+      expect(advances.body.items[0]).toMatchObject({
+        id: advanceId,
+        returnedAmount: 0,
+        settled: false,
+      });
+    });
+  });
+
+  // ------------------------------------------------ editing a savings row
+
+  describe('PATCH /api/wallets/:walletId/transactions/:id', () => {
+    beforeEach(async () => {
+      await createGoal().expect(201);
+    });
+
+    it('corrects a mistyped deposit amount', async () => {
+      const created = await deposit({ amount: 200_000, occurredOn: '2026-06-10' }).expect(201);
+
+      const fixed = await authed(
+        'patch',
+        `/api/wallets/${walletId}/transactions/${created.body.transaction.id}`,
+      )
+        .send({ amount: 2_000_000 })
+        .expect(200);
+
+      expect(fixed.body.amount).toBe(2_000_000);
+
+      const goal = await authed('get', `/api/wallets/${walletId}/goal`).expect(200);
+      expect(goal.body.balance).toBe(2_000_000);
+    });
+
+    it('edits a withdrawal reason and category', async () => {
+      await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
+      const created = await withdraw({
+        amount: 500_000,
+        occurredOn: '2026-06-18',
+        reason: 'lupa alasannya',
+      }).expect(201);
+
+      const fixed = await authed(
+        'patch',
+        `/api/wallets/${walletId}/transactions/${created.body.id}`,
+      )
+        .send({ reason: 'Beli headphone', categoryId: impulsifId })
+        .expect(200);
+
+      expect(fixed.body).toMatchObject({
+        reason: 'Beli headphone',
+        category: { id: impulsifId },
+      });
+    });
+
+    /** Section 8.13 is about the reason existing; an edit may not blank it. */
+    it('refuses to blank a withdrawal reason', async () => {
+      await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
+      const created = await withdraw({ amount: 500_000, occurredOn: '2026-06-18' }).expect(201);
+
+      await authed('patch', `/api/wallets/${walletId}/transactions/${created.body.id}`)
+        .send({ reason: '   ' })
+        .expect(422);
+    });
+
+    /**
+     * Section 8.16: the allocations would otherwise describe a repayment larger than the
+     * deposit that made it, and every advance they credit would report a debt as paid.
+     */
+    it('refuses to lower a deposit below what it already repays', async () => {
+      await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
+      await withdraw({
+        amount: 600_000,
+        occurredOn: '2026-06-18',
+        reason: 'Pinjam dulu',
+        expectedReturn: true,
+      }).expect(201);
+
+      const repayment = await deposit({
+        amount: 1_000_000,
+        occurredOn: '2026-07-09',
+        applyToAdvances: true,
+      }).expect(201);
+
+      const refused = await authed(
+        'patch',
+        `/api/wallets/${walletId}/transactions/${repayment.body.transaction.id}`,
+      )
+        .send({ amount: 500_000 })
+        .expect(422);
+
+      expect(refused.body.message).toContain('600000');
+
+      const advances = await authed('get', `/api/wallets/${walletId}/advances`).expect(200);
+      expect(advances.body.outstanding).toBe(0);
+    });
+
+    it('refuses to raise a withdrawal past the balance (8.1)', async () => {
+      await deposit({ amount: 1_000_000, occurredOn: '2026-06-10' }).expect(201);
+      const created = await withdraw({ amount: 500_000, occurredOn: '2026-06-18' }).expect(201);
+
+      await authed('patch', `/api/wallets/${walletId}/transactions/${created.body.id}`)
+        .send({ amount: 1_500_000 })
+        .expect(422);
+
+      // 1.000.000 exactly empties it, so the boundary itself is allowed.
+      await authed('patch', `/api/wallets/${walletId}/transactions/${created.body.id}`)
+        .send({ amount: 1_000_000 })
+        .expect(200);
+    });
+
+    it('refuses to un-mark an advance that has been part repaid (8.8)', async () => {
+      await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
+      const advance = await withdraw({
+        amount: 600_000,
+        occurredOn: '2026-06-18',
+        reason: 'Pinjam dulu',
+        expectedReturn: true,
+      }).expect(201);
+
+      await deposit({ amount: 300_000, occurredOn: '2026-07-09', applyToAdvances: true }).expect(
+        201,
+      );
+
+      await authed('patch', `/api/wallets/${walletId}/transactions/${advance.body.id}`)
+        .send({ expectedReturn: false })
+        .expect(409);
+    });
+
+    it('404s on a transaction in another wallet', async () => {
+      await authed('patch', `/api/wallets/${walletId}/transactions/999999`)
+        .send({ amount: 1_000 })
+        .expect(404);
+    });
+  });
+
   // ------------------------------------------------------- Fixture D, over HTTP
 
   describe('Fixture D driven through the API (7.1)', () => {
@@ -142,7 +347,9 @@ describe('Savings API (PRD v2 10.3)', () => {
       }).expect(201);
 
       // July's deposit settles June's advance -- the row that makes G6 true.
-      await deposit({ amount: 2_000_000, occurredOn: '2026-07-09', applyToAdvances: true }).expect(201);
+      await deposit({ amount: 2_000_000, occurredOn: '2026-07-09', applyToAdvances: true }).expect(
+        201,
+      );
 
       await deposit({ amount: 1_500_000, occurredOn: '2026-08-05' }).expect(201);
       await withdraw({
@@ -179,7 +386,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       });
     });
 
-    it('settled June\'s advance with July\'s deposit, leaving only August\'s owed', async () => {
+    it("settled June's advance with July's deposit, leaving only August's owed", async () => {
       const advances = await authed('get', `/api/wallets/${walletId}/advances`).expect(200);
 
       expect(advances.body.items).toHaveLength(1);
@@ -301,7 +508,7 @@ describe('Savings API (PRD v2 10.3)', () => {
         expect(july.body.vsPlan).not.toBe(2_000_000 - 1_875_000);
       });
 
-      it('does not let July\'s repayment rewrite June\'s outstanding advance', async () => {
+      it("does not let July's repayment rewrite June's outstanding advance", async () => {
         const june = await report('2026-06').expect(200);
         const july = await report('2026-07').expect(200);
 
@@ -354,7 +561,7 @@ describe('Savings API (PRD v2 10.3)', () => {
         await authed('get', `/api/wallets/${dateBudget.id}/reports/savings/2026-08`).expect(422);
       });
 
-      it('404s on another user\'s wallet', async () => {
+      it("404s on another user's wallet", async () => {
         await harness
           .http()
           .get(`/api/wallets/${walletId}/reports/savings/2026-08`)

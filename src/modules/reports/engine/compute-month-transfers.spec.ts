@@ -193,8 +193,9 @@ describe('computeMonth - amended invariant (PRD v2 6.2)', () => {
 
   /** Where the transfers sit cannot move carryOut, for any random month (S10 generalised). */
   it('gives the same carryOut however the transfers are rearranged within the month', () => {
-    const period = '2026-09';
-    const dates = eachDateInRange('2026-09-01', '2026-09-30');
+    // Derived from BASE rather than repeated, so the dates cannot drift out of the month
+    // the report is actually computed for.
+    const dates = eachDateInRange(`${BASE.period}-01`, lastDayOfPeriod(BASE.period));
     const amounts: TransferInput[] = [
       { occurredOn: '', amount: 320_000, direction: 'OUT' },
       { occurredOn: '', amount: 150_000, direction: 'IN' },

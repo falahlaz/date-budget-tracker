@@ -14,7 +14,14 @@ const INCOMING: TransactionKind[] = ['DEPOSIT', 'TRANSFER_IN'];
  * reviewable, and burying it under a category name is how a savings account quietly
  * becomes a list of unexplained holes (goal G2).
  */
-export function SavingsActivityRow({ transaction }: { transaction: Transaction }) {
+export function SavingsActivityRow({
+  transaction,
+  onSelect,
+}: {
+  transaction: Transaction;
+  /** Opens the edit sheet. Omitted where there is nothing to open, so the row stays inert. */
+  onSelect?: (transaction: Transaction) => void;
+}) {
   const incoming = INCOMING.includes(transaction.kind);
   const isTransfer = transaction.transferGroupId !== null;
 
@@ -39,8 +46,8 @@ export function SavingsActivityRow({ transaction }: { transaction: Transaction }
     .filter(Boolean)
     .join(' · ');
 
-  return (
-    <li className="flex items-center gap-3 py-3">
+  const body = (
+    <>
       <span
         aria-hidden
         className={cn(
@@ -62,6 +69,23 @@ export function SavingsActivityRow({ transaction }: { transaction: Transaction }
         showOverBadge={false}
         className="shrink-0 text-[13.5px] font-semibold"
       />
+    </>
+  );
+
+  if (!onSelect) {
+    return <li className="flex items-center gap-3 py-3">{body}</li>;
+  }
+
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onSelect(transaction)}
+        data-tap
+        className="-mx-2 flex w-full items-center gap-3 rounded-sm px-2 py-3 text-left transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2"
+      >
+        {body}
+      </button>
     </li>
   );
 }

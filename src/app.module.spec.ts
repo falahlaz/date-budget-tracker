@@ -64,6 +64,7 @@ const EXPECTED_ROUTES = [
   'POST /api/wallets/:walletId/withdrawals',
   'POST /api/wallets/:walletId/withdrawals/preview',
   'GET /api/wallets/:walletId/advances',
+  'PATCH /api/wallets/:walletId/transactions/:id',
   'DELETE /api/wallets/:walletId/transactions/:id',
 
   // Transfers (v2 10.4), addressed by group because one side alone is not a thing.

@@ -15,9 +15,10 @@ import { PrismaService } from '@/prisma/prisma.service';
 import { assertDateString } from '@/modules/reports/engine/calendar';
 import { CreateDepositDto, ManualAllocationDto } from './dto/deposit.dto';
 import { CreateGoalDto, UpdateGoalDto } from './dto/goal.dto';
-import { CreateWithdrawalDto } from './dto/withdrawal.dto';
+import { CreateWithdrawalDto, UpdateSavingsTransactionDto } from './dto/withdrawal.dto';
 import { ProposedAllocation, allocateFifo } from './engine/allocate-fifo';
 import { planPerMonthFor } from './engine/compute-savings';
+import { TransactionWithRelations } from '@/modules/transactions/transaction.mapper';
 import { SavingsComputationService } from './savings-computation.service';
 
 /**
@@ -244,6 +245,152 @@ export class SavingsService {
     await this.syncStatusFor(walletId);
 
     return withdrawal;
+  }
+
+  // --------------------------------------------------------------- edits
+
+  /**
+   * Corrects a savings transaction (PRD v2 8.7, 8.16).
+   *
+   * The generic endpoint sends every non-SPEND row here, because two of the checks below
+   * exist nowhere else.
+   *
+   * A deposit's amount cannot fall below what has already been allocated against it: the
+   * allocations would then describe a repayment larger than the deposit that made it, and
+   * every advance they credit would be reporting a debt that was never actually paid.
+   * Lowering the amount deliberately does not silently release allocations either -- that
+   * is a decision about which debt is no longer settled, and only the caller can make it,
+   * by deleting the deposit and re-recording it.
+   *
+   * A withdrawal cannot be raised past the balance, for the same reason it could not be
+   * recorded that way in the first place (8.1): an account cannot hold less than nothing.
+   */
+  async updateTransaction(
+    userId: number,
+    walletId: number,
+    id: number,
+    dto: UpdateSavingsTransactionDto,
+  ): Promise<TransactionWithRelations> {
+    const existing = await this.findOwnedTransaction(userId, walletId, id);
+
+    if (existing.transferGroupId !== null) {
+      throw AppException.conflict(
+        `transaction ${id} is one side of a transfer; edit it through ` +
+          `PATCH /api/transfers/${existing.transferGroupId} so both sides stay in step`,
+      );
+    }
+
+    const data: Prisma.TransactionUpdateInput = {};
+
+    if (dto.occurredOn !== undefined) {
+      data.occurredOn = toDateOnly(this.assertUsableDate(dto.occurredOn));
+    }
+
+    if (dto.amount !== undefined && dto.amount !== existing.amount) {
+      await this.assertAmountStillValid(walletId, existing, dto.amount);
+      data.amount = dto.amount;
+    }
+
+    if (dto.note !== undefined) data.note = dto.note;
+
+    if (existing.kind === TransactionKind.WITHDRAW) {
+      if (dto.reason !== undefined) data.reason = dto.reason;
+      if (dto.expectedReturn !== undefined) {
+        // Un-marking an advance that has already been partly repaid would orphan the
+        // allocations pointing at it -- they would credit a withdrawal that no longer
+        // claims to be a debt at all.
+        if (dto.expectedReturn === false && existing.returnedAmount > 0) {
+          throw AppException.conflict(
+            `withdrawal ${id} has ${existing.returnedAmount} already repaid; delete the ` +
+              'deposits that repaid it before un-marking it',
+          );
+        }
+        data.expectedReturn = dto.expectedReturn;
+      }
+
+      if (dto.categoryId !== undefined) {
+        await this.assertCategoryUsable(userId, dto.categoryId);
+        data.category = { connect: { id: dto.categoryId } };
+      }
+    }
+
+    // The category comes back on the response, so the sheet that sent this can render the
+    // row it just edited without a second request.
+    const updated = await this.prisma.transaction.update({
+      where: { id },
+      data,
+      include: { category: true, receipts: { where: { deletedAt: null } } },
+    });
+
+    await this.syncStatusFor(walletId);
+
+    return updated;
+  }
+
+  /**
+   * Whether this row may hold this amount, given what already points at it.
+   *
+   * The balance check runs against the balance *without* this row, so raising a withdrawal
+   * is measured against what the wallet would actually hold rather than double-counting
+   * the withdrawal being edited.
+   */
+  private async assertAmountStillValid(
+    walletId: number,
+    existing: Transaction,
+    amount: number,
+  ): Promise<void> {
+    if (existing.kind === TransactionKind.DEPOSIT) {
+      const allocated = await this.prisma.repaymentAllocation.aggregate({
+        where: { depositTransactionId: existing.id },
+        _sum: { amount: true },
+      });
+      const total = allocated._sum.amount ?? 0;
+
+      if (amount < total) {
+        throw AppException.validation(
+          `this deposit already repays ${total}; it cannot be lowered to ${amount}. ` +
+            'Delete it and record it again if the split has changed.',
+          [{ field: 'amount', constraint: 'belowAllocated' }],
+        );
+      }
+    }
+
+    const balance = await this.computation.balance(walletId);
+    // What the wallet holds with this row taken back out.
+    const withoutThis =
+      existing.direction === Direction.IN ? balance - existing.amount : balance + existing.amount;
+
+    if (existing.direction === Direction.OUT && withoutThis - amount < 0) {
+      throw AppException.validation(
+        `this withdrawal would leave the wallet below zero: balance without it is ` +
+          `${withoutThis}, withdrawal would be ${amount}`,
+        [{ field: 'amount', constraint: 'insufficientBalance' }],
+      );
+    }
+
+    if (existing.direction === Direction.IN && withoutThis + amount > MAX_BALANCE) {
+      throw AppException.validation(
+        `this deposit would take the balance past ${MAX_BALANCE}, which is beyond what this ` +
+          'app stores; split it across wallets',
+        [{ field: 'amount', constraint: 'balanceCeiling' }],
+      );
+    }
+  }
+
+  private async findOwnedTransaction(
+    userId: number,
+    walletId: number,
+    id: number,
+  ): Promise<Transaction> {
+    const existing = await this.prisma.transaction.findFirst({
+      where: { id, walletId, userId, deletedAt: null },
+    });
+
+    if (!existing) {
+      throw AppException.notFound(`transaction ${id} not found`);
+    }
+
+    return existing;
   }
 
   // ------------------------------------------------------------- deletes
