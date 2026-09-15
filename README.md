@@ -79,9 +79,10 @@ Open <http://localhost:5173>. The Vite dev server proxies `/api` to Nest.
 | `npm run migrate:down` | Apply a migration's `down.sql` (see **Migrations** below) |
 | `npm run snapshot:before` / `:after` / `:diff` | The migration comparison gate (see **Migrations**) |
 
-`npm run format` exists but the repository has never been formatted wholesale — running it
-rewrites about 40 files. Treat it as a deliberate, separate commit rather than something to
-run alongside a feature; `format:check` reports without touching anything.
+`src/` and `test/` are Prettier-formatted, in one commit of their own so the reformat never
+sits inside a feature diff. `format:check` reports without touching anything and belongs
+next to `lint` in any gate. The client half has its own toolchain and is not covered by
+these two scripts.
 
 API docs are served at `/api/docs` in non-production environments only.
 

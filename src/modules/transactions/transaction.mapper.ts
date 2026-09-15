@@ -1,6 +1,12 @@
 import { Category, Direction, Receipt, Transaction, TransactionKind } from '@prisma/client';
 import { fromDateOnly } from '@/common/utils/date-only';
-import { DayType, buildWeekSegments, dayTypeOf, findSegmentForDate, periodOf } from '@/modules/reports/engine/calendar';
+import {
+  DayType,
+  buildWeekSegments,
+  dayTypeOf,
+  findSegmentForDate,
+  periodOf,
+} from '@/modules/reports/engine/calendar';
 
 export interface ReceiptResponse {
   id: number;

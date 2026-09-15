@@ -38,11 +38,46 @@ describe('computeSavings - Fixture D (PRD v2 7.1)', () => {
 
   it('reproduces every row of the fixture history table', () => {
     expect(monthRows(report)).toEqual([
-      { period: '2026-05', depositTotal: 2_000_000, repaymentTotal: 0, freshContribution: 2_000_000, withdrawTotal: 0, net: 2_000_000 },
-      { period: '2026-06', depositTotal: 1_800_000, repaymentTotal: 0, freshContribution: 1_800_000, withdrawTotal: 600_000, net: 1_200_000 },
-      { period: '2026-07', depositTotal: 2_000_000, repaymentTotal: 600_000, freshContribution: 1_400_000, withdrawTotal: 0, net: 2_000_000 },
-      { period: '2026-08', depositTotal: 1_500_000, repaymentTotal: 0, freshContribution: 1_500_000, withdrawTotal: 1_200_000, net: 300_000 },
-      { period: '2026-09', depositTotal: 1_000_000, repaymentTotal: 0, freshContribution: 1_000_000, withdrawTotal: 0, net: 1_000_000 },
+      {
+        period: '2026-05',
+        depositTotal: 2_000_000,
+        repaymentTotal: 0,
+        freshContribution: 2_000_000,
+        withdrawTotal: 0,
+        net: 2_000_000,
+      },
+      {
+        period: '2026-06',
+        depositTotal: 1_800_000,
+        repaymentTotal: 0,
+        freshContribution: 1_800_000,
+        withdrawTotal: 600_000,
+        net: 1_200_000,
+      },
+      {
+        period: '2026-07',
+        depositTotal: 2_000_000,
+        repaymentTotal: 600_000,
+        freshContribution: 1_400_000,
+        withdrawTotal: 0,
+        net: 2_000_000,
+      },
+      {
+        period: '2026-08',
+        depositTotal: 1_500_000,
+        repaymentTotal: 0,
+        freshContribution: 1_500_000,
+        withdrawTotal: 1_200_000,
+        net: 300_000,
+      },
+      {
+        period: '2026-09',
+        depositTotal: 1_000_000,
+        repaymentTotal: 0,
+        freshContribution: 1_000_000,
+        withdrawTotal: 0,
+        net: 1_000_000,
+      },
     ]);
   });
 
@@ -282,21 +317,26 @@ describe('computeSavings - invariants (PRD v2 5.2)', () => {
     };
 
     const days = [
-      '2026-05-04', '2026-05-27', '2026-06-02', '2026-06-19', '2026-07-08',
-      '2026-07-30', '2026-08-01', '2026-08-21', '2026-09-03', '2026-09-12',
+      '2026-05-04',
+      '2026-05-27',
+      '2026-06-02',
+      '2026-06-19',
+      '2026-07-08',
+      '2026-07-30',
+      '2026-08-01',
+      '2026-08-21',
+      '2026-09-03',
+      '2026-09-12',
     ];
 
     for (let run = 0; run < 1000; run += 1) {
       const openingBalance = Math.floor(random() * 3_000_000);
 
-      const txns: SavingsTxnInput[] = Array.from(
-        { length: Math.floor(random() * 15) },
-        () => ({
-          occurredOn: days[Math.floor(random() * days.length)],
-          amount: 1 + Math.floor(random() * 900_000),
-          kind: KINDS[Math.floor(random() * KINDS.length)],
-        }),
-      );
+      const txns: SavingsTxnInput[] = Array.from({ length: Math.floor(random() * 15) }, () => ({
+        occurredOn: days[Math.floor(random() * days.length)],
+        amount: 1 + Math.floor(random() * 900_000),
+        kind: KINDS[Math.floor(random() * KINDS.length)],
+      }));
 
       const report = computeSavings({
         goal: { ...GOAL, openingBalance },

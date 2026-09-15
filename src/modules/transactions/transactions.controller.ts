@@ -34,7 +34,7 @@ export class TransactionsController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'List a wallet\'s transactions, plus the total of the filtered set' })
+  @ApiOperation({ summary: "List a wallet's transactions, plus the total of the filtered set" })
   async list(
     @CurrentUser('id') userId: number,
     @Query() query: QueryTransactionsDto,

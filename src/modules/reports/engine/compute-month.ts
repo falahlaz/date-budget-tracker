@@ -230,7 +230,15 @@ export function computeMonth(input: ComputeMonthInput): MonthReport {
   const transferOut = sumMoney(weeks.map((week) => week.transferOut));
   const transferIn = sumMoney(weeks.map((week) => week.transferIn));
 
-  assertInvariant({ period, monthlyBudget, carryIn, totalSpent, transferOut, transferIn, carryOut });
+  assertInvariant({
+    period,
+    monthlyBudget,
+    carryIn,
+    totalSpent,
+    transferOut,
+    transferIn,
+    carryOut,
+  });
 
   const daysTotal = daysInPeriod(period);
 

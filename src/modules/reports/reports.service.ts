@@ -25,7 +25,13 @@ import {
   periodOf,
   previousPeriod,
 } from './engine/calendar';
-import { DayReport, ExpenseInput, MonthReport, WeekReport, buildDayReports } from './engine/compute-month';
+import {
+  DayReport,
+  ExpenseInput,
+  MonthReport,
+  WeekReport,
+  buildDayReports,
+} from './engine/compute-month';
 
 export interface MonthReportResponse extends MonthReport {
   byCategory: CategoryBreakdown[];
@@ -128,7 +134,11 @@ export class ReportsService {
     return this.weekReport(walletId, period, segment?.weekIndex ?? 1);
   }
 
-  async weekReport(walletId: number, period: string, weekIndex: number): Promise<WeekReportResponse> {
+  async weekReport(
+    walletId: number,
+    period: string,
+    weekIndex: number,
+  ): Promise<WeekReportResponse> {
     const report = await this.computation.computeMonthReport(walletId, period);
     const week = report.weeks.find((candidate) => candidate.weekIndex === weekIndex);
 

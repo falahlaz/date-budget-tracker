@@ -106,7 +106,11 @@ export class AuthService {
    * Changes the password and revokes every refresh token, so any other signed-in device
    * is logged out (PRD 8.2).
    */
-  async changePassword(userId: number, currentPassword: string, newPassword: string): Promise<void> {
+  async changePassword(
+    userId: number,
+    currentPassword: string,
+    newPassword: string,
+  ): Promise<void> {
     const user = await this.users.findById(userId);
 
     if (!user || !(await this.users.verifyPassword(user.passwordHash, currentPassword))) {

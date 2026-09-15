@@ -35,7 +35,13 @@ describe('Budgets and categories (PRD 8.3, 8.7)', () => {
 
     expect(response.body).toHaveLength(7);
     expect(response.body.map((category: { name: string }) => category.name)).toEqual([
-      'Makan', 'Nonton', 'Transport', 'Ngopi', 'Aktivitas', 'Gift', 'Lain-lain',
+      'Makan',
+      'Nonton',
+      'Transport',
+      'Ngopi',
+      'Aktivitas',
+      'Gift',
+      'Lain-lain',
     ]);
     expect(response.body[0]).toMatchObject({ color: '#9D6DE4', icon: 'utensils' });
   });
@@ -69,7 +75,9 @@ describe('Budgets and categories (PRD 8.3, 8.7)', () => {
   // PRD 6.10
   it('rejects a budget below 1', async () => {
     await authed('put', `/api/wallets/${walletId}/budgets/2026-09`).send({ amount: 0 }).expect(422);
-    await authed('put', `/api/wallets/${walletId}/budgets/2026-09`).send({ amount: -100 }).expect(422);
+    await authed('put', `/api/wallets/${walletId}/budgets/2026-09`)
+      .send({ amount: -100 })
+      .expect(422);
   });
 
   // PRD 6.3
@@ -80,15 +88,23 @@ describe('Budgets and categories (PRD 8.3, 8.7)', () => {
       .send({ occurredOn: '2026-09-05', amount: 100_000 })
       .expect(201);
 
-    const report = await authed('get', `/api/wallets/${walletId}/reports/month/2026-09`).expect(200);
+    const report = await authed('get', `/api/wallets/${walletId}/reports/month/2026-09`).expect(
+      200,
+    );
     expect(report.body.hasBudget).toBe(false);
     expect(report.body.totalSpent).toBe(100_000);
   });
 
   it('lists budget history newest first with spend and carry-out', async () => {
-    await authed('put', `/api/wallets/${walletId}/budgets/2026-09`).send({ amount: 2_200_000 }).expect(200);
-    await authed('put', `/api/wallets/${walletId}/budgets/2026-10`).send({ amount: 2_000_000 }).expect(200);
-    await authed('post', '/api/transactions').send({ occurredOn: '2026-09-02', amount: 200_000 }).expect(201);
+    await authed('put', `/api/wallets/${walletId}/budgets/2026-09`)
+      .send({ amount: 2_200_000 })
+      .expect(200);
+    await authed('put', `/api/wallets/${walletId}/budgets/2026-10`)
+      .send({ amount: 2_000_000 })
+      .expect(200);
+    await authed('post', '/api/transactions')
+      .send({ occurredOn: '2026-09-02', amount: 200_000 })
+      .expect(201);
 
     const response = await authed('get', `/api/wallets/${walletId}/budgets`).expect(200);
 
@@ -102,13 +118,19 @@ describe('Budgets and categories (PRD 8.3, 8.7)', () => {
   });
 
   it('removes a budget without touching its expenses', async () => {
-    await authed('put', `/api/wallets/${walletId}/budgets/2026-09`).send({ amount: 2_200_000 }).expect(200);
-    await authed('post', '/api/transactions').send({ occurredOn: '2026-09-02', amount: 200_000 }).expect(201);
+    await authed('put', `/api/wallets/${walletId}/budgets/2026-09`)
+      .send({ amount: 2_200_000 })
+      .expect(200);
+    await authed('post', '/api/transactions')
+      .send({ occurredOn: '2026-09-02', amount: 200_000 })
+      .expect(201);
 
     await authed('delete', `/api/wallets/${walletId}/budgets/2026-09`).expect(204);
     await authed('get', `/api/wallets/${walletId}/budgets/2026-09`).expect(404);
 
-    const report = await authed('get', `/api/wallets/${walletId}/reports/month/2026-09`).expect(200);
+    const report = await authed('get', `/api/wallets/${walletId}/reports/month/2026-09`).expect(
+      200,
+    );
     expect(report.body.totalSpent).toBe(200_000);
     expect(report.body.hasBudget).toBe(false);
   });

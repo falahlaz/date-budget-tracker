@@ -74,7 +74,10 @@ describe('Expenses (PRD 8.4)', () => {
     const response = await post({ occurredOn: tomorrowWib(), amount: 50_000 }).expect(422);
 
     expect(response.body).toMatchObject({ statusCode: 422, error: 'VALIDATION_ERROR' });
-    expect(response.body.details).toContainEqual({ field: 'occurredOn', constraint: 'notInFuture' });
+    expect(response.body.details).toContainEqual({
+      field: 'occurredOn',
+      constraint: 'notInFuture',
+    });
   });
 
   // PRD 6.8
@@ -85,7 +88,9 @@ describe('Expenses (PRD 8.4)', () => {
 
   // E14
   it('rejects a merchant longer than 120 characters', async () => {
-    const response = await post({ occurredOn, amount: 10_000, merchant: 'x'.repeat(121) }).expect(422);
+    const response = await post({ occurredOn, amount: 10_000, merchant: 'x'.repeat(121) }).expect(
+      422,
+    );
     expect(response.body.details).toContainEqual({ field: 'merchant', constraint: 'maxLength' });
 
     await post({ occurredOn, amount: 10_000, merchant: 'y'.repeat(120) }).expect(201);
@@ -182,7 +187,13 @@ describe('Expenses (PRD 8.4)', () => {
   });
 
   it('filters by category, merchantKey and free text, and reports the filtered sum', async () => {
-    await post({ occurredOn, amount: 10_000, categoryId, merchant: 'Bakmi GM', note: 'siang' }).expect(201);
+    await post({
+      occurredOn,
+      amount: 10_000,
+      categoryId,
+      merchant: 'Bakmi GM',
+      note: 'siang',
+    }).expect(201);
     await post({ occurredOn, amount: 20_000, merchant: 'Loewy', note: 'dinner' }).expect(201);
 
     const byMerchant = await harness

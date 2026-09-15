@@ -19,7 +19,11 @@ export class BudgetCacheService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Clears the cache for `period` and every later period, in one wallet. */
-  async invalidateFrom(walletId: number, period: string, client: PrismaLike = this.prisma): Promise<void> {
+  async invalidateFrom(
+    walletId: number,
+    period: string,
+    client: PrismaLike = this.prisma,
+  ): Promise<void> {
     await client.monthlyBudget.updateMany({
       where: { walletId, period: { gte: period } },
       data: { carryOutCached: null },

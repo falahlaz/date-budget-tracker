@@ -115,7 +115,11 @@ export class TransactionsService {
    * Moving an expense to another month makes both months and everything after the earlier
    * of them stale, so the carry-over cache is invalidated from the earlier period (PRD 6.6).
    */
-  async update(userId: number, id: number, dto: UpdateTransactionDto): Promise<TransactionWithRelations> {
+  async update(
+    userId: number,
+    id: number,
+    dto: UpdateTransactionDto,
+  ): Promise<TransactionWithRelations> {
     const existing = await this.findOne(userId, id);
 
     // Both guards, in this order, for the same reason `remove` has them: one side of a
@@ -140,7 +144,8 @@ export class TransactionsService {
 
     if (dto.categoryId !== undefined) {
       await this.assertCategoryOwned(userId, dto.categoryId);
-      data.category = dto.categoryId === null ? { disconnect: true } : { connect: { id: dto.categoryId } };
+      data.category =
+        dto.categoryId === null ? { disconnect: true } : { connect: { id: dto.categoryId } };
     }
 
     if (dto.merchant !== undefined) {
@@ -353,7 +358,10 @@ export class TransactionsService {
   }
 
   /** An empty or symbol-only name is stored as NULL in both columns, never as '' (PRD 6.15). */
-  private cleanMerchant(raw: string | null | undefined): { value: string | null; key: string | null } {
+  private cleanMerchant(raw: string | null | undefined): {
+    value: string | null;
+    key: string | null;
+  } {
     const key = normalizeMerchant(raw);
     if (key === null) return { value: null, key: null };
     return { value: (raw as string).trim(), key };
@@ -398,7 +406,9 @@ export class TransactionsService {
     let to = '2999-12-31';
 
     const needsBounds = Boolean(query.dayType || query.weekIndex);
-    const period = query.period ?? (needsBounds && !query.from && !query.to ? this.clock.currentPeriod() : undefined);
+    const period =
+      query.period ??
+      (needsBounds && !query.from && !query.to ? this.clock.currentPeriod() : undefined);
 
     if (period) {
       from = firstDayOfPeriod(period);
@@ -454,7 +464,11 @@ export class TransactionsService {
       .flatMap((token) => {
         const [field, direction = 'desc'] = token.split(':');
         if (!SORTABLE_FIELDS.has(field)) return [];
-        return [{ [field]: direction === 'asc' ? 'asc' : 'desc' } as Prisma.TransactionOrderByWithRelationInput];
+        return [
+          {
+            [field]: direction === 'asc' ? 'asc' : 'desc',
+          } as Prisma.TransactionOrderByWithRelationInput,
+        ];
       });
 
     return parsed.length > 0 ? parsed : [{ occurredOn: 'desc' }, { id: 'desc' }];

@@ -40,7 +40,10 @@ export class MonthComputationService {
         walletId,
         kind: TransactionKind.SPEND,
         deletedAt: null,
-        occurredOn: { gte: toDateOnly(firstDayOfPeriod(period)), lte: toDateOnly(lastDayOfPeriod(period)) },
+        occurredOn: {
+          gte: toDateOnly(firstDayOfPeriod(period)),
+          lte: toDateOnly(lastDayOfPeriod(period)),
+        },
       },
       select: { occurredOn: true, amount: true },
     });
@@ -60,7 +63,10 @@ export class MonthComputationService {
         walletId,
         kind: { in: [TransactionKind.TRANSFER_IN, TransactionKind.TRANSFER_OUT] },
         deletedAt: null,
-        occurredOn: { gte: toDateOnly(firstDayOfPeriod(period)), lte: toDateOnly(lastDayOfPeriod(period)) },
+        occurredOn: {
+          gte: toDateOnly(firstDayOfPeriod(period)),
+          lte: toDateOnly(lastDayOfPeriod(period)),
+        },
       },
       select: { occurredOn: true, amount: true, direction: true },
     });

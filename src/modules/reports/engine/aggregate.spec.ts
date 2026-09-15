@@ -22,7 +22,8 @@ function expense(partial: Partial<AggregatableExpense> & { amount: number }): Ag
     occurredOn: partial.occurredOn ?? '2026-09-05',
     amount: partial.amount,
     merchant,
-    merchantKey: partial.merchantKey !== undefined ? partial.merchantKey : normalizeMerchant(merchant),
+    merchantKey:
+      partial.merchantKey !== undefined ? partial.merchantKey : normalizeMerchant(merchant),
     paymentMethod: partial.paymentMethod ?? 'CASH',
     note: partial.note ?? null,
     category: partial.category ?? null,

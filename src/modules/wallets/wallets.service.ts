@@ -49,7 +49,11 @@ export class WalletsService {
    * `walletId` absent means the default one, which is what keeps `POST /api/transactions`
    * a one-field request for the common case (PRD v2 10.1).
    */
-  async resolve(userId: number, walletId?: number, client: PrismaLike = this.prisma): Promise<Wallet> {
+  async resolve(
+    userId: number,
+    walletId?: number,
+    client: PrismaLike = this.prisma,
+  ): Promise<Wallet> {
     return walletId === undefined
       ? this.findDefault(userId, client)
       : this.findOwned(userId, walletId, client);
@@ -61,7 +65,11 @@ export class WalletsService {
    * Another user's wallet reads as "not found" rather than "forbidden", matching the
    * convention the rest of the app uses: a 403 would confirm the row exists.
    */
-  async findOwned(userId: number, walletId: number, client: PrismaLike = this.prisma): Promise<Wallet> {
+  async findOwned(
+    userId: number,
+    walletId: number,
+    client: PrismaLike = this.prisma,
+  ): Promise<Wallet> {
     const wallet = await client.wallet.findFirst({ where: { id: walletId, userId } });
 
     if (!wallet) {

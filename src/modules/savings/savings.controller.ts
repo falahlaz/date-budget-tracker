@@ -16,7 +16,10 @@ import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { AppException } from '@/common/errors';
 import { PrismaService } from '@/prisma/prisma.service';
 import { WalletsService } from '@/modules/wallets/wallets.service';
-import { TransactionResponse, toTransactionResponse } from '@/modules/transactions/transaction.mapper';
+import {
+  TransactionResponse,
+  toTransactionResponse,
+} from '@/modules/transactions/transaction.mapper';
 import { CreateDepositDto } from './dto/deposit.dto';
 import { CreateGoalDto, UpdateGoalDto } from './dto/goal.dto';
 import {

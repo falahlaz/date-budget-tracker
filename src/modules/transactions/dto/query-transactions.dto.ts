@@ -52,7 +52,9 @@ export class QueryTransactionsDto {
   @Min(1)
   categoryId?: number;
 
-  @ApiPropertyOptional({ description: 'Normalised place key, from byMerchant or the suggestions endpoint' })
+  @ApiPropertyOptional({
+    description: 'Normalised place key, from byMerchant or the suggestions endpoint',
+  })
   @IsOptional()
   @IsString()
   @MaxLength(120)

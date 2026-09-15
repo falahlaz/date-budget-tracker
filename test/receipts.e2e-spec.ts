@@ -37,18 +37,25 @@ describe('Receipts (PRD 8.5)', () => {
   });
 
   const upload = () =>
-    harness.http().post(`/api/transactions/${expenseId}/receipts`).set('Authorization', harness.auth);
+    harness
+      .http()
+      .post(`/api/transactions/${expenseId}/receipts`)
+      .set('Authorization', harness.auth);
 
   // E3
   it('stores a PNG upload as WebP with a thumbnail', async () => {
-    const response = await upload().attach('files', await pngFixture(), 'struk.png').expect(201);
+    const response = await upload()
+      .attach('files', await pngFixture(), 'struk.png')
+      .expect(201);
 
     expect(response.body.items).toHaveLength(1);
     expect(response.body.items[0]).toMatchObject({ mimeType: 'image/webp' });
     expect(response.body.items[0].url).toBe(`/api/receipts/${response.body.items[0].id}/file`);
     expect(response.body.items[0].thumbUrl).toContain('variant=thumb');
 
-    const row = await harness.prisma.receipt.findUnique({ where: { id: response.body.items[0].id } });
+    const row = await harness.prisma.receipt.findUnique({
+      where: { id: response.body.items[0].id },
+    });
     expect(row?.storageKey).toMatch(/^receipts\/\d{4}\/\d{2}\/[0-9a-f-]+\.webp$/);
     expect(row?.thumbKey).toContain('_thumb.webp');
     // The original filename is never used as a path component.
@@ -96,7 +103,9 @@ describe('Receipts (PRD 8.5)', () => {
   });
 
   it('deletes a receipt and removes its files', async () => {
-    const created = await upload().attach('files', await pngFixture(), 'struk.png').expect(201);
+    const created = await upload()
+      .attach('files', await pngFixture(), 'struk.png')
+      .expect(201);
     const receiptId = created.body.items[0].id;
 
     await harness
@@ -114,7 +123,9 @@ describe('Receipts (PRD 8.5)', () => {
 
   // E7
   it("never streams another user's receipt", async () => {
-    const created = await upload().attach('files', await pngFixture(), 'struk.png').expect(201);
+    const created = await upload()
+      .attach('files', await pngFixture(), 'struk.png')
+      .expect(201);
     const receiptId = created.body.items[0].id;
 
     const users = harness.app.get(UsersService);
@@ -145,7 +156,9 @@ describe('Receipts (PRD 8.5)', () => {
   });
 
   it('requires authentication to stream a file (never static middleware)', async () => {
-    const created = await upload().attach('files', await pngFixture(), 'struk.png').expect(201);
+    const created = await upload()
+      .attach('files', await pngFixture(), 'struk.png')
+      .expect(201);
 
     await harness.http().get(`/api/receipts/${created.body.items[0].id}/file`).expect(401);
   });

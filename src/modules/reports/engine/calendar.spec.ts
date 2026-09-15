@@ -59,11 +59,41 @@ describe('buildWeekSegments (PRD 4.2)', () => {
   it('reproduces the worked September 2026 example', () => {
     // 1 Sep 2026 is a Tuesday and the month has 30 days -> 5 segments.
     expect(buildWeekSegments('2026-09')).toEqual([
-      { weekIndex: 1, startDate: '2026-09-01', endDate: '2026-09-06', weekdayDays: 4, weekendDays: 2 },
-      { weekIndex: 2, startDate: '2026-09-07', endDate: '2026-09-13', weekdayDays: 5, weekendDays: 2 },
-      { weekIndex: 3, startDate: '2026-09-14', endDate: '2026-09-20', weekdayDays: 5, weekendDays: 2 },
-      { weekIndex: 4, startDate: '2026-09-21', endDate: '2026-09-27', weekdayDays: 5, weekendDays: 2 },
-      { weekIndex: 5, startDate: '2026-09-28', endDate: '2026-09-30', weekdayDays: 3, weekendDays: 0 },
+      {
+        weekIndex: 1,
+        startDate: '2026-09-01',
+        endDate: '2026-09-06',
+        weekdayDays: 4,
+        weekendDays: 2,
+      },
+      {
+        weekIndex: 2,
+        startDate: '2026-09-07',
+        endDate: '2026-09-13',
+        weekdayDays: 5,
+        weekendDays: 2,
+      },
+      {
+        weekIndex: 3,
+        startDate: '2026-09-14',
+        endDate: '2026-09-20',
+        weekdayDays: 5,
+        weekendDays: 2,
+      },
+      {
+        weekIndex: 4,
+        startDate: '2026-09-21',
+        endDate: '2026-09-27',
+        weekdayDays: 5,
+        weekendDays: 2,
+      },
+      {
+        weekIndex: 5,
+        startDate: '2026-09-28',
+        endDate: '2026-09-30',
+        weekdayDays: 3,
+        weekendDays: 0,
+      },
     ]);
   });
 
@@ -122,8 +152,12 @@ describe('buildWeekSegments (PRD 4.2)', () => {
       // The days accounted for add up to exactly the month.
       const counted = segments.reduce((sum, s) => sum + s.weekdayDays + s.weekendDays, 0);
       expect(counted).toBe(total);
-      expect(segments.reduce((sum, s) => sum + s.weekdayDays, 0)).toBe(countWeekdaysInPeriod(period));
-      expect(segments.reduce((sum, s) => sum + s.weekendDays, 0)).toBe(countWeekendsInPeriod(period));
+      expect(segments.reduce((sum, s) => sum + s.weekdayDays, 0)).toBe(
+        countWeekdaysInPeriod(period),
+      );
+      expect(segments.reduce((sum, s) => sum + s.weekendDays, 0)).toBe(
+        countWeekendsInPeriod(period),
+      );
 
       // Every day of the month lands in exactly one segment.
       for (const date of eachDateInRange(`${period}-01`, lastDayOfPeriod(period))) {

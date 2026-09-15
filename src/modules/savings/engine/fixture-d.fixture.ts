@@ -28,13 +28,25 @@ export const FIXTURE_D_TXNS: SavingsTxnInput[] = [
   { occurredOn: '2026-05-12', amount: 2_000_000, kind: 'DEPOSIT' },
 
   { occurredOn: '2026-06-10', amount: 1_800_000, kind: 'DEPOSIT' },
-  { occurredOn: '2026-06-18', amount: 600_000, kind: 'WITHDRAW', expectedReturn: true, returnedAmount: 600_000 },
+  {
+    occurredOn: '2026-06-18',
+    amount: 600_000,
+    kind: 'WITHDRAW',
+    expectedReturn: true,
+    returnedAmount: 600_000,
+  },
 
   // The 600.000 of this deposit is allocated against June's advance, below.
   { occurredOn: '2026-07-09', amount: 2_000_000, kind: 'DEPOSIT' },
 
   { occurredOn: '2026-08-05', amount: 1_500_000, kind: 'DEPOSIT' },
-  { occurredOn: '2026-08-09', amount: 700_000, kind: 'WITHDRAW', expectedReturn: true, returnedAmount: 0 },
+  {
+    occurredOn: '2026-08-09',
+    amount: 700_000,
+    kind: 'WITHDRAW',
+    expectedReturn: true,
+    returnedAmount: 0,
+  },
   { occurredOn: '2026-08-22', amount: 500_000, kind: 'WITHDRAW', expectedReturn: false },
 
   { occurredOn: '2026-09-03', amount: 1_000_000, kind: 'DEPOSIT' },

@@ -99,12 +99,13 @@ describe('AppModule wiring', () => {
     const server = app.getHttpAdapter().getInstance();
     const stack = server.router?.stack ?? server._router?.stack ?? [];
 
-    routes = stack.flatMap((layer: { route?: { methods: Record<string, boolean>; path: string } }) =>
-      layer.route
-        ? Object.keys(layer.route.methods).map(
-            (method) => `${method.toUpperCase()} ${layer.route!.path}`,
-          )
-        : [],
+    routes = stack.flatMap(
+      (layer: { route?: { methods: Record<string, boolean>; path: string } }) =>
+        layer.route
+          ? Object.keys(layer.route.methods).map(
+              (method) => `${method.toUpperCase()} ${layer.route!.path}`,
+            )
+          : [],
     );
 
     close = () => app.close();

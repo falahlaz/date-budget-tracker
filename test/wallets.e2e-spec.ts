@@ -90,7 +90,13 @@ describe('Wallets (PRD v2 4, 10.2)', () => {
 
     const savingsCategories = await authed('get', '/api/categories?walletType=SAVINGS').expect(200);
     expect(savingsCategories.body.map((c: { name: string }) => c.name)).toEqual([
-      'Darurat', 'Kesehatan', 'Keluarga', 'Servis & perbaikan', 'Elektronik', 'Impulsif', 'Lain-lain',
+      'Darurat',
+      'Kesehatan',
+      'Keluarga',
+      'Servis & perbaikan',
+      'Elektronik',
+      'Impulsif',
+      'Lain-lain',
     ]);
 
     // The spending list is untouched: the two vocabularies are separate (9.4).
@@ -227,7 +233,9 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
 
   // E30
   it('files a transaction with no walletId in the default wallet (4.2)', async () => {
-    const created = await post({ occurredOn: '2026-09-14', amount: 25_000, categoryId }).expect(201);
+    const created = await post({ occurredOn: '2026-09-14', amount: 25_000, categoryId }).expect(
+      201,
+    );
 
     expect(created.body.walletId).toBe(walletId);
     expect(created.body.kind).toBe('SPEND');
@@ -289,7 +297,7 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
     expect(response.body.message).toMatch(/POST \/api\/transfers/);
   });
 
-  it('keeps each wallet\'s list to its own rows (4.1)', async () => {
+  it("keeps each wallet's list to its own rows (4.1)", async () => {
     await post({ walletId, occurredOn: '2026-09-14', amount: 11_000, categoryId }).expect(201);
     await deposit(22_000).expect(201);
 

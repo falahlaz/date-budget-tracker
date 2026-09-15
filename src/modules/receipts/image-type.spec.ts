@@ -11,7 +11,9 @@ function padded(buffer: Buffer, length = 32): Buffer {
 describe('detectImageType', () => {
   it('recognises JPEG, PNG and WebP by magic bytes', () => {
     expect(detectImageType(padded(bytes(0xff, 0xd8, 0xff, 0xe0)))).toBe('image/jpeg');
-    expect(detectImageType(padded(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)))).toBe('image/png');
+    expect(detectImageType(padded(bytes(0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a)))).toBe(
+      'image/png',
+    );
 
     const webp = Buffer.concat([Buffer.from('RIFF'), Buffer.alloc(4), Buffer.from('WEBP')]);
     expect(detectImageType(padded(webp))).toBe('image/webp');

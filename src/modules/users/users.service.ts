@@ -58,11 +58,7 @@ export class UsersService {
    * There is no public registration endpoint (PRD 3); this is reached only from the CLI
    * or the empty-database bootstrap.
    */
-  async createUser(input: {
-    email: string;
-    password: string;
-    displayName: string;
-  }): Promise<User> {
+  async createUser(input: { email: string; password: string; displayName: string }): Promise<User> {
     const email = input.email.toLowerCase();
     const passwordHash = await this.hashPassword(input.password);
 

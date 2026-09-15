@@ -59,7 +59,11 @@ export class BudgetsService {
     });
   }
 
-  async list(walletId: number, limit: number, offset: number): Promise<{ items: MonthlyBudget[]; total: number }> {
+  async list(
+    walletId: number,
+    limit: number,
+    offset: number,
+  ): Promise<{ items: MonthlyBudget[]; total: number }> {
     const [items, total] = await Promise.all([
       this.prisma.monthlyBudget.findMany({
         where: { walletId },

@@ -52,11 +52,46 @@ describe('computeMonth - Fixture F (PRD v2 7.3)', () => {
     });
 
     expect(weekRows(report)).toEqual([
-      { weekIndex: 1, rolloverIn: 0, transferOut: 320_000, transferIn: 150_000, weekendBudget: 80_000, weekRemaining: -170_000 },
-      { weekIndex: 2, rolloverIn: -170_000, transferOut: 0, transferIn: 0, weekendBudget: 180_000, weekRemaining: -70_000 },
-      { weekIndex: 3, rolloverIn: -70_000, transferOut: 0, transferIn: 0, weekendBudget: 230_000, weekRemaining: -170_000 },
-      { weekIndex: 4, rolloverIn: -170_000, transferOut: 0, transferIn: 0, weekendBudget: 230_000, weekRemaining: -270_000 },
-      { weekIndex: 5, rolloverIn: -270_000, transferOut: 0, transferIn: 0, weekendBudget: -90_000, weekRemaining: -90_000 },
+      {
+        weekIndex: 1,
+        rolloverIn: 0,
+        transferOut: 320_000,
+        transferIn: 150_000,
+        weekendBudget: 80_000,
+        weekRemaining: -170_000,
+      },
+      {
+        weekIndex: 2,
+        rolloverIn: -170_000,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: 180_000,
+        weekRemaining: -70_000,
+      },
+      {
+        weekIndex: 3,
+        rolloverIn: -70_000,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: 230_000,
+        weekRemaining: -170_000,
+      },
+      {
+        weekIndex: 4,
+        rolloverIn: -170_000,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: 230_000,
+        weekRemaining: -270_000,
+      },
+      {
+        weekIndex: 5,
+        rolloverIn: -270_000,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: -90_000,
+        weekRemaining: -90_000,
+      },
     ]);
 
     expect(report.carryOut).toBe(-90_000);
@@ -70,11 +105,46 @@ describe('computeMonth - Fixture F (PRD v2 7.3)', () => {
     });
 
     expect(weekRows(report)).toEqual([
-      { weekIndex: 1, rolloverIn: 0, transferOut: 0, transferIn: 0, weekendBudget: 250_000, weekRemaining: 0 },
-      { weekIndex: 2, rolloverIn: 0, transferOut: 0, transferIn: 0, weekendBudget: 350_000, weekRemaining: 100_000 },
-      { weekIndex: 3, rolloverIn: 100_000, transferOut: 320_000, transferIn: 150_000, weekendBudget: 230_000, weekRemaining: -170_000 },
-      { weekIndex: 4, rolloverIn: -170_000, transferOut: 0, transferIn: 0, weekendBudget: 230_000, weekRemaining: -270_000 },
-      { weekIndex: 5, rolloverIn: -270_000, transferOut: 0, transferIn: 0, weekendBudget: -90_000, weekRemaining: -90_000 },
+      {
+        weekIndex: 1,
+        rolloverIn: 0,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: 250_000,
+        weekRemaining: 0,
+      },
+      {
+        weekIndex: 2,
+        rolloverIn: 0,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: 350_000,
+        weekRemaining: 100_000,
+      },
+      {
+        weekIndex: 3,
+        rolloverIn: 100_000,
+        transferOut: 320_000,
+        transferIn: 150_000,
+        weekendBudget: 230_000,
+        weekRemaining: -170_000,
+      },
+      {
+        weekIndex: 4,
+        rolloverIn: -170_000,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: 230_000,
+        weekRemaining: -270_000,
+      },
+      {
+        weekIndex: 5,
+        rolloverIn: -270_000,
+        transferOut: 0,
+        transferIn: 0,
+        weekendBudget: -90_000,
+        weekRemaining: -90_000,
+      },
     ]);
 
     expect(report.carryOut).toBe(-90_000);
@@ -126,7 +196,9 @@ describe('computeMonth - backward compatibility (S11)', () => {
     expect(empty).toEqual(omitted);
     expect(omitted.transferOut).toBe(0);
     expect(omitted.transferIn).toBe(0);
-    expect(omitted.weeks.every((week) => week.transferOut === 0 && week.transferIn === 0)).toBe(true);
+    expect(omitted.weeks.every((week) => week.transferOut === 0 && week.transferIn === 0)).toBe(
+      true,
+    );
   });
 
   it('ignores a transfer dated outside the month', () => {
@@ -158,22 +230,16 @@ describe('computeMonth - amended invariant (PRD v2 6.2)', () => {
       const monthlyBudget = 1 + Math.floor(random() * 5_000_000);
       const carryIn = Math.floor(random() * 1_000_000) - 500_000;
 
-      const expenses: ExpenseInput[] = Array.from(
-        { length: Math.floor(random() * 25) },
-        () => ({
-          spentOn: dates[Math.floor(random() * dates.length)],
-          amount: 1 + Math.floor(random() * 400_000),
-        }),
-      );
+      const expenses: ExpenseInput[] = Array.from({ length: Math.floor(random() * 25) }, () => ({
+        spentOn: dates[Math.floor(random() * dates.length)],
+        amount: 1 + Math.floor(random() * 400_000),
+      }));
 
-      const transfers: TransferInput[] = Array.from(
-        { length: Math.floor(random() * 6) },
-        () => ({
-          occurredOn: dates[Math.floor(random() * dates.length)],
-          amount: 1 + Math.floor(random() * 800_000),
-          direction: random() < 0.5 ? 'IN' : ('OUT' as const),
-        }),
-      );
+      const transfers: TransferInput[] = Array.from({ length: Math.floor(random() * 6) }, () => ({
+        occurredOn: dates[Math.floor(random() * dates.length)],
+        amount: 1 + Math.floor(random() * 800_000),
+        direction: random() < 0.5 ? 'IN' : ('OUT' as const),
+      }));
 
       const report = computeMonth({ period, monthlyBudget, carryIn, expenses, transfers });
 
@@ -208,12 +274,14 @@ describe('computeMonth - amended invariant (PRD v2 6.2)', () => {
       return dates[Math.floor((seed / 2147483648) * dates.length)];
     };
 
-    const carryOuts = Array.from({ length: 50 }, () =>
-      computeMonth({
-        ...BASE,
-        expenses: FIXTURE_B_EXPENSES,
-        transfers: amounts.map((transfer) => ({ ...transfer, occurredOn: pick() })),
-      }).carryOut,
+    const carryOuts = Array.from(
+      { length: 50 },
+      () =>
+        computeMonth({
+          ...BASE,
+          expenses: FIXTURE_B_EXPENSES,
+          transfers: amounts.map((transfer) => ({ ...transfer, occurredOn: pick() })),
+        }).carryOut,
     );
 
     expect(new Set(carryOuts).size).toBe(1);

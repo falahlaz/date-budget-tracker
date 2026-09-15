@@ -46,16 +46,26 @@ describe('Reports (PRD 8.6)', () => {
   const auth = () => harness.auth;
 
   const setBudget = (period: string, amount: number) =>
-    harness.http().put(`/api/wallets/${walletId}/budgets/${period}`).set('Authorization', auth()).send({ amount });
+    harness
+      .http()
+      .put(`/api/wallets/${walletId}/budgets/${period}`)
+      .set('Authorization', auth())
+      .send({ amount });
 
   const addExpense = (body: Record<string, unknown>) =>
     harness.http().post('/api/transactions').set('Authorization', auth()).send(body);
 
   const monthReport = (period: string) =>
-    harness.http().get(`/api/wallets/${walletId}/reports/month/${period}`).set('Authorization', auth());
+    harness
+      .http()
+      .get(`/api/wallets/${walletId}/reports/month/${period}`)
+      .set('Authorization', auth());
 
   const weekReport = (period: string, weekIndex: number) =>
-    harness.http().get(`/api/wallets/${walletId}/reports/week/${period}/${weekIndex}`).set('Authorization', auth());
+    harness
+      .http()
+      .get(`/api/wallets/${walletId}/reports/week/${period}/${weekIndex}`)
+      .set('Authorization', auth());
 
   // E1
   it('reports correct numbers after a budget and three expenses', async () => {
@@ -90,20 +100,62 @@ describe('Reports (PRD 8.6)', () => {
 
     const { body } = await monthReport('2026-09').expect(200);
 
-    expect(body.weeks.map((week: Record<string, number>) => ({
-      weekIndex: week.weekIndex,
-      weekBudget: week.weekBudget,
-      weekdaySpent: week.weekdaySpent,
-      rolloverIn: week.rolloverIn,
-      weekendBudget: week.weekendBudget,
-      weekendSpent: week.weekendSpent,
-      weekRemaining: week.weekRemaining,
-    }))).toEqual([
-      { weekIndex: 1, weekBudget: 400_000, weekdaySpent: 150_000, rolloverIn: 0, weekendBudget: 250_000, weekendSpent: 250_000, weekRemaining: 0 },
-      { weekIndex: 2, weekBudget: 500_000, weekdaySpent: 150_000, rolloverIn: 0, weekendBudget: 350_000, weekendSpent: 250_000, weekRemaining: 100_000 },
-      { weekIndex: 3, weekBudget: 500_000, weekdaySpent: 200_000, rolloverIn: 100_000, weekendBudget: 400_000, weekendSpent: 400_000, weekRemaining: 0 },
-      { weekIndex: 4, weekBudget: 500_000, weekdaySpent: 100_000, rolloverIn: 0, weekendBudget: 400_000, weekendSpent: 500_000, weekRemaining: -100_000 },
-      { weekIndex: 5, weekBudget: 300_000, weekdaySpent: 120_000, rolloverIn: -100_000, weekendBudget: 80_000, weekendSpent: 0, weekRemaining: 80_000 },
+    expect(
+      body.weeks.map((week: Record<string, number>) => ({
+        weekIndex: week.weekIndex,
+        weekBudget: week.weekBudget,
+        weekdaySpent: week.weekdaySpent,
+        rolloverIn: week.rolloverIn,
+        weekendBudget: week.weekendBudget,
+        weekendSpent: week.weekendSpent,
+        weekRemaining: week.weekRemaining,
+      })),
+    ).toEqual([
+      {
+        weekIndex: 1,
+        weekBudget: 400_000,
+        weekdaySpent: 150_000,
+        rolloverIn: 0,
+        weekendBudget: 250_000,
+        weekendSpent: 250_000,
+        weekRemaining: 0,
+      },
+      {
+        weekIndex: 2,
+        weekBudget: 500_000,
+        weekdaySpent: 150_000,
+        rolloverIn: 0,
+        weekendBudget: 350_000,
+        weekendSpent: 250_000,
+        weekRemaining: 100_000,
+      },
+      {
+        weekIndex: 3,
+        weekBudget: 500_000,
+        weekdaySpent: 200_000,
+        rolloverIn: 100_000,
+        weekendBudget: 400_000,
+        weekendSpent: 400_000,
+        weekRemaining: 0,
+      },
+      {
+        weekIndex: 4,
+        weekBudget: 500_000,
+        weekdaySpent: 100_000,
+        rolloverIn: 0,
+        weekendBudget: 400_000,
+        weekendSpent: 500_000,
+        weekRemaining: -100_000,
+      },
+      {
+        weekIndex: 5,
+        weekBudget: 300_000,
+        weekdaySpent: 120_000,
+        rolloverIn: -100_000,
+        weekendBudget: 80_000,
+        weekendSpent: 0,
+        weekRemaining: 80_000,
+      },
     ]);
 
     expect(body.totalSpent).toBe(2_120_000);
@@ -155,7 +207,8 @@ describe('Reports (PRD 8.6)', () => {
     await monthReport('2026-09').expect(200);
     await monthReport('2026-10').expect(200);
     expect(
-      (await harness.prisma.monthlyBudget.findFirst({ where: { period: '2026-09' } }))?.carryOutCached,
+      (await harness.prisma.monthlyBudget.findFirst({ where: { period: '2026-09' } }))
+        ?.carryOutCached,
     ).toBe(2_200_000);
 
     await harness
@@ -192,12 +245,20 @@ describe('Reports (PRD 8.6)', () => {
   it('merges different spellings of a place into one byMerchant entry', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
 
-    await addExpense({ occurredOn: '2026-09-02', amount: 100_000, merchant: 'Bakmi GM' }).expect(201);
-    await addExpense({ occurredOn: '2026-09-03', amount: 120_000, merchant: 'bakmi gm ' }).expect(201);
-    await addExpense({ occurredOn: '2026-09-04', amount: 200_000, merchant: 'Bakmi-GM' }).expect(201);
+    await addExpense({ occurredOn: '2026-09-02', amount: 100_000, merchant: 'Bakmi GM' }).expect(
+      201,
+    );
+    await addExpense({ occurredOn: '2026-09-03', amount: 120_000, merchant: 'bakmi gm ' }).expect(
+      201,
+    );
+    await addExpense({ occurredOn: '2026-09-04', amount: 200_000, merchant: 'Bakmi-GM' }).expect(
+      201,
+    );
 
     const { body } = await monthReport('2026-09').expect(200);
-    const bakmi = body.byMerchant.filter((row: { merchantKey: string }) => row.merchantKey === 'bakmigm');
+    const bakmi = body.byMerchant.filter(
+      (row: { merchantKey: string }) => row.merchantKey === 'bakmigm',
+    );
 
     expect(bakmi).toHaveLength(1);
     expect(bakmi[0]).toMatchObject({ count: 3, amount: 420_000, avgAmount: 140_000 });
@@ -207,7 +268,9 @@ describe('Reports (PRD 8.6)', () => {
   it('keeps expenses with no place in a bottom-pinned entry (PRD 6.18)', async () => {
     await setBudget('2026-09', 2_200_000).expect(200);
     await addExpense({ occurredOn: '2026-09-02', amount: 5_000_000 }).expect(201);
-    await addExpense({ occurredOn: '2026-09-03', amount: 10_000, merchant: 'Bakmi GM' }).expect(201);
+    await addExpense({ occurredOn: '2026-09-03', amount: 10_000, merchant: 'Bakmi GM' }).expect(
+      201,
+    );
 
     const { body } = await monthReport('2026-09').expect(200);
     const last = body.byMerchant[body.byMerchant.length - 1];
@@ -218,7 +281,11 @@ describe('Reports (PRD 8.6)', () => {
   });
 
   it('serves the today and current-week widgets', async () => {
-    const today = await harness.http().get(`/api/wallets/${walletId}/reports/today`).set('Authorization', auth()).expect(200);
+    const today = await harness
+      .http()
+      .get(`/api/wallets/${walletId}/reports/today`)
+      .set('Authorization', auth())
+      .expect(200);
     expect(today.body).toMatchObject({ dayType: expect.stringMatching(/WEEKDAY|WEEKEND/) });
     expect(typeof today.body.monthRemaining).toBe('number');
 
@@ -265,7 +332,15 @@ describe('Reports (PRD 8.6)', () => {
   });
 
   it('rejects a malformed period', async () => {
-    await harness.http().get(`/api/wallets/${walletId}/reports/month/2026-9`).set('Authorization', auth()).expect(422);
-    await harness.http().get(`/api/wallets/${walletId}/reports/month/not-a-period`).set('Authorization', auth()).expect(422);
+    await harness
+      .http()
+      .get(`/api/wallets/${walletId}/reports/month/2026-9`)
+      .set('Authorization', auth())
+      .expect(422);
+    await harness
+      .http()
+      .get(`/api/wallets/${walletId}/reports/month/not-a-period`)
+      .set('Authorization', auth())
+      .expect(422);
   });
 });

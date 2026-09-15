@@ -12,17 +12,16 @@ export const MONEY_MAX = 2147483647;
 
 export function isMoney(value: unknown): value is number {
   return (
-    typeof value === 'number' &&
-    Number.isInteger(value) &&
-    value >= MONEY_MIN &&
-    value <= MONEY_MAX
+    typeof value === 'number' && Number.isInteger(value) && value >= MONEY_MIN && value <= MONEY_MAX
   );
 }
 
 /** Throws when a value is not a storable whole-rupiah integer. */
 export function assertMoney(value: unknown, label = 'amount'): number {
   if (!isMoney(value)) {
-    throw new TypeError(`${label} must be a whole-rupiah integer within INT range, got ${String(value)}`);
+    throw new TypeError(
+      `${label} must be a whole-rupiah integer within INT range, got ${String(value)}`,
+    );
   }
   return value;
 }
@@ -34,7 +33,10 @@ export function assertMoney(value: unknown, label = 'amount'): number {
  * for negative numerators, and `remainder` is what section 4.3 calls
  * `rounding_remainder` -- money that must be carried, never dropped.
  */
-export function floorDivide(total: number, divisor: number): { quotient: number; remainder: number } {
+export function floorDivide(
+  total: number,
+  divisor: number,
+): { quotient: number; remainder: number } {
   if (!Number.isInteger(divisor) || divisor === 0) {
     throw new TypeError(`divisor must be a non-zero integer, got ${String(divisor)}`);
   }

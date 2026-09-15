@@ -96,11 +96,56 @@ describe('computeMonth - Fixture B (PRD 5.2)', () => {
     expect(report.roundingRemainder).toBe(0);
 
     expect(weekRows(report)).toEqual([
-      { weekIndex: 1, weekdayDays: 4, weekBudget: 400_000, weekdaySpent: 150_000, rolloverIn: 0, weekendBudget: 250_000, weekendSpent: 250_000, weekRemaining: 0 },
-      { weekIndex: 2, weekdayDays: 5, weekBudget: 500_000, weekdaySpent: 150_000, rolloverIn: 0, weekendBudget: 350_000, weekendSpent: 250_000, weekRemaining: 100_000 },
-      { weekIndex: 3, weekdayDays: 5, weekBudget: 500_000, weekdaySpent: 200_000, rolloverIn: 100_000, weekendBudget: 400_000, weekendSpent: 400_000, weekRemaining: 0 },
-      { weekIndex: 4, weekdayDays: 5, weekBudget: 500_000, weekdaySpent: 100_000, rolloverIn: 0, weekendBudget: 400_000, weekendSpent: 500_000, weekRemaining: -100_000 },
-      { weekIndex: 5, weekdayDays: 3, weekBudget: 300_000, weekdaySpent: 120_000, rolloverIn: -100_000, weekendBudget: 80_000, weekendSpent: 0, weekRemaining: 80_000 },
+      {
+        weekIndex: 1,
+        weekdayDays: 4,
+        weekBudget: 400_000,
+        weekdaySpent: 150_000,
+        rolloverIn: 0,
+        weekendBudget: 250_000,
+        weekendSpent: 250_000,
+        weekRemaining: 0,
+      },
+      {
+        weekIndex: 2,
+        weekdayDays: 5,
+        weekBudget: 500_000,
+        weekdaySpent: 150_000,
+        rolloverIn: 0,
+        weekendBudget: 350_000,
+        weekendSpent: 250_000,
+        weekRemaining: 100_000,
+      },
+      {
+        weekIndex: 3,
+        weekdayDays: 5,
+        weekBudget: 500_000,
+        weekdaySpent: 200_000,
+        rolloverIn: 100_000,
+        weekendBudget: 400_000,
+        weekendSpent: 400_000,
+        weekRemaining: 0,
+      },
+      {
+        weekIndex: 4,
+        weekdayDays: 5,
+        weekBudget: 500_000,
+        weekdaySpent: 100_000,
+        rolloverIn: 0,
+        weekendBudget: 400_000,
+        weekendSpent: 500_000,
+        weekRemaining: -100_000,
+      },
+      {
+        weekIndex: 5,
+        weekdayDays: 3,
+        weekBudget: 300_000,
+        weekdaySpent: 120_000,
+        rolloverIn: -100_000,
+        weekendBudget: 80_000,
+        weekendSpent: 0,
+        weekRemaining: 80_000,
+      },
     ]);
   });
 
@@ -152,13 +197,10 @@ describe('computeMonth - invariant (PRD 4.6)', () => {
       const monthlyBudget = 1 + Math.floor(random() * 5_000_000);
       const carryIn = Math.floor(random() * 1_000_000) - 500_000;
 
-      const expenses: ExpenseInput[] = Array.from(
-        { length: Math.floor(random() * 25) },
-        () => ({
-          spentOn: dates[Math.floor(random() * dates.length)],
-          amount: 1 + Math.floor(random() * 400_000),
-        }),
-      );
+      const expenses: ExpenseInput[] = Array.from({ length: Math.floor(random() * 25) }, () => ({
+        spentOn: dates[Math.floor(random() * dates.length)],
+        amount: 1 + Math.floor(random() * 400_000),
+      }));
 
       const report = computeMonth({ period, monthlyBudget, carryIn, expenses });
       const totalSpent = expenses.reduce((sum, expense) => sum + expense.amount, 0);
@@ -304,7 +346,11 @@ describe('computeMonth - edge cases (PRD 6)', () => {
     expect(() => computeMonth({ ...base, monthlyBudget: -1 })).toThrow(RangeError);
     expect(() => computeMonth({ ...base, monthlyBudget: 100.5 })).toThrow(TypeError);
     expect(() =>
-      computeMonth({ ...base, monthlyBudget: 100, expenses: [{ spentOn: '2026-09-02', amount: 1.5 }] }),
+      computeMonth({
+        ...base,
+        monthlyBudget: 100,
+        expenses: [{ spentOn: '2026-09-02', amount: 1.5 }],
+      }),
     ).toThrow(TypeError);
   });
 });

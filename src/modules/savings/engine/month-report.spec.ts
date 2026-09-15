@@ -105,7 +105,10 @@ describe('outstandingAdvanceAsOf', () => {
     // August's advance paid back in October. August still closed owing all of it.
     const repaidLater = outstandingAdvanceAsOf(
       FIXTURE_D_ADVANCES,
-      [...FIXTURE_D_ALLOCATIONS, { withdrawalId: 81, amount: 700_000, depositOccurredOn: '2026-10-05' }],
+      [
+        ...FIXTURE_D_ALLOCATIONS,
+        { withdrawalId: 81, amount: 700_000, depositOccurredOn: '2026-10-05' },
+      ],
       '2026-08-31',
     );
 
@@ -115,7 +118,10 @@ describe('outstandingAdvanceAsOf', () => {
     expect(
       outstandingAdvanceAsOf(
         FIXTURE_D_ADVANCES,
-        [...FIXTURE_D_ALLOCATIONS, { withdrawalId: 81, amount: 700_000, depositOccurredOn: '2026-10-05' }],
+        [
+          ...FIXTURE_D_ALLOCATIONS,
+          { withdrawalId: 81, amount: 700_000, depositOccurredOn: '2026-10-05' },
+        ],
         '2026-10-31',
       ),
     ).toBe(0);

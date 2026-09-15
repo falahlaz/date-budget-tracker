@@ -67,7 +67,9 @@ describe('Transfers (PRD v2 6, 10.4)', () => {
       .expect(200);
 
     for (const spend of FIXTURE_B) {
-      await authed('post', '/api/transactions').send({ ...spend, categoryId }).expect(201);
+      await authed('post', '/api/transactions')
+        .send({ ...spend, categoryId })
+        .expect(201);
     }
   };
 
@@ -165,11 +167,41 @@ describe('Transfers (PRD v2 6, 10.4)', () => {
           weekRemaining: week.weekRemaining,
         })),
       ).toEqual([
-        { weekIndex: 1, transferOut: 320_000, transferIn: 150_000, weekendBudget: 80_000, weekRemaining: -170_000 },
-        { weekIndex: 2, transferOut: 0, transferIn: 0, weekendBudget: 180_000, weekRemaining: -70_000 },
-        { weekIndex: 3, transferOut: 0, transferIn: 0, weekendBudget: 230_000, weekRemaining: -170_000 },
-        { weekIndex: 4, transferOut: 0, transferIn: 0, weekendBudget: 230_000, weekRemaining: -270_000 },
-        { weekIndex: 5, transferOut: 0, transferIn: 0, weekendBudget: -90_000, weekRemaining: -90_000 },
+        {
+          weekIndex: 1,
+          transferOut: 320_000,
+          transferIn: 150_000,
+          weekendBudget: 80_000,
+          weekRemaining: -170_000,
+        },
+        {
+          weekIndex: 2,
+          transferOut: 0,
+          transferIn: 0,
+          weekendBudget: 180_000,
+          weekRemaining: -70_000,
+        },
+        {
+          weekIndex: 3,
+          transferOut: 0,
+          transferIn: 0,
+          weekendBudget: 230_000,
+          weekRemaining: -170_000,
+        },
+        {
+          weekIndex: 4,
+          transferOut: 0,
+          transferIn: 0,
+          weekendBudget: 230_000,
+          weekRemaining: -270_000,
+        },
+        {
+          weekIndex: 5,
+          transferOut: 0,
+          transferIn: 0,
+          weekendBudget: -90_000,
+          weekRemaining: -90_000,
+        },
       ]);
       expect(report.body.carryOut).toBe(-90_000);
     });
@@ -215,9 +247,15 @@ describe('Transfers (PRD v2 6, 10.4)', () => {
         .send({ amount: 2_000_000 })
         .expect(200);
 
-      const before = await authed('get', `/api/wallets/${dateWalletId}/reports/month/2026-10`).expect(200);
+      const before = await authed(
+        'get',
+        `/api/wallets/${dateWalletId}/reports/month/2026-10`,
+      ).expect(200);
       await transfer({ amount: 500_000 }).expect(201);
-      const after = await authed('get', `/api/wallets/${dateWalletId}/reports/month/2026-10`).expect(200);
+      const after = await authed(
+        'get',
+        `/api/wallets/${dateWalletId}/reports/month/2026-10`,
+      ).expect(200);
 
       expect(after.body.carryIn).toBe(before.body.carryIn - 500_000);
     });
@@ -253,7 +291,9 @@ describe('Transfers (PRD v2 6, 10.4)', () => {
 
       await authed('delete', `/api/transfers/${groupId}`).expect(204);
 
-      const rows = await harness.prisma.transaction.findMany({ where: { transferGroupId: groupId } });
+      const rows = await harness.prisma.transaction.findMany({
+        where: { transferGroupId: groupId },
+      });
       expect(rows).toHaveLength(2);
       expect(rows.every((row) => row.deletedAt !== null)).toBe(true);
 
@@ -264,7 +304,9 @@ describe('Transfers (PRD v2 6, 10.4)', () => {
     it('refuses to delete one side through the transactions endpoint (8.9)', async () => {
       const created = await transfer({}).expect(201);
 
-      const response = await authed('delete', `/api/transactions/${created.body.out.id}`).expect(409);
+      const response = await authed('delete', `/api/transactions/${created.body.out.id}`).expect(
+        409,
+      );
       expect(response.body.message).toMatch(/\/api\/transfers\//);
 
       await authed('delete', `/api/transactions/${created.body.in.id}`).expect(409);

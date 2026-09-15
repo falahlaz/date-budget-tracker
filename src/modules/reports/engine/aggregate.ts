@@ -110,7 +110,12 @@ export function aggregateByCategory(expenses: readonly AggregatableExpense[]): C
     };
   });
 
-  return sortWithNullLast(rows, (row) => row.categoryId, (row) => row.amount, (row) => row.name);
+  return sortWithNullLast(
+    rows,
+    (row) => row.categoryId,
+    (row) => row.amount,
+    (row) => row.name,
+  );
 }
 
 /** Spend per payment method, biggest first. */
@@ -161,7 +166,10 @@ export function aggregateByMerchant(
 
   const named = rows
     .filter((row) => row.merchantKey !== null)
-    .sort((a, b) => b.amount - a.amount || b.count - a.count || a.displayName.localeCompare(b.displayName));
+    .sort(
+      (a, b) =>
+        b.amount - a.amount || b.count - a.count || a.displayName.localeCompare(b.displayName),
+    );
   const unnamed = rows.filter((row) => row.merchantKey === null);
 
   // The "no place" row keeps its slot, so a full list shows 9 places plus that row.

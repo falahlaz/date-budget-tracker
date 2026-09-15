@@ -1,16 +1,10 @@
-import {
-  Body,
-  Controller,
-  Delete,
-  HttpCode,
-  HttpStatus,
-  Param,
-  Patch,
-  Post,
-} from '@nestjs/common';
+import { Body, Controller, Delete, HttpCode, HttpStatus, Param, Patch, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { TransactionResponse, toTransactionResponse } from '@/modules/transactions/transaction.mapper';
+import {
+  TransactionResponse,
+  toTransactionResponse,
+} from '@/modules/transactions/transaction.mapper';
 import { CreateTransferDto, UpdateTransferDto } from './dto/transfer.dto';
 import { TransfersService } from './transfers.service';
 

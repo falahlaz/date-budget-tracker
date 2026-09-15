@@ -30,7 +30,10 @@ describe('Auth (PRD 8.2)', () => {
       .set('Authorization', harness.auth)
       .expect(200);
 
-    expect(response.body).toMatchObject({ email: TEST_USER.email, displayName: TEST_USER.displayName });
+    expect(response.body).toMatchObject({
+      email: TEST_USER.email,
+      displayName: TEST_USER.displayName,
+    });
     expect(response.body.passwordHash).toBeUndefined();
   });
 
@@ -46,7 +49,11 @@ describe('Auth (PRD 8.2)', () => {
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('SameSite=Lax');
 
-    const refresh = await harness.http().post('/api/auth/refresh').set('Cookie', cookie!).expect(200);
+    const refresh = await harness
+      .http()
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie!)
+      .expect(200);
     expect(typeof refresh.body.accessToken).toBe('string');
 
     const rotated = refresh.get('Set-Cookie')?.find((value) => value.startsWith('refresh_token='));
@@ -74,6 +81,10 @@ describe('Auth (PRD 8.2)', () => {
   });
 
   it('has no public registration endpoint (PRD 3)', async () => {
-    await harness.http().post('/api/auth/register').send({ email: 'x@y.z', password: 'abc' }).expect(404);
+    await harness
+      .http()
+      .post('/api/auth/register')
+      .send({ email: 'x@y.z', password: 'abc' })
+      .expect(404);
   });
 });
