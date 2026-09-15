@@ -1,12 +1,30 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { PaymentMethod } from '@prisma/client';
+import { PaymentMethod, TransactionKind } from '@prisma/client';
 import { Type } from 'class-transformer';
 import { IsEnum, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
 
-export class CreateExpenseDto {
+export class CreateTransactionDto {
+  @ApiPropertyOptional({
+    description: 'Which wallet this belongs to. Omitted means the default wallet (PRD v2 4.2).',
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  walletId?: number;
+
+  @ApiPropertyOptional({
+    enum: TransactionKind,
+    default: TransactionKind.SPEND,
+    description: 'Must suit the wallet type, or the request is rejected (PRD v2 9.2).',
+  })
+  @IsOptional()
+  @IsEnum(TransactionKind, { message: 'kind is not a supported transaction kind' })
+  kind?: TransactionKind;
+
   @ApiProperty({ example: '2026-09-05', description: 'Calendar date in Asia/Jakarta' })
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'spentOn must be formatted YYYY-MM-DD' })
-  spentOn!: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'occurredOn must be formatted YYYY-MM-DD' })
+  occurredOn!: string;
 
   @ApiProperty({ minimum: 1, example: 125_000, description: 'Whole rupiah' })
   @Type(() => Number)

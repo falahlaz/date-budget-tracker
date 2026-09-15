@@ -9,7 +9,11 @@ import { Input } from '@/components/ui/input';
 import { useCategories } from '@/features/categories/hooks';
 import { formatPeriodLong, formatRupiah } from '@/lib/format';
 import { currentPeriod, shiftPeriod } from '@/lib/today';
+import { SavingsActivityRow } from '@/features/savings/savings-activity-row';
+import { SavingsDetailSheet } from '@/features/savings/savings-detail-sheet';
+import { useActiveWalletType } from '@/features/wallets/wallet-context';
 import { ExpenseRow } from './expense-row';
+import type { Transaction } from '@/types/api';
 import { useInfiniteExpenses, type ExpenseFilters } from './hooks';
 
 /**
@@ -20,9 +24,16 @@ import { useInfiniteExpenses, type ExpenseFilters } from './hooks';
  */
 export function ExpenseListPage() {
   const [params, setParams] = useSearchParams();
+  // The same list serves both wallet types (v2 11.1); only the row and the category
+  // vocabulary differ, because a withdrawal's headline is its reason and a spend's is the
+  // place, and the two types keep separate category lists (v2 9.4).
+  const savings = useActiveWalletType() === 'SAVINGS';
+  // A savings row has no detail *page* -- `/expenses/:id` is spend-shaped -- so it opens a
+  // sheet over the list instead, which is also where its own endpoints live.
+  const [editing, setEditing] = useState<Transaction | null>(null);
   // Archived categories still show up in the monthly donut, so a tap-through can land
   // here filtering on one. Fetching them keeps that filter nameable and clearable.
-  const categories = useCategories(true);
+  const categories = useCategories(savings ? 'SAVINGS' : 'DATE_BUDGET', true);
 
   const period = params.get('period') ?? currentPeriod();
   const merchantKey = params.get('merchantKey') ?? undefined;
@@ -97,7 +108,10 @@ export function ExpenseListPage() {
 
   return (
     <>
-      <PageHeader eyebrow="Semua pengeluaran" title="Riwayat" />
+      <PageHeader
+        eyebrow={savings ? 'Semua pergerakan' : 'Semua pengeluaran'}
+        title="Riwayat"
+      />
 
       <div className="mb-5 flex flex-col gap-4">
         <div className="flex items-center justify-between gap-2">
@@ -110,7 +124,7 @@ export function ExpenseListPage() {
           <div className="min-w-0 text-center">
             <div className="text-[15px] font-semibold text-ink">{formatPeriodLong(period)}</div>
             <div className="tabular mt-0.5 text-[11.5px] text-ink-3">
-              {total} pengeluaran · {formatRupiah(sumAmount)}
+              {total} {savings ? 'transaksi' : 'pengeluaran'} · {formatRupiah(sumAmount)}
             </div>
           </div>
           <StepButton
@@ -196,17 +210,31 @@ export function ExpenseListPage() {
       ) : items.length === 0 ? (
         <EmptyState
           icon={<Wallet className="h-8 w-8" />}
-          title={hasFilters ? 'Ga ada yang cocok' : 'Belum ada pengeluaran bulan ini'}
+          title={
+            hasFilters
+              ? 'Ga ada yang cocok'
+              : savings
+                ? 'Belum ada pergerakan bulan ini'
+                : 'Belum ada pengeluaran bulan ini'
+          }
           description={
-            hasFilters ? 'Coba longgarin filternya.' : 'Tap tombol + buat mulai mencatat.'
+            hasFilters
+              ? 'Coba longgarin filternya.'
+              : savings
+                ? 'Tap Setor atau Tarik buat mulai mencatat.'
+                : 'Tap tombol + buat mulai mencatat.'
           }
         />
       ) : (
         <>
           <ul className="divide-y divide-line">
-            {items.map((expense) => (
-              <ExpenseRow key={expense.id} expense={expense} />
-            ))}
+            {items.map((expense) =>
+              savings ? (
+                <SavingsActivityRow key={expense.id} transaction={expense} onSelect={setEditing} />
+              ) : (
+                <ExpenseRow key={expense.id} expense={expense} />
+              ),
+            )}
           </ul>
 
           <div ref={sentinel} className="h-8" />
@@ -217,6 +245,8 @@ export function ExpenseListPage() {
           ) : null}
         </>
       )}
+
+      <SavingsDetailSheet transaction={editing} onClose={() => setEditing(null)} />
     </>
   );
 }

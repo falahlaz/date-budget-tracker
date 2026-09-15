@@ -91,16 +91,12 @@ export function periodOf(date: string): string {
 
 export function nextPeriod(period: string): string {
   const [year, month] = assertPeriod(period).split('-').map(Number);
-  return month === 12
-    ? `${year + 1}-01`
-    : `${year}-${String(month + 1).padStart(2, '0')}`;
+  return month === 12 ? `${year + 1}-01` : `${year}-${String(month + 1).padStart(2, '0')}`;
 }
 
 export function previousPeriod(period: string): string {
   const [year, month] = assertPeriod(period).split('-').map(Number);
-  return month === 1
-    ? `${year - 1}-12`
-    : `${year}-${String(month - 1).padStart(2, '0')}`;
+  return month === 1 ? `${year - 1}-12` : `${year}-${String(month - 1).padStart(2, '0')}`;
 }
 
 /** Every date from `start` to `end` inclusive. */
@@ -114,7 +110,10 @@ export function eachDateInRange(start: string, end: string): string[] {
   return dates;
 }
 
-export function countDayTypes(start: string, end: string): { weekdayDays: number; weekendDays: number } {
+export function countDayTypes(
+  start: string,
+  end: string,
+): { weekdayDays: number; weekendDays: number } {
   let weekdayDays = 0;
   let weekendDays = 0;
   for (const date of eachDateInRange(start, end)) {
@@ -172,6 +171,9 @@ export function countWeekendsInPeriod(period: string): number {
 }
 
 /** The segment a date falls in, or undefined when the date is outside the period. */
-export function findSegmentForDate(segments: readonly WeekSegment[], date: string): WeekSegment | undefined {
+export function findSegmentForDate(
+  segments: readonly WeekSegment[],
+  date: string,
+): WeekSegment | undefined {
   return segments.find((segment) => date >= segment.startDate && date <= segment.endDate);
 }

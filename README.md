@@ -69,6 +69,7 @@ Open <http://localhost:5173>. The Vite dev server proxies `/api` to Nest.
 | `npm run build` | Build the client, then the server |
 | `npm start` | Run the production build (`dist/main.js`) |
 | `npm test` | Server unit tests — no database needed |
+| `npm run lint` | ESLint over `src/` and `test/`, read-only (`lint:fix` applies fixes) |
 | `npm run test:e2e` | Full supertest suite — **needs a running MySQL** |
 | `npm --prefix client test` | Client unit tests |
 | `npm run cli -- user:create …` | Create a user + their default categories |
@@ -77,6 +78,11 @@ Open <http://localhost:5173>. The Vite dev server proxies `/api` to Nest.
 | `npm run prisma:migrate` | Create/apply a migration in development |
 | `npm run migrate:down` | Apply a migration's `down.sql` (see **Migrations** below) |
 | `npm run snapshot:before` / `:after` / `:diff` | The migration comparison gate (see **Migrations**) |
+
+`src/` and `test/` are Prettier-formatted, in one commit of their own so the reformat never
+sits inside a feature diff. `format:check` reports without touching anything and belongs
+next to `lint` in any gate. The client half has its own toolchain and is not covered by
+these two scripts.
 
 API docs are served at `/api/docs` in non-production environments only.
 
@@ -137,15 +143,25 @@ src/
     users/           user creation + default category seed
     categories/      CRUD, archive instead of delete
     budgets/         budget CRUD, carry-over resolution, cache invalidation
-    wallets/         wallet resolution; every transaction belongs to one
-    expenses/        CRUD, filters, merchant autocomplete
+    wallets/         wallet CRUD, resolution, and the switcher's per-type summaries
+    transactions/    CRUD, filters, merchant autocomplete (was `expenses/` in v1.1)
+    savings/         goal, deposits, withdrawals, advances, friction preview
+    transfers/       two-sided moves between wallets
+      engine/        compute-savings.ts · allocate-fifo.ts · delay.ts  ← the savings half
     receipts/        upload, sharp normalisation, storage abstraction
     reports/
       engine/        calendar.ts · compute-month.ts · aggregate.ts  ← the heart
   cli/               user:create
 client/src/
   components/        UI primitives and the app shell
-  features/          auth · expenses · reports · budget · categories
+  features/
+    auth/            login, session, protected routes
+    wallets/         switcher, active-wallet context, transfer sheet
+    savings/         savings home, setor/tarik sheets, month screen, goal sheet
+    expenses/        quick add, history, detail
+    reports/         home, week, month (date budget)
+    budget/          monthly budget
+    categories/      settings, category picker
   lib/               api client, formatting, query keys, WIB date helpers
 ```
 
@@ -154,15 +170,176 @@ client/src/
 ## Testing
 
 ```bash
-npm test                       # 142 unit tests, no database
-npm run test:e2e               # E1–E15 from PRD 12.2, needs MySQL
-npm --prefix client test       # formatting and date helpers
+npm test                       # 237 unit tests, no database
+npm run test:e2e               # 133 HTTP tests against a real MySQL
+npm --prefix client test       # 50 tests: formatting, date helpers, receipt rows, wallet choice
+npm run lint                   # ESLint, read-only
 ```
 
-The unit suite covers T1–T13 from PRD 12.1, including all three golden fixtures, the
-1000-case invariant property test, and 24 months of week-segment continuity. It also boots
-the whole Nest application against a stubbed database to prove every route in PRD section 8
-registers and resolves.
+The unit suite covers T1–T13 from PRD v1.1 12.1 and S1–S13 from PRD v2 12.1 — six golden
+fixtures (A, B, C for the date budget; D, E, F for savings and transfers), the 1000-case
+invariant property test in both its v1.1 and v2 forms, and 24 months of week-segment
+continuity. It also boots the whole Nest application against a stubbed database to prove
+every route in PRD section 8 and v2 section 10 registers and resolves — and that the v1.1
+paths it replaced are gone.
+
+The e2e suite covers E1–E30, including every rule that only exists to be refused: a
+withdrawal with no reason, a savings balance driven below zero, a transfer to the same
+wallet, and each of the three generic-endpoint doors that must not accept a savings row.
+
+---
+
+## Wallets
+
+From v2 on, an account has many wallets and each wallet's `type` decides which engine
+computes its numbers: `DATE_BUDGET` answers "how much may I still spend?", `SAVINGS`
+answers "how much do I still have to put in?".
+
+That shape runs through the API. Budgets and reports belong to a wallet:
+
+```
+GET  /api/wallets                              # each with the summary its type calls for
+PUT  /api/wallets/:walletId/budgets/:period
+GET  /api/wallets/:walletId/reports/month/:period
+```
+
+Transactions stay at the top level and name their wallet in the body or the query, so
+recording a spend does not need one in the URL:
+
+```
+POST /api/transactions          { occurredOn, amount, ... }   # default wallet
+GET  /api/transactions?walletId=2&kind=WITHDRAW
+```
+
+Leaving `walletId` out means the default wallet — the one the migration created, and the
+only one that cannot be archived. `kind` must suit the wallet type (a `DEPOSIT` into a
+date-budget wallet is a 422), and `direction` is always derived from `kind` by the server.
+
+---
+
+## Savings
+
+A savings wallet has one goal — a target and a deadline — and the engine answers the
+opposite question to the date budget: not "how much may I still spend?" but "how much do I
+still have to put in?".
+
+```
+POST /api/wallets/:walletId/goal              { name, targetAmount, startDate, deadline }
+GET  /api/wallets/:walletId/goal              the goal plus every derived figure
+POST /api/wallets/:walletId/deposits          { amount, occurredOn, applyToAdvances? }
+POST /api/wallets/:walletId/withdrawals       { amount, occurredOn, reason, categoryId }
+POST /api/wallets/:walletId/withdrawals/preview   what it costs, in time — writes nothing
+GET  /api/wallets/:walletId/advances          what you still owe yourself
+GET  /api/wallets/:walletId/reports/savings/:period   one month, with every withdrawal
+PATCH  /api/wallets/:walletId/transactions/:id        correct a deposit or withdrawal
+DELETE /api/wallets/:walletId/transactions/:id        remove one, undoing what it caused
+```
+
+Three rules are worth knowing because they are deliberate, not incidental:
+
+**A withdrawal cannot be saved without a reason.** Not a soft requirement — `reason` is
+required by the request schema, trimmed before it is checked, and the savings kinds are
+refused by `POST /api/transactions` precisely so there is no second door around it. The
+whole feature exists because money used to leave the account with no record of where it
+went.
+
+**A deposit that repays a debt is not progress.** `POST .../deposits` answers with
+`{ repaid, fresh }`. A 2.000.000 deposit that settles 600.000 of earlier withdrawals is
+1.400.000 of actual progress, and it is `fresh` — never the deposit total — that any pace
+figure is compared against.
+
+**`outstandingAdvance` is a memo, not a debit.** It is reported next to the balance and
+never subtracted from it: the money already left, and the balance already shows that.
+
+**A savings row goes in and out through one door.** `POST`, `PATCH` and `DELETE` on
+`/api/transactions` all answer 422 for a deposit or a withdrawal and name the endpoint
+above. Each of those carries side effects nothing else performs — a reason and a balance
+floor on the way in, and on the way out the release of every repayment allocation the row
+made. The generic delete is a *soft* delete, so the `ON DELETE RESTRICT` that is supposed
+to protect a part-repaid advance would never even fire. One door means one copy of each
+rule instead of two that drift.
+
+The month report answers for a month that saw no activity too — the balance simply carries
+through — and its `outstandingAdvanceAtClose` is computed as at that month's end rather
+than from today's `returned_amount`, so a repayment made in October does not reach back and
+rewrite August.
+
+Unlike the date budget, a savings balance may not go negative — a budget is a plan, a
+balance is a fact about an account.
+
+---
+
+## Transfers
+
+Moving money between wallets is one action that writes two rows — a `TRANSFER_OUT` in the
+source and a `TRANSFER_IN` in the destination, sharing a `transferGroupId`:
+
+```
+POST   /api/transfers            { fromWalletId, toWalletId, amount, occurredOn }
+PATCH  /api/transfers/:groupId   amount, date or note, on both sides at once
+DELETE /api/transfers/:groupId   both sides, together
+```
+
+They are addressed by the group, never by row: `DELETE /api/transactions/:id` on one side
+answers 409 and points here. A half-deleted transfer is money that left one wallet and
+arrived nowhere, and nothing in the reports would flag it.
+
+**A transfer lands in the week its date falls in** — not in week 1, and not through the
+carry-over. Moving 320.000 to savings on the 3rd makes *that* weekend poorer, where the
+tradeoff is still a decision rather than a surprise at the end of the month:
+
+```
+Budget minggu ini (5 × 100rb)      Rp 500.000
+Terpakai di weekday              − Rp  93.000
+Dipindah ke Tabungan             − Rp 320.000
+```
+
+Where a transfer sits cannot change `carryOut`, only which week feels it. That falls out of
+the amended invariant the engine asserts on every call:
+
+```
+carryOut == monthlyBudget + carryIn − totalSpent − transferOut + transferIn
+```
+
+Transfers carry no category and appear in no category, merchant or payment-method
+breakdown.
+
+---
+
+## Screens
+
+Which wallet is active decides what every screen *is*, so the switcher sits in the header
+of all of them and the tab bar is a function of the wallet's type:
+
+| | `DATE_BUDGET` | `SAVINGS` |
+|---|---|---|
+| 1 | Home | Home |
+| 2 | Minggu | Riwayat |
+| 3 | Bulan | Bulan |
+| 4 | Riwayat | — |
+| + | Catat pengeluaran | Setor · Tarik |
+
+The paths do not change with the wallet — `/` and `/month` mean "this wallet's home" and
+"this wallet's month" — so every deep link and the back gesture survive a switch. A savings
+wallet has no week segments, so `/week` and `/budget` redirect home.
+
+The active wallet is remembered per device in `localStorage`; it is a view preference, not
+account state. Its id is part of every wallet-scoped query key, so switching refetches
+rather than relabelling the previous wallet's cached figures.
+
+Two screens are worth calling out because their shape is the feature:
+
+**Tarik** puts the reason first, autofocused, before the amount. Asked afterwards it
+becomes a formality typed once the decision is already made. Before saving it calls
+`POST .../withdrawals/preview` and shows what the withdrawal costs in *time*; the numbers
+in that dialog come from the server and are never computed in the browser, or the dialog
+could disagree with the home screen. Cancel is on the left and not emphasised, but
+"Lanjut tarik" is always one tap away — a withdrawal the app refuses is a withdrawal that
+happens outside the app and is never recorded at all.
+
+**Bulan (tabungan)** reuses the weekly receipt card, then lists every withdrawal with its
+reason *before* the category breakdown. That order is the point: what you are looking for
+when you open it is a sentence, not a percentage.
 
 ---
 
@@ -197,6 +374,18 @@ Both snapshots must be taken on the same WIB day — the report includes `daysEl
 `isCurrent`, and `snapshot:diff` refuses to compare across a date boundary rather than
 blanking those fields. If the diff fails, the migration is wrong; fix the migration rather
 than compensating in the application layer.
+
+The diff reconciles exactly two documented v2 surface changes and says so on every pass:
+the `spentOn` → `occurredOn` rename (v2 10.1) and the additive `transferIn`/`transferOut`
+fields (v2 10.4) **while both are zero**. A non-zero transfer figure is left in the
+comparison and fails it, because a migration that invented a transfer is precisely what
+this gate is for. `SNAPSHOT_STRICT=1` turns both allowances off.
+
+Both gates have been run against the final v2 code, not just written: four months of v1.1
+data (one of them deliberately budget-less) came through the migration with every figure
+identical and all 107 rows intact, and the rollback returned the schema to a byte-for-byte
+match with pristine v1.1 across all 83 column, index and foreign-key definitions. The gate
+was then confirmed to still fail on a one-rupiah change and on a fabricated transfer.
 
 ---
 

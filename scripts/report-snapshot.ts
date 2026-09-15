@@ -17,6 +17,15 @@
  * The report carries `daysElapsed` and `isCurrent`, which follow the WIB calendar. Rather
  * than blanking those fields -- which would quietly stop testing them -- each run records
  * the WIB date it ran on, and the diff refuses to compare runs from different days.
+ *
+ * TWO v2 SURFACE CHANGES ARE ALLOWED FOR, AND ONLY TWO. v2 deliberately renamed `spentOn`
+ * to `occurredOn` (PRD v2 10.1) and added `transferIn` / `transferOut` to the month and
+ * week rows (10.4). Both were decided before this gate ran, so a literal byte comparison
+ * would fail on the rename rather than on anything the migration did. The allowances below
+ * are written to be as narrow as possible -- a transfer field that is NOT zero stays in the
+ * comparison, because a migration that invented a transfer is exactly the kind of thing
+ * this gate exists to catch -- and every pass prints which of them it used, so the gate can
+ * never quietly forgive something. `SNAPSHOT_STRICT=1` turns them off entirely.
  */
 
 import { createHash } from 'node:crypto';
@@ -63,6 +72,48 @@ function wibToday(): string {
     month: '2-digit',
     day: '2-digit',
   }).format(new Date());
+}
+
+const STRICT = process.env.SNAPSHOT_STRICT === '1';
+
+/** Which allowances a diff actually used, so the pass line can name them. */
+const allowancesUsed = new Set<string>();
+
+/**
+ * Reconciles the two documented v2 surface changes, and nothing else.
+ *
+ * Applied at comparison time rather than at capture time on purpose: the files on disk stay
+ * the raw, unedited responses, so anyone can diff them by hand and see everything.
+ */
+function reconcile(label: 'before' | 'after', value: unknown): unknown {
+  if (STRICT) return value;
+
+  if (Array.isArray(value)) return value.map((item) => reconcile(label, item));
+  if (!value || typeof value !== 'object') return value;
+
+  const row = { ...(value as Record<string, unknown>) };
+
+  // v2 10.1: one date field, one name, across every kind of transaction.
+  if (label === 'before' && 'spentOn' in row) {
+    row.occurredOn = row.spentOn;
+    delete row.spentOn;
+    allowancesUsed.add('spentOn -> occurredOn (v2 10.1)');
+  }
+
+  // v2 10.4: additive, and only ignorable while they are zero. A non-zero figure here on a
+  // freshly migrated database would mean the migration created a transfer out of nothing,
+  // so it is left in place and the comparison fails on it.
+  if (label === 'after' && row.transferIn === 0 && row.transferOut === 0) {
+    delete row.transferIn;
+    delete row.transferOut;
+    allowancesUsed.add('transferIn/transferOut, both zero (v2 10.4)');
+  }
+
+  for (const [key, nested] of Object.entries(row)) {
+    row[key] = reconcile(label, nested);
+  }
+
+  return row;
 }
 
 /** Stable JSON: object keys sorted at every depth, so a diff is about values only. */
@@ -114,20 +165,29 @@ async function login(): Promise<string> {
  * M10 leaves the v1.1 paths alone; M12 moves them under a wallet. Probing rather than
  * taking a flag means the same script captures both sides of either migration.
  */
-async function resolveReportPath(token: string): Promise<(period: string) => string> {
+async function resolveWallet(token: string): Promise<{
+  walletId: number | null;
+  reportPath: (period: string) => string;
+}> {
   try {
-    const wallets = await api<{ id: number; isDefault: boolean }[]>('/api/wallets', token);
-    const fallback = wallets[0];
-    const chosen = wallets.find((wallet) => wallet.isDefault) ?? fallback;
+    const wallets = await api<{ id: number; isDefault: boolean; type: string }[]>(
+      '/api/wallets',
+      token,
+    );
+    const dateBudget = wallets.filter((wallet) => wallet.type === 'DATE_BUDGET');
+    const chosen = dateBudget.find((wallet) => wallet.isDefault) ?? dateBudget[0];
 
     if (chosen) {
-      return (period) => `/api/wallets/${chosen.id}/reports/month/${period}`;
+      return {
+        walletId: chosen.id,
+        reportPath: (period) => `/api/wallets/${chosen.id}/reports/month/${period}`,
+      };
     }
   } catch {
     // No /api/wallets yet -- this is a pre-M12 server.
   }
 
-  return (period) => `/api/reports/month/${period}`;
+  return { walletId: null, reportPath: (period) => `/api/reports/month/${period}` };
 }
 
 /** The list endpoints cap `limit` at 200, so every collection here has to page. */
@@ -140,10 +200,13 @@ const PAGE_SIZE = 200;
  * Paging is not a detail to skip. Stopping at one page would quietly drop the oldest
  * months from the comparison and let M1 "pass" without having looked at them.
  */
-async function collectPeriods(token: string): Promise<string[]> {
+async function collectPeriods(token: string, walletId: number | null): Promise<string[]> {
   const periods = new Set<string>();
 
-  for await (const budget of pages<{ period: string }>(token, '/api/budgets')) {
+  // Budgets moved under their wallet in M12; before that they were top-level.
+  const budgetsPath = walletId === null ? '/api/budgets' : `/api/wallets/${walletId}/budgets`;
+
+  for await (const budget of pages<{ period: string }>(token, budgetsPath)) {
     periods.add(budget.period);
   }
 
@@ -189,16 +252,21 @@ async function* pages<T>(token: string, path: string): AsyncGenerator<T> {
 }
 
 async function capture(label: 'before' | 'after'): Promise<void> {
+  const dir = join(ROOT, label);
+
+  // Cleared FIRST, before anything that can fail. Leaving the previous run's files in
+  // place would let `snapshot:diff` compare an old capture against a fresh one and report
+  // a pass -- which is exactly what a migration gate must never do.
+  rmSync(dir, { recursive: true, force: true });
+
   const token = await login();
-  const reportPath = await resolveReportPath(token);
-  const periods = await collectPeriods(token);
+  const { walletId, reportPath } = await resolveWallet(token);
+  const periods = await collectPeriods(token, walletId);
 
   if (periods.length === 0) {
     throw new Error('no periods with data found -- nothing to compare, refusing to write an empty snapshot');
   }
 
-  const dir = join(ROOT, label);
-  rmSync(dir, { recursive: true, force: true });
   mkdirSync(dir, { recursive: true });
 
   for (const period of periods) {
@@ -215,12 +283,22 @@ async function capture(label: 'before' | 'after'): Promise<void> {
 }
 
 function readManifest(label: string): Manifest {
-  return JSON.parse(readFileSync(join(ROOT, label, 'manifest.json'), 'utf8')) as Manifest;
+  try {
+    return JSON.parse(readFileSync(join(ROOT, label, 'manifest.json'), 'utf8')) as Manifest;
+  } catch {
+    console.error(
+      `[snapshot:diff] no "${label}" snapshot. Run \`npm run snapshot:${label}\` first --\n` +
+        '  and if it failed, fix that rather than diffing what is left over.',
+    );
+    process.exit(1);
+  }
 }
 
-function digest(label: string, period: string): string {
+function digest(label: 'before' | 'after', period: string): string {
+  const raw = JSON.parse(readFileSync(join(ROOT, label, `${period}.json`), 'utf8')) as unknown;
+
   return createHash('sha256')
-    .update(readFileSync(join(ROOT, label, `${period}.json`)))
+    .update(JSON.stringify(canonical(reconcile(label, raw))))
     .digest('hex');
 }
 
@@ -265,6 +343,14 @@ function diff(): void {
   }
 
   console.log(`[snapshot:diff] M1 PASSED -- ${periods.length} period(s) identical: ${periods.join(', ')}`);
+
+  if (allowancesUsed.size > 0) {
+    console.log('[snapshot:diff] every figure matched. Reconciled, as documented in this file:');
+    [...allowancesUsed].sort().forEach((allowance) => console.log(`  - ${allowance}`));
+    console.log('  Run with SNAPSHOT_STRICT=1 for a literal byte comparison.');
+  } else {
+    console.log('[snapshot:diff] byte-identical; no v2 surface allowance was needed.');
+  }
 }
 
 function listSnapshots(): void {

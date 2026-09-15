@@ -1,7 +1,7 @@
 import { ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { formatDayShort, formatRupiah } from '@/lib/format';
-import { PAYMENT_METHOD_LABELS, type Expense } from '@/types/api';
+import { PAYMENT_METHOD_LABELS, type Transaction } from '@/types/api';
 
 /**
  * One row in any expense list (PRD 9.2, S5).
@@ -9,7 +9,7 @@ import { PAYMENT_METHOD_LABELS, type Expense } from '@/types/api';
  * The place name is the headline because that is what the user actually remembers about a
  * spend; when there is none, the category takes its place rather than leaving a blank.
  */
-export function ExpenseRow({ expense, showDate = true }: { expense: Expense; showDate?: boolean }) {
+export function ExpenseRow({ expense, showDate = true }: { expense: Transaction; showDate?: boolean }) {
   const title = expense.merchant ?? expense.category?.name ?? 'Tanpa kategori';
 
   return (
@@ -29,7 +29,7 @@ export function ExpenseRow({ expense, showDate = true }: { expense: Expense; sho
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium text-ink">{title}</span>
           <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-ink-3">
-            {showDate ? <span>{formatDayShort(expense.spentOn)}</span> : null}
+            {showDate ? <span>{formatDayShort(expense.occurredOn)}</span> : null}
             {expense.merchant && expense.category ? (
               <>
                 <span aria-hidden>·</span>

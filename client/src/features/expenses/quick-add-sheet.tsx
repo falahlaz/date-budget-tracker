@@ -91,7 +91,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
       // The expense is saved first and photos are uploaded afterwards, so a flaky upload
       // can never cost the user the record itself (PRD 6.11, 9.6).
       const expense = await createExpense.mutateAsync({
-        spentOn,
+        occurredOn: spentOn,
         amount,
         categoryId,
         merchant: merchant.trim() === '' ? null : merchant.trim(),

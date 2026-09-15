@@ -42,7 +42,10 @@ export function detectImageType(buffer: Buffer): AcceptedMimeType | null {
   if (startsWith(buffer, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png';
 
   // WebP: "RIFF" .... "WEBP"
-  if (startsWith(buffer, [0x52, 0x49, 0x46, 0x46]) && startsWith(buffer, [0x57, 0x45, 0x42, 0x50], 8)) {
+  if (
+    startsWith(buffer, [0x52, 0x49, 0x46, 0x46]) &&
+    startsWith(buffer, [0x57, 0x45, 0x42, 0x50], 8)
+  ) {
     return 'image/webp';
   }
 
@@ -50,7 +53,9 @@ export function detectImageType(buffer: Buffer): AcceptedMimeType | null {
   if (buffer.length >= 12 && buffer.toString('latin1', 4, 8) === 'ftyp') {
     const brand = buffer.toString('latin1', 8, 12);
     if (HEIF_BRANDS.has(brand)) {
-      return brand.startsWith('hev') || brand === 'heic' || brand === 'heix' ? 'image/heic' : 'image/heif';
+      return brand.startsWith('hev') || brand === 'heic' || brand === 'heix'
+        ? 'image/heic'
+        : 'image/heif';
     }
   }
 

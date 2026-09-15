@@ -19,10 +19,11 @@ function expense(partial: Partial<AggregatableExpense> & { amount: number }): Ag
   const merchant = partial.merchant ?? null;
   return {
     id: partial.id ?? nextId++,
-    spentOn: partial.spentOn ?? '2026-09-05',
+    occurredOn: partial.occurredOn ?? '2026-09-05',
     amount: partial.amount,
     merchant,
-    merchantKey: partial.merchantKey !== undefined ? partial.merchantKey : normalizeMerchant(merchant),
+    merchantKey:
+      partial.merchantKey !== undefined ? partial.merchantKey : normalizeMerchant(merchant),
     paymentMethod: partial.paymentMethod ?? 'CASH',
     note: partial.note ?? null,
     category: partial.category ?? null,
@@ -90,9 +91,9 @@ describe('aggregateByPaymentMethod', () => {
 describe('aggregateByMerchant (PRD 8.6, T13)', () => {
   it('merges different spellings of the same place into one row (6.16, E12)', () => {
     const rows = aggregateByMerchant([
-      expense({ amount: 100_000, merchant: 'Bakmi GM', spentOn: '2026-09-01' }),
-      expense({ amount: 120_000, merchant: 'bakmi gm', spentOn: '2026-09-08' }),
-      expense({ amount: 200_000, merchant: 'Bakmi-GM', spentOn: '2026-09-15' }),
+      expense({ amount: 100_000, merchant: 'Bakmi GM', occurredOn: '2026-09-01' }),
+      expense({ amount: 120_000, merchant: 'bakmi gm', occurredOn: '2026-09-08' }),
+      expense({ amount: 200_000, merchant: 'Bakmi-GM', occurredOn: '2026-09-15' }),
     ]);
 
     expect(rows).toHaveLength(1);
@@ -101,9 +102,9 @@ describe('aggregateByMerchant (PRD 8.6, T13)', () => {
 
   it('displays the spelling from the most recent expense (6.16)', () => {
     const rows = aggregateByMerchant([
-      expense({ amount: 100_000, merchant: 'bakmi gm', spentOn: '2026-09-01' }),
-      expense({ amount: 100_000, merchant: 'Bakmi GM', spentOn: '2026-09-19' }),
-      expense({ amount: 100_000, merchant: 'BAKMI-GM', spentOn: '2026-09-10' }),
+      expense({ amount: 100_000, merchant: 'bakmi gm', occurredOn: '2026-09-01' }),
+      expense({ amount: 100_000, merchant: 'Bakmi GM', occurredOn: '2026-09-19' }),
+      expense({ amount: 100_000, merchant: 'BAKMI-GM', occurredOn: '2026-09-10' }),
     ]);
 
     expect(rows[0].displayName).toBe('Bakmi GM');

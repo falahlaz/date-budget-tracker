@@ -1,7 +1,14 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, queryString } from '@/lib/api';
 import { invalidateReports, queryKeys } from '@/lib/query';
-import type { Expense, ExpenseList, MerchantSuggestion, PaymentMethod, Receipt } from '@/types/api';
+import { useActiveWalletId } from '@/features/wallets/wallet-context';
+import type {
+  MerchantSuggestion,
+  PaymentMethod,
+  Receipt,
+  Transaction,
+  TransactionList,
+} from '@/types/api';
 
 export type ExpenseFilters = {
   period?: string;
@@ -18,7 +25,7 @@ export type ExpenseFilters = {
 };
 
 export interface ExpenseInput {
-  spentOn: string;
+  occurredOn: string;
   amount: number;
   categoryId?: number | null;
   merchant?: string | null;
@@ -27,30 +34,38 @@ export interface ExpenseInput {
 }
 
 export function useExpenses(filters: ExpenseFilters) {
+  const walletId = useActiveWalletId();
+
   return useQuery({
-    queryKey: queryKeys.expenses(filters as Record<string, unknown>),
-    queryFn: () => api.get<ExpenseList>(`/expenses${queryString(filters)}`),
+    queryKey: queryKeys.transactions({ ...filters, walletId } as Record<string, unknown>),
+    queryFn: () => api.get<TransactionList>(`/transactions${queryString({ ...filters, walletId })}`),
+    enabled: walletId !== undefined,
   });
 }
 
 /** Paged list for the history screen; pages are stitched together by infinite scroll. */
 export function useInfiniteExpenses(filters: ExpenseFilters, pageSize = 30) {
+  const walletId = useActiveWalletId();
+
   return useInfiniteQuery({
-    queryKey: queryKeys.expenses({ ...filters, pageSize } as Record<string, unknown>),
+    queryKey: queryKeys.transactions({ ...filters, walletId, pageSize } as Record<string, unknown>),
     initialPageParam: 0,
     queryFn: ({ pageParam }) =>
-      api.get<ExpenseList>(`/expenses${queryString({ ...filters, limit: pageSize, offset: pageParam })}`),
+      api.get<TransactionList>(
+        `/transactions${queryString({ ...filters, walletId, limit: pageSize, offset: pageParam })}`,
+      ),
     getNextPageParam: (lastPage, allPages) => {
       const loaded = allPages.reduce((count, page) => count + page.items.length, 0);
       return loaded < lastPage.total ? loaded : undefined;
     },
+    enabled: walletId !== undefined,
   });
 }
 
 export function useExpense(id: number) {
   return useQuery({
-    queryKey: queryKeys.expense(id),
-    queryFn: () => api.get<Expense>(`/expenses/${id}`),
+    queryKey: queryKeys.transaction(id),
+    queryFn: () => api.get<Transaction>(`/transactions/${id}`),
     enabled: Number.isFinite(id) && id > 0,
   });
 }
@@ -62,18 +77,25 @@ export function useExpense(id: number) {
  * the field is focused -- one tap instead of typing.
  */
 export function useMerchantSuggestions(q: string, limit = 8) {
+  const walletId = useActiveWalletId();
+
   return useQuery({
-    queryKey: queryKeys.merchants(q),
-    queryFn: () => api.get<{ items: MerchantSuggestion[] }>(`/expenses/merchants${queryString({ q, limit })}`),
+    queryKey: queryKeys.merchants(walletId, q),
+    queryFn: () =>
+      api.get<{ items: MerchantSuggestion[] }>(
+        `/transactions/merchants${queryString({ q, limit, walletId })}`,
+      ),
     staleTime: 60_000,
+    enabled: walletId !== undefined,
   });
 }
 
 export function useCreateExpense() {
   const client = useQueryClient();
+  const walletId = useActiveWalletId();
 
   return useMutation({
-    mutationFn: (input: ExpenseInput) => api.post<Expense>('/expenses', input),
+    mutationFn: (input: ExpenseInput) => api.post<Transaction>('/transactions', { ...input, walletId }),
     onSuccess: () => invalidateReports(client),
   });
 }
@@ -83,9 +105,9 @@ export function useUpdateExpense() {
 
   return useMutation({
     mutationFn: ({ id, ...input }: { id: number } & Partial<ExpenseInput>) =>
-      api.patch<Expense>(`/expenses/${id}`, input),
+      api.patch<Transaction>(`/transactions/${id}`, input),
     onSuccess: async (_data, variables) => {
-      await client.invalidateQueries({ queryKey: queryKeys.expense(variables.id) });
+      await client.invalidateQueries({ queryKey: queryKeys.transaction(variables.id) });
       await invalidateReports(client);
     },
   });
@@ -95,15 +117,15 @@ export function useDeleteExpense() {
   const client = useQueryClient();
 
   return useMutation({
-    mutationFn: (id: number) => api.delete<void>(`/expenses/${id}`),
+    mutationFn: (id: number) => api.delete<void>(`/transactions/${id}`),
     onSuccess: () => invalidateReports(client),
   });
 }
 
 /**
- * Uploads receipts for an already-saved expense.
+ * Uploads receipts for an already-saved transaction.
  *
- * Kept separate from the create mutation on purpose: the expense must survive a failed
+ * Kept separate from the create mutation on purpose: the transaction must survive a failed
  * upload (PRD 6.11), so the two can never share a failure path.
  */
 export function useUploadReceipts() {
@@ -113,11 +135,11 @@ export function useUploadReceipts() {
     mutationFn: async ({ expenseId, files }: { expenseId: number; files: File[] }) => {
       const form = new FormData();
       files.forEach((file) => form.append('files', file));
-      return api.upload<{ items: Receipt[] }>(`/expenses/${expenseId}/receipts`, form);
+      return api.upload<{ items: Receipt[] }>(`/transactions/${expenseId}/receipts`, form);
     },
     onSuccess: async (_data, variables) => {
-      await client.invalidateQueries({ queryKey: queryKeys.expense(variables.expenseId) });
-      await client.invalidateQueries({ queryKey: ['expenses'] });
+      await client.invalidateQueries({ queryKey: queryKeys.transaction(variables.expenseId) });
+      await client.invalidateQueries({ queryKey: ['transactions'] });
     },
   });
 }
@@ -127,6 +149,6 @@ export function useDeleteReceipt() {
 
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/receipts/${id}`),
-    onSuccess: () => client.invalidateQueries({ queryKey: ['expense'] }),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['transaction'] }),
   });
 }

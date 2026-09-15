@@ -94,7 +94,11 @@ export class ReceiptsService {
     return receipt;
   }
 
-  async openFile(userId: number, id: number, variant?: string): Promise<{ receipt: Receipt; stream: Readable }> {
+  async openFile(
+    userId: number,
+    id: number,
+    variant?: string,
+  ): Promise<{ receipt: Receipt; stream: Readable }> {
     const receipt = await this.findOwned(userId, id);
     const key = variant === 'thumb' && receipt.thumbKey ? receipt.thumbKey : receipt.storageKey;
 
@@ -144,13 +148,23 @@ export class ReceiptsService {
     try {
       full = await sharp(file.buffer)
         .rotate() // honour the EXIF orientation before the metadata is dropped
-        .resize({ width: OUTPUT_MAX_EDGE, height: OUTPUT_MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+        .resize({
+          width: OUTPUT_MAX_EDGE,
+          height: OUTPUT_MAX_EDGE,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
         .webp({ quality: WEBP_QUALITY })
         .toBuffer({ resolveWithObject: true });
 
       thumb = await sharp(file.buffer)
         .rotate()
-        .resize({ width: THUMB_MAX_EDGE, height: THUMB_MAX_EDGE, fit: 'inside', withoutEnlargement: true })
+        .resize({
+          width: THUMB_MAX_EDGE,
+          height: THUMB_MAX_EDGE,
+          fit: 'inside',
+          withoutEnlargement: true,
+        })
         .webp({ quality: WEBP_QUALITY })
         .toBuffer();
     } catch (error) {

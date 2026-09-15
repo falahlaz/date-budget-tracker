@@ -3,8 +3,8 @@ import { ClockService } from '@/common/clock/clock.service';
 import { AppException } from '@/common/errors';
 import { fromDateOnly } from '@/common/utils/date-only';
 import { MonthComputationService } from '@/modules/budgets/month-computation.service';
-import { ExpensesService } from '@/modules/expenses/expenses.service';
-import { ExpenseWithRelations } from '@/modules/expenses/expense.mapper';
+import { TransactionsService } from '@/modules/transactions/transactions.service';
+import { TransactionWithRelations } from '@/modules/transactions/transaction.mapper';
 import {
   AggregatableExpense,
   CategoryBreakdown,
@@ -25,7 +25,13 @@ import {
   periodOf,
   previousPeriod,
 } from './engine/calendar';
-import { DayReport, ExpenseInput, MonthReport, WeekReport, buildDayReports } from './engine/compute-month';
+import {
+  DayReport,
+  ExpenseInput,
+  MonthReport,
+  WeekReport,
+  buildDayReports,
+} from './engine/compute-month';
 
 export interface MonthReportResponse extends MonthReport {
   byCategory: CategoryBreakdown[];
@@ -70,10 +76,10 @@ export interface TodayReportResponse {
   monthRemaining: number;
 }
 
-function toAggregatable(expense: ExpenseWithRelations): AggregatableExpense {
+function toAggregatable(expense: TransactionWithRelations): AggregatableExpense {
   return {
     id: expense.id,
-    spentOn: fromDateOnly(expense.occurredOn),
+    occurredOn: fromDateOnly(expense.occurredOn),
     amount: expense.amount,
     merchant: expense.merchant,
     merchantKey: expense.merchantKey,
@@ -89,7 +95,7 @@ function toAggregatable(expense: ExpenseWithRelations): AggregatableExpense {
 export class ReportsService {
   constructor(
     private readonly computation: MonthComputationService,
-    private readonly expenses: ExpensesService,
+    private readonly transactions: TransactionsService,
     private readonly clock: ClockService,
   ) {}
 
@@ -99,10 +105,10 @@ export class ReportsService {
    * One expense query feeds both the week maths and every aggregation, so the endpoint
    * stays a couple of queries rather than one per week (PRD 11, < 300 ms).
    */
-  async monthReport(userId: number, period: string): Promise<MonthReportResponse> {
+  async monthReport(walletId: number, period: string): Promise<MonthReportResponse> {
     const [report, rows] = await Promise.all([
-      this.computation.computeMonthReport(userId, period),
-      this.expenses.loadForPeriod(userId, period),
+      this.computation.computeMonthReport(walletId, period),
+      this.transactions.loadForPeriod(walletId, period),
     ]);
 
     const aggregatable = rows.map(toAggregatable);
@@ -117,7 +123,7 @@ export class ReportsService {
   }
 
   /** The week segment containing today (PRD 8.6). */
-  async currentWeekReport(userId: number): Promise<WeekReportResponse> {
+  async currentWeekReport(walletId: number): Promise<WeekReportResponse> {
     const today = this.clock.today();
     const period = periodOf(today);
     const segment = buildWeekSegments(period).find(
@@ -125,18 +131,22 @@ export class ReportsService {
     );
 
     // Every day of every month belongs to a segment, so this cannot miss.
-    return this.weekReport(userId, period, segment?.weekIndex ?? 1);
+    return this.weekReport(walletId, period, segment?.weekIndex ?? 1);
   }
 
-  async weekReport(userId: number, period: string, weekIndex: number): Promise<WeekReportResponse> {
-    const report = await this.computation.computeMonthReport(userId, period);
+  async weekReport(
+    walletId: number,
+    period: string,
+    weekIndex: number,
+  ): Promise<WeekReportResponse> {
+    const report = await this.computation.computeMonthReport(walletId, period);
     const week = report.weeks.find((candidate) => candidate.weekIndex === weekIndex);
 
     if (!week) {
       throw AppException.notFound(`week ${weekIndex} does not exist in ${period}`);
     }
 
-    const expenses = await this.computation.loadExpenseInputs(userId, period);
+    const expenses = await this.computation.loadExpenseInputs(walletId, period);
     const today = this.clock.today();
 
     return {
@@ -156,13 +166,13 @@ export class ReportsService {
   }
 
   /** The compact widget at the top of the home screen (PRD 8.6, 9.3). */
-  async todayReport(userId: number): Promise<TodayReportResponse> {
+  async todayReport(walletId: number): Promise<TodayReportResponse> {
     const today = this.clock.today();
     const period = periodOf(today);
 
     const [report, expenses] = await Promise.all([
-      this.computation.computeMonthReport(userId, period),
-      this.computation.loadExpenseInputs(userId, period),
+      this.computation.computeMonthReport(walletId, period),
+      this.computation.loadExpenseInputs(walletId, period),
     ]);
 
     const week = report.weeks.find((candidate) => candidate.isCurrent) ?? report.weeks[0];

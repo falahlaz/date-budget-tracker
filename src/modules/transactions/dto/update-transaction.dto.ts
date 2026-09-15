@@ -18,11 +18,11 @@ import {
  * `categoryId` and `merchant` accept an explicit `null` so a value can be cleared, which
  * a plain "optional" field cannot express.
  */
-export class UpdateExpenseDto {
+export class UpdateTransactionDto {
   @ApiPropertyOptional({ example: '2026-09-05' })
   @IsOptional()
-  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'spentOn must be formatted YYYY-MM-DD' })
-  spentOn?: string;
+  @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'occurredOn must be formatted YYYY-MM-DD' })
+  occurredOn?: string;
 
   @ApiPropertyOptional({ minimum: 1 })
   @IsOptional()

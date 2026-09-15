@@ -8,7 +8,13 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { MulterError } from 'multer';
-import { AppException, ErrorCode, ErrorDetail, ErrorResponseBody, errorCodeForStatus } from '../errors';
+import {
+  AppException,
+  ErrorCode,
+  ErrorDetail,
+  ErrorResponseBody,
+  errorCodeForStatus,
+} from '../errors';
 
 /**
  * Renders every failure in the single response shape mandated by PRD section 8.1.

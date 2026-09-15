@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Category } from '@prisma/client';
+import { WalletType } from '@prisma/client';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
 import { CategoriesService } from './categories.service';
 import { CreateCategoryDto } from './dto/create-category.dto';
@@ -47,9 +48,14 @@ export class CategoriesController {
   @ApiOperation({ summary: 'List categories, archived ones excluded by default' })
   async list(
     @CurrentUser('id') userId: number,
+    @Query('walletType') walletType?: string,
     @Query('includeArchived') includeArchived?: string,
   ): Promise<CategoryResponse[]> {
-    const rows = await this.categories.list(userId, includeArchived === 'true');
+    const rows = await this.categories.list(
+      userId,
+      walletType === WalletType.SAVINGS ? WalletType.SAVINGS : WalletType.DATE_BUDGET,
+      includeArchived === 'true',
+    );
     return rows.map(toCategoryResponse);
   }
 
