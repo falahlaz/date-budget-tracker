@@ -16,6 +16,10 @@ rencana), jadi apa yang ada di sini memang yang tampil di layar hari ini.
 > aritmetika — jadi rumus di layar Minggu & Bulan memang benar-benar nyambung. Tiap gambar
 > menampilkan **seluruh tinggi layar** (bukan cuma yang kelihatan tanpa scroll), makanya
 > beberapa terlihat panjang. File aslinya ada di `docs/screenshots/`.
+>
+> Mau generate arah visual baru pakai AI dulu? Dua file ini pasangannya: `../DESIGN.md`
+> (token dan aturan visual dalam format standar Google Labs, buat ditempel ke Stitch atau
+> dibaca coding agent) dan `STITCH-PROMPTS.md` (prompt siap tempel per layar).
 
 ---
 

@@ -88,6 +88,23 @@ API docs are served at `/api/docs` in non-production environments only.
 
 ---
 
+## UI & Design System
+
+The visual identity lives in [`DESIGN.md`](DESIGN.md) at the repo root, in the
+[DESIGN.md format](https://github.com/google-labs-code/design.md) — YAML design tokens plus
+the rationale and the rules that constrain them. Coding agents and design tools read it
+directly; `npx @google/design.md lint DESIGN.md` validates it.
+
+`requirements/budget-tracker-theme.css` stays the runtime source of truth for the CSS
+variables. `DESIGN.md` documents the same system in a portable form, so the two must be
+changed together.
+
+Two companion documents sit in `docs/`: `DESIGN-BRIEF.md` is the screen-by-screen handoff
+written for a designer, with screenshots of every screen; `STITCH-PROMPTS.md` is a
+per-screen prompt pack for Google Stitch.
+
+---
+
 ## How the calculation works
 
 The engine is a **pure function** — no database, no clock, no side effects — in

@@ -1,35 +1,44 @@
 # Budget Tracker — Prompt pack buat Google Stitch
 
-Pendamping `DESIGN-BRIEF.md`. Isinya **prompt siap tempel**, satu per layar, buat
+Pelengkap `../DESIGN.md`. Isinya **prompt siap tempel, satu per layar**, buat
 [Google Stitch](https://stitch.withgoogle.com).
 
-Dokumen ini beda tujuan dengan brief-nya:
+## Tiga dokumen, tiga tugas
 
-| | `DESIGN-BRIEF.md` | `STITCH-PROMPTS.md` (file ini) |
+| File | Buat siapa | Isinya |
 |---|---|---|
-| Buat siapa | manusia (temen lo yang ngedesain) | mesin (Stitch) |
-| Bentuknya | naratif + alasan + screenshot | instruksi imperatif, satu layar satu blok |
-| Panjang | 600+ baris, dibaca sekali penuh | tiap blok < 2.000 karakter, ditempel satu-satu |
-| "Kenapa"-nya | penting, itu inti dokumennya | dibuang — Stitch nggak butuh alasan, cuma butuh isi layar |
+| `DESIGN.md` (root repo) | mesin — Stitch, Claude Code, Cursor | **identitas visual**: token warna, tipografi, radius, spacing, komponen, plus aturan do/don't. Format standar Google Labs. |
+| `docs/DESIGN-BRIEF.md` | manusia — temen lo yang ngedesain | **isi produk**: tiap layar ngapain, kenapa dibikin gitu, screenshot, alur |
+| `docs/STITCH-PROMPTS.md` (file ini) | mesin — Stitch | **struktur per layar**: apa aja yang ada di layar X, urutannya gimana |
 
-**Stitch nggak makan file.** Nggak ada slot upload `design.md`. Yang dia terima cuma teks
-prompt di kolom chat (plus gambar referensi). Jadi markdown-nya perlu dipecah jadi
-potongan-potongan sebesar prompt, bukan satu dokumen panjang.
+Kenapa masih butuh file ini padahal udah ada `DESIGN.md`? Karena **DESIGN.md itu format
+design system, bukan daftar layar.** Dia ngasih tau Stitch warna dan font lo apa, tapi
+nggak ngasih tau bahwa layar Home punya hero, kartu proyeksi weekend, strip 7 hari, dan
+daftar transaksi terakhir. Dua-duanya perlu.
 
 ---
 
 ## Cara pakai
 
-1. **Bikin project baru**, pilih **Mobile**.
-2. **Tempel blok "Style" di bawah dulu** sebagai prompt pertama, digabung dengan prompt
-   layar pertama. Ini yang ngunci bahasa visualnya.
-3. Lanjut **satu layar satu prompt**. Jangan minta semua layar sekaligus — hasilnya
-   berantakan dan boros credit.
-4. Mau ubah warna/font belakangan: **shift-click beberapa layar sekaligus**, lalu kasih
-   satu prompt perubahan. Ini cara jaga konsistensi antar layar.
-5. Ekspor: **Standard mode (Gemini 2.5 Flash)** buat layout cepat + ekspor ke Figma;
-   **Experimental (Gemini 2.5 Pro)** buat hasil lebih rapi + input gambar, tapi ekspornya
-   cuma kode.
+**Langkah 1 — kasih identitas visualnya.** Di layar "Start with your design", pilih salah
+satu:
+
+- **Paste / upload `DESIGN.md`** — ambil dari root repo.
+- **Public GitHub repository** — tempel `https://github.com/falahlaz/date-budget-tracker`.
+  Repo ini public, jadi opsi ini jalan dan Stitch bakal nemu `DESIGN.md` di root sendiri.
+
+Dua-duanya hasilnya sama. Yang penting jangan di-skip — kalau nggak, Stitch bakal ngarang
+palet sendiri dan semua prompt di bawah keluarnya generic.
+
+**Langkah 2 — generate layar satu per satu.** Tempel blok prompt di bawah, satu layar satu
+prompt. Jangan minta semua sekaligus: hasilnya berantakan dan boros credit.
+
+**Langkah 3 — rapihin bareng-bareng.** Mau ubah sesuatu di banyak layar: shift-click
+beberapa layar, lalu kasih satu prompt perubahan. Ini yang jaga konsistensi.
+
+**Langkah 4 — ekspor.** Standard mode (Gemini 2.5 Flash) buat layout cepat + ekspor Figma.
+Experimental (Gemini 2.5 Pro) buat hasil lebih rapi + bisa input gambar, tapi ekspornya
+cuma kode.
 
 ### Tiga hal yang bikin hasilnya jauh lebih bagus
 
@@ -39,11 +48,17 @@ potongan-potongan sebesar prompt, bukan satu dokumen panjang.
 - **Upload screenshot dari `docs/screenshots/` sebagai referensi** (butuh Experimental
   mode). Jauh lebih cepat nyampe daripada dijelasin pakai kata-kata.
 - **Jangan lewat 5.000 karakter per prompt.** Lewat dari situ Stitch mulai ngedrop
-  komponen. Prompt di bawah semuanya aman.
+  komponen. Prompt di bawah semuanya aman — yang terpanjang 2.272 karakter.
 
 ---
 
-## Style — tempel bareng prompt pertama
+## Style — cuma kalau DESIGN.md nggak kepakai
+
+Kalau langkah 1 udah jalan, **lewati blok ini** — `DESIGN.md` udah bawa semua token-nya,
+dan ngulang di prompt cuma makan jatah karakter. Blok ini cadangan aja, misalnya lo lagi
+nyoba di tool lain yang nggak ngerti DESIGN.md.
+
+---
 
 ```
 Design system for all screens in this project.
@@ -485,3 +500,6 @@ Realistis aja, biar nggak buang-buang waktu:
 3. Baru lanjut layar sisanya.
 4. Ekspor ke Figma, terus kasih file itu **plus `DESIGN-BRIEF.md`** ke temen lo — Stitch
    ngasih titik berangkat, brief-nya yang ngasih tau mana yang nggak boleh diubah.
+
+Kalau hasil Stitch-nya keluar dari identitas visual yang lo mau, biasanya bukan prompt
+layarnya yang salah — cek dulu `DESIGN.md`-nya kebaca apa nggak di langkah 1.
