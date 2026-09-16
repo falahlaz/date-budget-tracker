@@ -4,7 +4,7 @@ export type ThemePreference = 'light' | 'dark' | 'system';
 export type ResolvedTheme = 'light' | 'dark';
 
 /** Shared with the inline no-flash script in index.html. Changing it here changes it there. */
-const STORAGE_KEY = 'datebud-theme';
+const STORAGE_KEY = 'budget-tracker-theme';
 
 function isPreference(value: unknown): value is ThemePreference {
   return value === 'light' || value === 'dark' || value === 'system';

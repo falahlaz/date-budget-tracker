@@ -1,7 +1,7 @@
 {
-  "name": "datebud",
+  "name": "budget-tracker",
   "version": "1.0.0",
-  "description": "Date Budget Tracker - weekend budget earned from weekday discipline",
+  "description": "Budget Tracker - weekend budget earned from weekday discipline",
   "private": true,
   "license": "UNLICENSED",
   "scripts": {

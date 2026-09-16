@@ -1,6 +1,6 @@
 import type { Wallet } from '@/types/api';
 
-export const ACTIVE_WALLET_STORAGE_KEY = 'datebud.activeWalletId';
+export const ACTIVE_WALLET_STORAGE_KEY = 'budget-tracker.activeWalletId';
 
 /**
  * Which wallet the app is looking at, given what is stored and what exists.

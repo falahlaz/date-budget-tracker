@@ -1,4 +1,4 @@
-// Prisma schema for datebud.
+// Prisma schema for budget-tracker.
 // NORMATIVE SOURCE: PRD v1.1 section 7.2, as amended by PRD v2 section 9 (DDL, MySQL 8.0).
 // This schema is a derivation of that DDL and must match it exactly -- on any conflict,
 // the DDL wins. Where v2 contradicts v1.1, v2 wins (v2 section 0).

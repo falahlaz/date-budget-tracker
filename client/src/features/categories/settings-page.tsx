@@ -155,7 +155,7 @@ export function SettingsPage() {
         </div>
       </section>
 
-      <p className="label-micro text-center">datebud v{APP_VERSION}</p>
+      <p className="label-micro text-center">budget-tracker v{APP_VERSION}</p>
 
       <Sheet
         open={adding}

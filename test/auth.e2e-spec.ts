@@ -74,7 +74,7 @@ describe('Auth (PRD 8.2)', () => {
     const unknownEmail = await harness
       .http()
       .post('/api/auth/login')
-      .send({ email: 'nobody@datebud.test', password: 'whatever-123' })
+      .send({ email: 'nobody@budget-tracker.test', password: 'whatever-123' })
       .expect(401);
 
     expect(unknownEmail.body.message).toBe(wrongPassword.body.message);

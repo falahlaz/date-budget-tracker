@@ -45,7 +45,7 @@ if [[ -d "$STORAGE_ROOT" ]]; then
   cp -a "$STORAGE_ROOT/." "$WORK_DIR/storage/"
 fi
 
-ARCHIVE="$OUT_DIR/datebud-backup-$STAMP.tar.gz"
+ARCHIVE="$OUT_DIR/budget-tracker-backup-$STAMP.tar.gz"
 tar -czf "$ARCHIVE" -C "$WORK_DIR" database.sql storage
 
 echo "[backup] done -> $ARCHIVE"

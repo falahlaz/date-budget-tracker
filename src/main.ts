@@ -36,8 +36,8 @@ async function bootstrap(): Promise<void> {
     app.enableCors({ origin: 'http://localhost:5173', credentials: true });
 
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('datebud API')
-      .setDescription('Date Budget Tracker - weekend budget earned from weekday discipline')
+      .setTitle('budget-tracker API')
+      .setDescription('Budget Tracker - weekend budget earned from weekday discipline')
       .setVersion('1.0')
       .addBearerAuth()
       .build();
@@ -47,7 +47,7 @@ async function bootstrap(): Promise<void> {
   app.enableShutdownHooks();
 
   await app.listen(port);
-  new Logger('Bootstrap').log(`datebud listening on :${port} (${nodeEnv})`);
+  new Logger('Bootstrap').log(`budget-tracker listening on :${port} (${nodeEnv})`);
 }
 
 void bootstrap();

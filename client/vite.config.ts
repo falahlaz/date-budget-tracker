@@ -22,8 +22,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon-32.png', 'apple-touch-icon.png', 'icon.svg'],
       manifest: {
-        name: 'datebud - Date Budget Tracker',
-        short_name: 'datebud',
+        name: 'budget-tracker',
+        short_name: 'budget-tracker',
         description: 'Budget weekend yang ditentukan sama disiplin hari kerja.',
         lang: 'id',
         start_url: '/',
@@ -49,7 +49,7 @@ export default defineConfig({
             urlPattern: /^\/api\/reports\//,
             handler: 'NetworkFirst',
             options: {
-              cacheName: 'datebud-reports',
+              cacheName: 'budget-tracker-reports',
               networkTimeoutSeconds: 5,
               expiration: { maxEntries: 12, maxAgeSeconds: 60 * 60 * 24 },
             },
@@ -58,7 +58,7 @@ export default defineConfig({
             urlPattern: /^\/api\/receipts\/\d+\/file/,
             handler: 'CacheFirst',
             options: {
-              cacheName: 'datebud-receipts',
+              cacheName: 'budget-tracker-receipts',
               expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 30 },
             },
           },

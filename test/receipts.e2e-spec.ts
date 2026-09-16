@@ -130,7 +130,7 @@ describe('Receipts (PRD 8.5)', () => {
 
     const users = harness.app.get(UsersService);
     await users.createUser({
-      email: 'intruder@datebud.test',
+      email: 'intruder@budget-tracker.test',
       password: 'intruder-password-123',
       displayName: 'Intruder',
     });
@@ -138,7 +138,7 @@ describe('Receipts (PRD 8.5)', () => {
     const intruderLogin = await harness
       .http()
       .post('/api/auth/login')
-      .send({ email: 'intruder@datebud.test', password: 'intruder-password-123' })
+      .send({ email: 'intruder@budget-tracker.test', password: 'intruder-password-123' })
       .expect(200);
 
     // 404 rather than 403: another user's receipt must not even be confirmed to exist.
