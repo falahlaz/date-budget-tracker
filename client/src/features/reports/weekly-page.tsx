@@ -10,13 +10,14 @@ import {
   ReceiptRule,
   ReceiptTotal,
 } from '@/components/ui/receipt';
-import { SectionHead } from '@/components/ui/section';
+import { SectionHead, Segmented } from '@/components/ui/section';
 import { ExpenseRow } from '@/features/expenses/expense-row';
 import { useExpenses } from '@/features/expenses/hooks';
 import { cn } from '@/lib/cn';
 import { formatDateRange, formatDayShort, formatRupiah, formatWeekdayShort } from '@/lib/format';
 import { currentPeriod, todayInJakarta } from '@/lib/today';
 import type { DayRow, WeekReport } from '@/types/api';
+import { dayFigure, readStoredDayView, writeStoredDayView, type DayView } from './day-view';
 import { useCurrentWeekReport, useWeekReport } from './hooks';
 
 /** S3 Weekly Dashboard (PRD 9.4). */
@@ -240,16 +241,43 @@ function Breakdown({ week }: { week: WeekReport }) {
  * A label, a track and a figure: three columns fit at 360px where four full-precision
  * rupiah figures never did. The bar carries the proportion, so the numbers only have to
  * carry the amount.
+ *
+ * Which amount is the toggle's job. The column used to switch meaning on its own -- an
+ * untouched day printed its allowance, a day with an expense printed what went out -- so
+ * "Rp 62.037" and "Rp 21.000" sat one above the other measuring opposite things. The figure
+ * now means whatever the control says, and the control opens on Sisa, because what is left
+ * to spend is the question the page is opened to answer.
  */
-function DayTable({ days }: { days: DayRow[] }) {
+export function DayTable({ days }: { days: DayRow[] }) {
+  const [view, setView] = useState<DayView>(readStoredDayView);
+
+  const changeView = (next: DayView) => {
+    setView(next);
+    writeStoredDayView(next);
+  };
+
   return (
     <section className="mb-7">
-      <SectionHead title="Per hari" />
+      <SectionHead
+        title="Per hari"
+        action={
+          <Segmented
+            label="Tampilan per hari"
+            value={view}
+            onChange={changeView}
+            options={[
+              { value: 'remaining', label: 'Sisa' },
+              { value: 'spent', label: 'Terpakai' },
+            ]}
+          />
+        }
+      />
 
       <ul className="divide-y divide-line">
         {days.map((day) => {
           const isWeekend = day.dayType === 'WEEKEND';
           const tone = toneFor(day.remaining, day.dayBudget);
+          const figure = dayFigure(day, view);
 
           return (
             <li
@@ -265,6 +293,8 @@ function DayTable({ days }: { days: DayRow[] }) {
                 {formatWeekdayShort(day.date)} {formatDayShort(day.date).split(' ')[0]}
               </span>
 
+              {/* The bar reads the same in both views -- it is how much of the day went out,
+                  and the figure beside it is the amount the control asked for. */}
               <Meter
                 value={day.spent}
                 max={isWeekend ? Math.max(day.spent, 1) : day.dayBudget}
@@ -273,12 +303,14 @@ function DayTable({ days }: { days: DayRow[] }) {
               />
 
               <span className="tabular text-right font-mono text-[12.5px] font-medium">
-                {day.spent > 0 ? (
-                  <span className="text-ink">{formatRupiah(day.spent)}</span>
-                ) : isWeekend ? (
+                {figure.kind === 'weekend' ? (
                   <span className="text-ink-3">weekend</span>
                 ) : (
-                  <span className="text-ink-3">{formatRupiah(day.dayBudget)}</span>
+                  <span
+                    className={figure.over ? 'text-neg' : figure.muted ? 'text-ink-3' : 'text-ink'}
+                  >
+                    {formatRupiah(figure.amount)}
+                  </span>
                 )}
               </span>
             </li>
