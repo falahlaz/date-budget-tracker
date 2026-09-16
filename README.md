@@ -1,4 +1,4 @@
-# datebud — Date Budget Tracker
+# budget-tracker
 
 Weekend spending, made explicitly dependent on weekday discipline.
 
@@ -21,7 +21,7 @@ disagreement between the code and those sections, the PRD wins.
 | ORM / DB | Prisma 6 · MySQL 8.0 (InnoDB, utf8mb4) |
 | Frontend | React 19 · Vite 6 · TypeScript, served by Nest in production |
 | State | TanStack Query v5 |
-| Styling | Tailwind CSS v4, mobile-first · "Periwinkle & Butter" (`requirements/datebud-theme.css`) |
+| Styling | Tailwind CSS v4, mobile-first · "Periwinkle & Butter" (`requirements/budget-tracker-theme.css`) |
 | Type | Fraunces (money) · Public Sans (UI) · IBM Plex Mono (receipts, micro labels) |
 | Charts | Recharts (lazy-loaded) |
 | Uploads | multer (memory) + sharp |

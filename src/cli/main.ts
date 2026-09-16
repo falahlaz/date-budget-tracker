@@ -4,7 +4,7 @@ import { UsersService } from '@/modules/users/users.service';
 import { PrismaService } from '@/prisma/prisma.service';
 import { CliModule } from './cli.module';
 
-const USAGE = `datebud CLI
+const USAGE = `budget-tracker CLI
 
 Usage:
   npm run cli -- user:create --email=<email> --password=<password> --name=<name>

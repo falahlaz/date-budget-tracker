@@ -71,10 +71,10 @@ describe('theme store', () => {
     render(<Consumer id="header" />);
 
     act(() => setTheme('dark'));
-    expect(localStorage.getItem('datebud-theme')).toBe('dark');
+    expect(localStorage.getItem('budget-tracker-theme')).toBe('dark');
 
     act(() => setTheme('system'));
-    expect(localStorage.getItem('datebud-theme')).toBeNull();
+    expect(localStorage.getItem('budget-tracker-theme')).toBeNull();
   });
 
   it('resolves system against the OS, and an explicit choice against itself', () => {

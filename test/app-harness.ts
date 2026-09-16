@@ -49,7 +49,7 @@ class FixedClock {
 }
 
 export const TEST_USER = {
-  email: 'e2e@datebud.test',
+  email: 'e2e@budget-tracker.test',
   password: 'e2e-password-123',
   displayName: 'E2E',
 };

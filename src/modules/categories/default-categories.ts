@@ -1,5 +1,5 @@
 /**
- * The datebud category palette.
+ * The budget-tracker category palette.
  *
  * Every colour here is stored as a hex on a per-user row (PRD 7.4), which means one value
  * has to work on *both* themes -- a stored hex cannot shift the way a CSS token does. So
