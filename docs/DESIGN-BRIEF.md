@@ -11,6 +11,12 @@ rencana), jadi apa yang ada di sini memang yang tampil di layar hari ini.
 - **User:** single-user. Nggak ada halaman sign-up, nggak ada onboarding multi-step.
 - **Timezone & mata uang:** Asia/Jakarta, Rupiah penuh (tanpa sen, tanpa desimal).
 
+> **Screenshot di dokumen ini diambil dari aplikasi yang beneran jalan**, lebar 390px
+> (ukuran iPhone 14), dengan data contoh yang angkanya sengaja dibikin konsisten secara
+> aritmetika — jadi rumus di layar Minggu & Bulan memang benar-benar nyambung. Tiap gambar
+> menampilkan **seluruh tinggi layar** (bukan cuma yang kelihatan tanpa scroll), makanya
+> beberapa terlihat panjang. File aslinya ada di `docs/screenshots/`.
+
 ---
 
 ## 1. Konsep produk (wajib dibaca desainer dulu)
@@ -120,6 +126,8 @@ Di halaman Pengaturan, chrome kanan dimatikan (switcher & ikon settings nggak ta
 
 ### 3.1 Login — `/login`
 
+<img src="screenshots/01-login.png" width="300" alt="01-login">
+
 Layar paling sederhana. **Nggak ada tombol daftar, nggak ada "lupa password"** — akun
 dibuat lewat CLI.
 
@@ -130,6 +138,10 @@ dibuat lewat CLI.
 ---
 
 ### 3.2 Home / Hari ini — `/` (dompet `DATE_BUDGET`)
+
+| Normal | Belum ada budget | Mode gelap |
+|---|---|---|
+| <img src="screenshots/02-home-kencan.png" width="240" alt="02-home-kencan"> | <img src="screenshots/03-home-tanpa-budget.png" width="240" alt="03-home-tanpa-budget"> | <img src="screenshots/19-home-kencan-gelap.png" width="240" alt="19-home-kencan-gelap"> |
 
 Layar yang paling sering dibuka. Menjawab satu pertanyaan dulu — *"sekarang boleh jajan
 berapa?"* — lalu langsung nunjukin apa hasilnya buat weekend.
@@ -156,6 +168,10 @@ Isi dari atas ke bawah:
 ---
 
 ### 3.3 Minggu — `/week` (dompet `DATE_BUDGET`)
+
+| Terang | Gelap |
+|---|---|
+| <img src="screenshots/04-minggu.png" width="280" alt="04-minggu"> | <img src="screenshots/20-minggu-gelap.png" width="280" alt="20-minggu-gelap"> |
 
 Header: eyebrow "Rincian mingguan", judul "Minggu".
 
@@ -190,6 +206,10 @@ Header: eyebrow "Rincian mingguan", judul "Minggu".
 
 ### 3.4 Bulan — `/month` (dompet `DATE_BUDGET`)
 
+| Terang | Gelap |
+|---|---|
+| <img src="screenshots/05-bulan-kencan.png" width="280" alt="05-bulan-kencan"> | <img src="screenshots/21-bulan-kencan-gelap.png" width="280" alt="21-bulan-kencan-gelap"> |
+
 Layar paling padat. Ini satu-satunya layar yang pakai charting (Recharts, di-lazy-load).
 
 Header: eyebrow "Rincian bulanan", judul "Bulan". Stepper bulan dengan sub-label
@@ -223,6 +243,8 @@ Empty state: "Belum ada pengeluaran bulan ini", "Belum ada tempat tercatat".
 
 ### 3.5 Budget — `/budget` (dompet `DATE_BUDGET`)
 
+<img src="screenshots/06-budget.png" width="300" alt="06-budget">
+
 Header: eyebrow "Jatah harian dihitung dari sini", judul "Budget". Stepper bulan.
 
 1. **Kartu input** — field nominal besar (32px, serif, tabular) dengan prefix `Rp` mono dan
@@ -237,6 +259,10 @@ Header: eyebrow "Jatah harian dihitung dari sini", judul "Budget". Stepper bulan
 ---
 
 ### 3.6 Riwayat — `/expenses` (dua tipe dompet)
+
+| Dompet kencan | Dompet tabungan |
+|---|---|
+| <img src="screenshots/07-riwayat.png" width="280" alt="07-riwayat"> | <img src="screenshots/12-riwayat-tabungan.png" width="280" alt="12-riwayat-tabungan"> |
 
 Satu layar yang melayani dua tipe dompet. Yang beda cuma bentuk barisnya dan kosakata
 kategorinya.
@@ -265,18 +291,31 @@ Empty state: "Belum ada pengeluaran bulan ini" / "Belum ada pergerakan bulan ini
 
 ### 3.7 Detail pengeluaran — `/expenses/:id` (DATE_BUDGET)
 
-Halaman penuh (bukan sheet), dengan tombol `‹ Kembali` dan ikon hapus di kanan atas.
+| Detail (baca) | Sheet edit |
+|---|---|
+| <img src="screenshots/08-detail-pengeluaran.png" width="280" alt="08-detail-pengeluaran"> | <img src="screenshots/08b-sheet-edit-pengeluaran.png" width="280" alt="08b-sheet-edit-pengeluaran"> |
 
-- Badge `Hari kerja` / `Weekend`
-- Form edit: **Nominal**, **Tempat**, **Kategori**, **Metode bayar**, **Tanggal**, **Catatan**
+Halaman penuh (bukan sheet), dengan tombol `‹ Kembali` di kiri atas. Isinya **kartu baca**,
+bukan form — form-nya baru muncul sebagai sheet setelah tombol **Edit** ditekan.
+
+- Eyebrow mono: `HARI KERJA · MINGGU KE-3`
+- Nominal besar + tanggal panjang
+- Grid 2 kolom: **Tempat** · **Kategori** · **Metode bayar** · **Catatan**
+- Tombol **Edit** (lebar) + tombol hapus merah (ikon tong sampah) di sebelahnya
 - Section **Struk · N** — grid thumbnail foto struk, tiap foto bisa dibuka full & dihapus
-- Tombol **Simpan perubahan**
+  (tidak tampil di screenshot karena data contohnya tanpa foto)
+- Sheet **Edit pengeluaran**: Nominal · Tanggal · Tempat · Kategori (chip) ·
+  Metode bayar (chip) · Catatan · tombol **Simpan perubahan**
 - Dialog konfirmasi **"Hapus pengeluaran?"**
 - Toast: "Perubahan tersimpan" / "Pengeluaran dihapus"
 
 ---
 
 ### 3.8 Home Tabungan — `/` (dompet `SAVINGS`)
+
+| Ada target | Belum ada target | Mode gelap |
+|---|---|---|
+| <img src="screenshots/09-home-tabungan.png" width="240" alt="09-home-tabungan"> | <img src="screenshots/10-tabungan-tanpa-target.png" width="240" alt="10-tabungan-tanpa-target"> | <img src="screenshots/22-home-tabungan-gelap.png" width="240" alt="22-home-tabungan-gelap"> |
 
 Cermin dari Home dompet kencan. Yang satu nanya "boleh ngeluarin berapa", yang ini nanya
 "masih harus nabung berapa".
@@ -304,6 +343,8 @@ riwayat pergerakan.
 ---
 
 ### 3.9 Bulan Tabungan — `/month` (dompet `SAVINGS`)
+
+<img src="screenshots/11-bulan-tabungan.png" width="300" alt="11-bulan-tabungan">
 
 Pakai **kartu struk yang sama** dengan minggu-nya dompet kencan — format itu sudah terbukti
 kebaca sekilas, bikin bahasa visual kedua buat ide yang sama justru lebih buruk.
@@ -336,6 +377,8 @@ kebaca sekilas, bikin bahasa visual kedua buat ide yang sama justru lebih buruk.
 
 ### 3.10 Pengaturan — `/settings`
 
+<img src="screenshots/13-pengaturan.png" width="300" alt="13-pengaturan">
+
 Header: judul "Pengaturan", subtitle = email user. Chrome kanan dimatikan.
 
 1. **Tampilan** — segmented `Terang` / `Gelap` / `Sistem` + kalimat penjelas ("Ikut setelan
@@ -353,7 +396,16 @@ Header: judul "Pengaturan", subtitle = email user. Chrome kanan dimatikan.
 ## 4. Sheet, dialog & overlay
 
 Semua sheet muncul **di atas** layar yang lagi kebuka, bukan menggantikannya — biar angka
-yang lagi jadi dasar keputusan tetap kelihatan di belakang. Radius sheet `28px`.
+yang lagi jadi dasar keputusan tetap kelihatan di belakang. Radius sheet `28px`, dan layar
+di belakangnya di-blur.
+
+| Catat pengeluaran | Setor | Tarik |
+|---|---|---|
+| <img src="screenshots/14-sheet-catat-pengeluaran.png" width="240" alt="14-sheet-catat-pengeluaran"> | <img src="screenshots/15-sheet-setor.png" width="240" alt="15-sheet-setor"> | <img src="screenshots/16-sheet-tarik.png" width="240" alt="16-sheet-tarik"> |
+
+| Dompet (switcher) | Pindah uang |
+|---|---|
+| <img src="screenshots/17-sheet-dompet.png" width="280" alt="17-sheet-dompet"> | <img src="screenshots/18-sheet-pindah-uang.png" width="280" alt="18-sheet-pindah-uang"> |
 
 | Sheet | Dibuka dari | Isi |
 |---|---|---|
@@ -366,7 +418,7 @@ yang lagi jadi dasar keputusan tetap kelihatan di belakang. Radius sheet `28px`.
 | **Dompet** (switcher) | header semua layar | List dompet; tiap baris bawa **ringkasan dalam kosakata tipenya sendiri** (dompet kencan: sisa bulan ini; tabungan: progres target). Tiap baris punya tombol pensil buat rename terpisah, karena tap di nama harus tetap berarti "buka dompet ini". Tombol **Bikin dompet**. |
 | **Dompet baru** | dari switcher | **Nama** · **Tipe** (Kencan / Tabungan). Tipe dikunci setelah dibuat. |
 | **Ubah nama dompet** | ikon pensil di switcher | Cuma field **Nama**. Tombol disabled kalau nama nggak berubah. |
-| **Pindah uang** (transfer) | — | **Dari** · **Ke** · **Nominal** · **Tanggal** · **Catatan**. Catatan di bawah nominal adalah inti fiturnya: transfer keluar dari dompet kencan **motong budget weekend minggu itu**, dan formnya bilang duluan. |
+| **Pindah uang** (transfer) | tombol **Pindah uang** di sheet Dompet | **Dari** · **Ke** · **Nominal** · **Tanggal** · **Catatan**. Catatan di bawah nominal adalah inti fiturnya: transfer keluar dari dompet kencan **motong budget weekend minggu itu**, dan formnya bilang duluan. |
 | **Ganti password** | Pengaturan | Password sekarang · Password baru. |
 | **Kategori baru** | Pengaturan / chip "+ Baru" di picker | Nama + warna. Dari picker cukup nama doang (warna dipilih server) biar keyboard nggak perlu ditutup di tengah input. |
 | **Hapus pengeluaran?** | Detail pengeluaran | Dialog konfirmasi. |
@@ -503,6 +555,21 @@ Ini bukan preferensi estetik — ini aturan yang bikin produknya benar:
 
 ---
 
+### Bug layout yang ketahuan pas ambil screenshot
+
+Dua hal ini kelihatan di `09-home-tabungan.png` dan `12-riwayat-tabungan.png`, dan enak
+kalau sekalian dibereskan di revamp:
+
+1. **Header kanan berdesakan di 390px.** Waktu judul halaman panjang dan wrap ke dua baris
+   (mis. "Liburan Jepang"), tombol **Ubah** menimpa wallet switcher. Kluster kanan header
+   sekarang berisi sampai empat kontrol — switcher, tombol aksi, toggle tema, ikon settings
+   — dan nggak punya aturan yang jelas kalau ruangnya habis.
+2. **Nama dompet kepotong jadi "K." / "Tabu…"** di switcher, karena lebarnya sisa. Di layar
+   di mana dompet aktif menentukan arti semua angka, nama yang kebaca itu penting.
+
+Perlu keputusan desain: kluster header mau dikasih prioritas urutan seperti apa, atau
+switcher-nya dipindah ke tempat lain sekalian.
+
 ## 8. Yang perlu dari desainer
 
 Idealnya, buat dua tema (terang & gelap) untuk:
@@ -549,3 +616,14 @@ Buat konteks aja, kalau desainer nanya soal batasannya:
 - Dompet aktif disimpan di `localStorage` per perangkat — preferensi tampilan, bukan state
   akun. HP dan laptop boleh beda dompet aktif.
 - Sumber kebenaran fungsional ada di `PRDdatebudgettracker.md` dan `README.md` di repo ini.
+
+### Soal screenshot-nya
+
+Diambil dengan Playwright + Chromium dari Vite dev server, viewport 390px, DPR 2, font
+asli dari Google Fonts. Respons `/api` di-stub dengan data contoh, jadi yang dirender
+tetap komponen React dan CSS yang asli — nggak ada mockup, nggak ada retouch. Angka pada
+data contoh lolos invarian engine-nya:
+
+```
+carryOut == monthlyBudget + carryIn − totalSpent − transferOut + transferIn
+```
