@@ -43,7 +43,7 @@ describe('Wallets (PRD v2 4, 10.2)', () => {
 
     expect(response.body).toHaveLength(1);
     expect(response.body[0]).toMatchObject({
-      name: 'Kencan',
+      name: 'Pengeluaran',
       type: 'DATE_BUDGET',
       isDefault: true,
       isArchived: false,
@@ -146,19 +146,19 @@ describe('Wallets (PRD v2 4, 10.2)', () => {
 
   it('renames the default wallet too -- a typo there is the one you cannot escape', async () => {
     const renamed = await authed('patch', `/api/wallets/${walletId}`)
-      .send({ name: 'Kencan Kita' })
+      .send({ name: 'Pengeluaran Kita' })
       .expect(200);
 
-    expect(renamed.body).toMatchObject({ name: 'Kencan Kita', isDefault: true });
+    expect(renamed.body).toMatchObject({ name: 'Pengeluaran Kita', isDefault: true });
 
     // Put the suite's shared wallet back the way the other tests expect to find it.
-    await authed('patch', `/api/wallets/${walletId}`).send({ name: 'Kencan' }).expect(200);
+    await authed('patch', `/api/wallets/${walletId}`).send({ name: 'Pengeluaran' }).expect(200);
   });
 
   it('refuses a rename onto a name another wallet already has', async () => {
     const created = await createSavingsWallet('Tabungan').expect(201);
 
-    await authed('patch', `/api/wallets/${created.body.id}`).send({ name: 'Kencan' }).expect(409);
+    await authed('patch', `/api/wallets/${created.body.id}`).send({ name: 'Pengeluaran' }).expect(409);
   });
 
   it('refuses a rename to nothing, spaces included', async () => {
