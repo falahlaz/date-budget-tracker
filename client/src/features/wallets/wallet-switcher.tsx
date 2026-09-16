@@ -1,4 +1,12 @@
-import { ArrowLeftRight, Check, ChevronsUpDown, Plus, PiggyBank, Wallet as WalletIcon } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  Check,
+  ChevronsUpDown,
+  Pencil,
+  Plus,
+  PiggyBank,
+  Wallet as WalletIcon,
+} from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -9,7 +17,7 @@ import { cn } from '@/lib/cn';
 import { ApiError } from '@/lib/api';
 import { formatCompactRupiah, formatRupiah } from '@/lib/format';
 import type { DateBudgetSummary, SavingsSummary, Wallet, WalletType } from '@/types/api';
-import { useCreateWallet } from './hooks';
+import { useCreateWallet, useUpdateWallet } from './hooks';
 import { useWalletSwitcher } from './wallet-context';
 import { TransferSheet } from './transfer-sheet';
 
@@ -25,6 +33,7 @@ export function WalletSwitcher() {
   const { wallets, activeWallet, selectWallet, isLoading } = useWalletSwitcher();
   const [open, setOpen] = useState(false);
   const [creating, setCreating] = useState(false);
+  const [renaming, setRenaming] = useState<Wallet | null>(null);
   const [transferring, setTransferring] = useState(false);
 
   if (isLoading || !activeWallet) return null;
@@ -58,6 +67,7 @@ export function WalletSwitcher() {
                   selectWallet(wallet.id);
                   setOpen(false);
                 }}
+                onRename={() => setRenaming(wallet)}
               />
             </li>
           ))}
@@ -94,6 +104,12 @@ export function WalletSwitcher() {
         }}
       />
 
+      {/* Mounted only while a wallet is being renamed, so the field always opens on that
+          wallet's current name rather than on whatever was typed last time. */}
+      {renaming ? (
+        <RenameWalletSheet wallet={renaming} onClose={() => setRenaming(null)} />
+      ) : null}
+
       <TransferSheet open={transferring} onClose={() => setTransferring(false)} />
     </>
   );
@@ -116,23 +132,30 @@ function WalletDot({ wallet }: { wallet: Wallet }) {
   );
 }
 
+/**
+ * One wallet, as two controls rather than one.
+ *
+ * The row is a select, and the pencil beside it is a rename -- separate buttons because a
+ * tap on the name has to keep meaning "open this wallet". Renaming from here is the only
+ * place it can happen: a wallet's name is only ever read in this list, so sending the user
+ * to Settings for a typo would mean leaving the screen that shows the mistake.
+ */
 function WalletRow({
   wallet,
   active,
   onSelect,
+  onRename,
 }: {
   wallet: Wallet;
   active: boolean;
   onSelect: () => void;
+  onRename: () => void;
 }) {
   return (
-    <button
-      type="button"
-      onClick={onSelect}
-      aria-current={active ? 'true' : undefined}
+    <div
       className={cn(
-        'flex w-full items-center gap-3 rounded-md border px-3.5 py-3 text-left',
-        'transition-colors duration-[var(--t-fast)] ease-out active:scale-[0.98]',
+        'flex items-center rounded-md border pr-1',
+        'transition-colors duration-[var(--t-fast)] ease-out',
         active
           ? wallet.type === 'SAVINGS'
             ? 'border-pos/40 bg-pos-soft'
@@ -140,24 +163,106 @@ function WalletRow({
           : 'border-line bg-surface hover:border-line-strong',
       )}
     >
-      <WalletDot wallet={wallet} />
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-current={active ? 'true' : undefined}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md py-3 pl-3.5 text-left active:scale-[0.98]"
+      >
+        <WalletDot wallet={wallet} />
 
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className="truncate text-sm font-semibold text-ink">{wallet.name}</span>
-          {wallet.isDefault ? (
-            <span className="shrink-0 font-mono text-[9px] tracking-[0.1em] text-ink-3 uppercase">
-              Utama
-            </span>
-          ) : null}
+        <span className="min-w-0 flex-1">
+          <span className="flex items-center gap-2">
+            <span className="truncate text-sm font-semibold text-ink">{wallet.name}</span>
+            {wallet.isDefault ? (
+              <span className="shrink-0 font-mono text-[9px] tracking-[0.1em] text-ink-3 uppercase">
+                Utama
+              </span>
+            ) : null}
+          </span>
+          <span className="mt-0.5 block truncate text-[11.5px] text-ink-2">
+            <WalletSummaryLine wallet={wallet} />
+          </span>
         </span>
-        <span className="mt-0.5 block truncate text-[11.5px] text-ink-2">
-          <WalletSummaryLine wallet={wallet} />
-        </span>
-      </span>
 
-      {active ? <Check className="h-4 w-4 shrink-0 text-ink-2" aria-hidden /> : null}
-    </button>
+        {active ? <Check className="h-4 w-4 shrink-0 text-ink-2" aria-hidden /> : null}
+      </button>
+
+      <button
+        type="button"
+        onClick={onRename}
+        aria-label={`Ubah nama dompet ${wallet.name}`}
+        className={cn(
+          'ml-1 grid h-11 w-11 shrink-0 place-items-center rounded-sm text-ink-3',
+          'transition-colors duration-[var(--t-fast)] ease-out hover:bg-surface-2 hover:text-ink-2',
+        )}
+      >
+        <Pencil className="h-4 w-4" />
+      </button>
+    </div>
+  );
+}
+
+const MAX_WALLET_NAME_LENGTH = 60;
+
+/**
+ * Rename a wallet.
+ *
+ * Name only -- the type is fixed for the reasons the create sheet spells out, and colour
+ * and order are not what sends someone here. A name unchanged from the one on screen
+ * disables the button rather than firing a no-op request the server would happily accept.
+ */
+function RenameWalletSheet({ wallet, onClose }: { wallet: Wallet; onClose: () => void }) {
+  const updateWallet = useUpdateWallet();
+  const [name, setName] = useState(wallet.name);
+
+  const trimmed = name.trim();
+  const unchanged = trimmed === wallet.name;
+
+  const submit = async () => {
+    if (trimmed === '' || unchanged || updateWallet.isPending) return;
+
+    try {
+      const updated = await updateWallet.mutateAsync({ id: wallet.id, name: trimmed });
+      onClose();
+      toast.success(`Dompet jadi ${updated.name}`);
+    } catch (error) {
+      // The typing stays put: a duplicate name is something to edit, not to retype.
+      toast.error(error instanceof ApiError ? error.message : 'Gagal ganti nama dompet');
+    }
+  };
+
+  return (
+    <Sheet
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title="Ubah nama dompet"
+    >
+      <div className="flex flex-col gap-4">
+        <Field label="Nama" required>
+          <Input
+            autoFocus
+            value={name}
+            maxLength={MAX_WALLET_NAME_LENGTH}
+            placeholder={wallet.name}
+            onChange={(event) => setName(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') void submit();
+            }}
+          />
+        </Field>
+
+        <Button
+          size="lg"
+          onClick={() => void submit()}
+          disabled={trimmed === '' || unchanged || updateWallet.isPending}
+        >
+          {updateWallet.isPending ? 'Menyimpan…' : 'Simpan'}
+        </Button>
+      </div>
+    </Sheet>
   );
 }
 
@@ -246,7 +351,7 @@ function CreateWalletSheet({
           <Input
             autoFocus
             value={name}
-            maxLength={60}
+            maxLength={MAX_WALLET_NAME_LENGTH}
             placeholder="Tabungan"
             onChange={(event) => setName(event.target.value)}
             onKeyDown={(event) => {

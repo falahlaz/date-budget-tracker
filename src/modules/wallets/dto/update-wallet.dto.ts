@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsBoolean,
   IsInt,
@@ -18,8 +18,14 @@ import {
  * engine that does not understand them -- a savings balance read as a spending history.
  */
 export class UpdateWalletDto {
+  /**
+   * Trimmed before it is validated, so a name of nothing but spaces is refused rather
+   * than stored as an empty one -- a wallet with a blank name cannot be picked out of
+   * the switcher, and renaming it back would be the only way to find it again.
+   */
   @ApiPropertyOptional({ maxLength: 60 })
   @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1, { message: 'name must not be empty' })
   @MaxLength(60, { message: 'name must be at most 60 characters' })

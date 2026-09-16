@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { WalletType } from '@prisma/client';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -13,7 +13,9 @@ import {
 } from 'class-validator';
 
 export class CreateWalletDto {
+  /** Trimmed before validation: a name of nothing but spaces is empty, and refused. */
   @ApiProperty({ maxLength: 60, example: 'Tabungan' })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @MinLength(1, { message: 'name must not be empty' })
   @MaxLength(60, { message: 'name must be at most 60 characters' })
