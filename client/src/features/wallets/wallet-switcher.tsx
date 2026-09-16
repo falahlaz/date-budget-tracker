@@ -19,6 +19,7 @@ import { formatCompactRupiah, formatRupiah } from '@/lib/format';
 import type { DateBudgetSummary, SavingsSummary, Wallet, WalletType } from '@/types/api';
 import { useCreateWallet, useUpdateWallet } from './hooks';
 import { useWalletSwitcher } from './wallet-context';
+import { WALLET_TYPE_LABELS } from './wallet-type';
 import { TransferSheet } from './transfer-sheet';
 
 /**
@@ -301,11 +302,6 @@ function WalletSummaryLine({ wallet }: { wallet: Wallet }) {
   );
 }
 
-const TYPE_LABELS: Record<WalletType, string> = {
-  DATE_BUDGET: 'Kencan',
-  SAVINGS: 'Tabungan',
-};
-
 const TYPE_HINTS: Record<WalletType, string> = {
   DATE_BUDGET: 'Budget bulanan yang jadi jatah weekend.',
   SAVINGS: 'Target nominal dengan tenggat, plus alasan tiap penarikan.',
@@ -364,7 +360,7 @@ function CreateWalletSheet({
           <ChipWrap>
             {(['SAVINGS', 'DATE_BUDGET'] as WalletType[]).map((option) => (
               <Chip key={option} selected={type === option} onClick={() => setType(option)}>
-                {TYPE_LABELS[option]}
+                {WALLET_TYPE_LABELS[option]}
               </Chip>
             ))}
           </ChipWrap>

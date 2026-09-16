@@ -8,6 +8,7 @@ import { Field, Input } from '@/components/ui/input';
 import { SectionHead, Segmented } from '@/components/ui/section';
 import { Sheet } from '@/components/ui/sheet';
 import { useAuth } from '@/features/auth/auth-context';
+import { WALLET_TYPE_LABELS } from '@/features/wallets/wallet-type';
 import { ApiError, api } from '@/lib/api';
 import { useTheme, type ThemePreference } from '@/lib/theme';
 import type { WalletType } from '@/types/api';
@@ -37,8 +38,8 @@ const THEME_OPTIONS: ReadonlyArray<{ value: ThemePreference; label: string }> = 
  * wallet could never be renamed, recoloured or archived from anywhere in the app.
  */
 const CATEGORY_SCOPES: ReadonlyArray<{ value: WalletType; label: string }> = [
-  { value: 'DATE_BUDGET', label: 'Kencan' },
-  { value: 'SAVINGS', label: 'Tabungan' },
+  { value: 'DATE_BUDGET', label: WALLET_TYPE_LABELS.DATE_BUDGET },
+  { value: 'SAVINGS', label: WALLET_TYPE_LABELS.SAVINGS },
 ];
 
 export function SettingsPage() {

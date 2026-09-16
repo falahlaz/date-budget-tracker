@@ -4,11 +4,12 @@ import { Prisma, WalletType } from '@prisma/client';
  * The wallet every account starts with (PRD v2 section 4.2).
  *
  * The migration creates this row for users that already existed; this is the same wallet
- * for users created afterwards. The name matches the migration's literal on purpose --
- * a second spelling would give one user "Kencan" and another "Dompet Kencan".
+ * for users created afterwards. The v2 migration seeded it as "Kencan" and
+ * 20260916120000_rename_default_wallet renamed those rows to the literal below, so the two
+ * stay in step -- a second spelling would give one user "Pengeluaran" and another "Kencan".
  */
 export const DEFAULT_WALLET = {
-  name: 'Kencan',
+  name: 'Pengeluaran',
   type: WalletType.DATE_BUDGET,
   color: '#5C63C4',
 } as const;
