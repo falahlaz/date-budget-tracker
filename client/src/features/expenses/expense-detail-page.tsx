@@ -11,7 +11,13 @@ import { Field, Input, Textarea } from '@/components/ui/input';
 import { SectionHead } from '@/components/ui/section';
 import { Sheet } from '@/components/ui/sheet';
 import { CategoryPicker } from '@/features/categories/category-picker';
-import { formatAmountInput, formatDateLong, formatRupiah, parseAmountInput } from '@/lib/format';
+import {
+  formatAmountInput,
+  formatDateLong,
+  formatPeriodLong,
+  formatRupiah,
+  parseAmountInput,
+} from '@/lib/format';
 import { todayInJakarta } from '@/lib/today';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/types/api';
 import { useDeleteExpense, useDeleteReceipt, useExpense, useUpdateExpense } from './hooks';
@@ -65,6 +71,19 @@ export function ExpenseDetailPage() {
           <Detail label="Metode bayar" value={PAYMENT_METHOD_LABELS[expense.paymentMethod]} />
           <Detail label="Catatan" value={expense.note ?? '—'} />
         </dl>
+
+        {expense.bill ? (
+          <Link
+            to={`/bills/${expense.bill.id}`}
+            className="mt-4 flex items-center justify-between gap-3 rounded-md bg-accent-soft px-3.5 py-2.5 text-[13px] text-accent-ink"
+          >
+            <span className="truncate">
+              Pembayaran tagihan <b className="font-semibold">{expense.bill.name}</b> ·{' '}
+              {formatPeriodLong(expense.bill.period)}
+            </span>
+            <span aria-hidden>→</span>
+          </Link>
+        ) : null}
 
         <div className="mt-5 flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>

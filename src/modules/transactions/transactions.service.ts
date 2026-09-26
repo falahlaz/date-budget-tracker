@@ -99,7 +99,11 @@ export class TransactionsService {
   async findOne(userId: number, id: number): Promise<TransactionWithRelations> {
     const expense = await this.prisma.transaction.findFirst({
       where: { id, userId, deletedAt: null },
-      include: { category: true, receipts: { where: { deletedAt: null } } },
+      include: {
+        category: true,
+        receipts: { where: { deletedAt: null } },
+        billPayment: { include: { bill: { select: { id: true, name: true } } } },
+      },
     });
 
     if (!expense) {

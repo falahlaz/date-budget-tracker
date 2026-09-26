@@ -5,6 +5,7 @@ import { ClockModule } from './common/clock/clock.module';
 import { ConfigModule } from './config/config.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './modules/auth/auth.module';
+import { BillsModule } from './modules/bills/bills.module';
 import { BudgetsModule } from './modules/budgets/budgets.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
@@ -51,6 +52,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
     TransactionsModule,
     TransfersModule,
     ReceiptsModule,
+    BillsModule,
     ReportsModule,
     HealthModule,
   ],
