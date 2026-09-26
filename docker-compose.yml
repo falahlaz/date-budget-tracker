@@ -1,7 +1,6 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: budget-tracker-mysql
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-rootpw}
@@ -25,7 +24,6 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: budget-tracker-app
     restart: unless-stopped
     depends_on:
       mysql:

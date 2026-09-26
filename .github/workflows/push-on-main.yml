@@ -108,6 +108,7 @@ jobs:
             JWT_SECRET=${{ secrets.JWT_SECRET }}
             EOF
 
+            docker compose down
             docker compose pull app
             docker compose up -d app
             docker image prune -f
