@@ -8,7 +8,7 @@ on:                                  # 2. Trigger / Event
 
 env:
   DATABASE_URL: mysql://datebud:datebud@localhost:3306/datebud
-  JWT_SECRET: required
+  JWT_SECRET: TevccrSed43rV15Di4boTJ5OwWL4edA4
 
 jobs:                                # 4. Daftar Jobs
   build-and-test:                    # Job ID
