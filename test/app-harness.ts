@@ -116,6 +116,8 @@ export async function createHarness(
  * wallets, so wallets cannot go before them.
  */
 export async function resetDatabase(prisma: PrismaService): Promise<void> {
+  await prisma.billPayment.deleteMany();
+  await prisma.bill.deleteMany();
   await prisma.repaymentAllocation.deleteMany();
   await prisma.receipt.deleteMany();
   await prisma.transaction.deleteMany();

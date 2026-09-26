@@ -59,6 +59,26 @@ enum GoalStatus {
   ARCHIVED
 }
 
+/// How a bill recurs. INSTALLMENT runs monthly until `endPeriod`, RECURRING runs monthly
+/// with no end, ONE_TIME is due once, in `startPeriod`.
+enum BillKind {
+  INSTALLMENT
+  RECURRING
+  ONE_TIME
+}
+
+/// A fixed vocabulary on purpose: a bill is not tied to a wallet, and transaction
+/// categories are (they belong to a wallet type). The transaction a payment writes goes
+/// into a "Tagihan" category of whichever wallet paid it.
+enum BillCategory {
+  CICILAN
+  LANGGANAN
+  UTILITAS
+  ASURANSI
+  PENDIDIKAN
+  LAINNYA
+}
+
 model User {
   id           Int      @id @default(autoincrement()) @db.UnsignedInt
   email        String   @db.VarChar(191)
@@ -75,6 +95,8 @@ model User {
   wallets              Wallet[]
   savingsGoals         SavingsGoal[]
   repaymentAllocations RepaymentAllocation[]
+  bills                Bill[]
+  billPayments         BillPayment[]
 
   @@unique([email], map: "uq_users_email")
   @@map("users")
@@ -221,6 +243,7 @@ model Transaction {
 
   depositAllocations    RepaymentAllocation[] @relation("AllocationDeposit")
   withdrawalAllocations RepaymentAllocation[] @relation("AllocationWithdrawal")
+  billPayment           BillPayment?
 
   @@index([walletId, occurredOn, deletedAt], map: "idx_txn_wallet_date")
   @@index([walletId, kind, deletedAt], map: "idx_txn_kind")
@@ -284,6 +307,62 @@ model RepaymentAllocation {
   @@unique([depositTransactionId, withdrawalTransactionId], map: "uq_alloc_pair")
   @@index([withdrawalTransactionId], map: "idx_alloc_withdrawal")
   @@map("repayment_allocations")
+}
+
+/// A bill: something owed every month (or once) that is paid by hand from any wallet.
+/// Belongs to the user, not a wallet, so it shows up whichever wallet is open.
+model Bill {
+  id          Int          @id @default(autoincrement()) @db.UnsignedInt
+  userId      Int          @map("user_id") @db.UnsignedInt
+  name        String       @db.VarChar(80)
+  /// where it is paid, e.g. "Shopee PayLater", "PLN"
+  platform    String?      @db.VarChar(60)
+  /// whole rupiah, >= 1. The usual amount; a payment may differ (a power bill varies).
+  amount      Int
+  kind        BillKind
+  category    BillCategory
+  /// Day of the month it falls due, 1..31. Clamped to the month's last day, so a bill on
+  /// the 31st is due on 28 or 29 February.
+  dueDay      Int          @map("due_day") @db.UnsignedTinyInt
+  /// 'YYYY-MM' of the first payment
+  startPeriod String       @map("start_period") @db.Char(7)
+  /// 'YYYY-MM' of the last payment. INSTALLMENT: required; ONE_TIME: equals startPeriod;
+  /// RECURRING: NULL.
+  endPeriod   String?      @map("end_period") @db.Char(7)
+  note        String?      @db.VarChar(255)
+  isArchived  Boolean      @default(false) @map("is_archived")
+  createdAt   DateTime     @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt   DateTime     @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_bill_user")
+  payments BillPayment[]
+
+  @@index([userId, isArchived], map: "idx_bill_user")
+  @@map("bills")
+}
+
+/// One period of a bill, paid by one transaction. The money itself lives on the
+/// transaction; this row only says which bill and which month it settled.
+///
+/// Transactions are soft-deleted, so a payment whose transaction has `deletedAt` set no
+/// longer counts -- the period reads as unpaid again, and paying it afresh replaces the row.
+model BillPayment {
+  id            Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId        Int      @map("user_id") @db.UnsignedInt
+  billId        Int      @map("bill_id") @db.UnsignedInt
+  transactionId Int      @map("transaction_id") @db.UnsignedInt
+  /// 'YYYY-MM' this payment settles
+  period        String   @db.Char(7)
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_billpay_user")
+  bill        Bill        @relation(fields: [billId], references: [id], onDelete: Cascade, map: "fk_billpay_bill")
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade, map: "fk_billpay_txn")
+
+  @@unique([billId, period], map: "uq_billpay_bill_period")
+  @@unique([transactionId], map: "uq_billpay_txn")
+  @@index([userId], map: "idx_billpay_user")
+  @@map("bill_payments")
 }
 
 model Receipt {

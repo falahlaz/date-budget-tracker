@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { EmptyState, ErrorState, LoadingBlock, Meter, Skeleton } from '@/components/ui/feedback';
 import { MoneyHero } from '@/components/ui/money';
+import { BillsHomeCard } from '@/features/bills/bills-home-card';
 import { SectionHead } from '@/components/ui/section';
 import { useExpenses } from '@/features/expenses/hooks';
 import { formatPeriodLong, formatRupiah } from '@/lib/format';
@@ -41,6 +42,7 @@ export function SavingsHomePage() {
           description="Pasang nominal dan tenggat, dan tiap bulan bakal punya angka yang harus dikejar."
           action={<Button onClick={() => setEditing(true)}>Pasang target</Button>}
         />
+        <BillsHomeCard />
         <RecentActivity />
         <GoalSheet open={editing} onClose={() => setEditing(false)} goal={null} />
       </>
@@ -70,6 +72,7 @@ export function SavingsHomePage() {
         <AdvanceCard goal={goal} onSettle={() => setSettling(true)} />
       ) : null}
       <ProjectionCard goal={goal} />
+      <BillsHomeCard />
       <RecentActivity />
 
       <GoalSheet open={editing} onClose={() => setEditing(false)} goal={goal} />

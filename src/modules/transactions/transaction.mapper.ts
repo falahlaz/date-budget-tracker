@@ -1,4 +1,11 @@
-import { Category, Direction, Receipt, Transaction, TransactionKind } from '@prisma/client';
+import {
+  BillPayment,
+  Category,
+  Direction,
+  Receipt,
+  Transaction,
+  TransactionKind,
+} from '@prisma/client';
 import { fromDateOnly } from '@/common/utils/date-only';
 import {
   DayType,
@@ -55,6 +62,8 @@ export interface TransactionResponse {
   counterpartWalletId: number | null;
 
   category: { id: number; name: string; color: string; icon: string | null } | null;
+  /** Set when this transaction paid a bill; only loaded on the single-transaction read. */
+  bill: { id: number; name: string; period: string } | null;
   receipts: ReceiptResponse[];
   createdAt: string;
   updatedAt: string;
@@ -63,6 +72,7 @@ export interface TransactionResponse {
 export type TransactionWithRelations = Transaction & {
   category?: Category | null;
   receipts?: Receipt[];
+  billPayment?: (BillPayment & { bill: { id: number; name: string } }) | null;
 };
 
 export function toReceiptResponse(receipt: Receipt): ReceiptResponse {
@@ -115,6 +125,13 @@ export function toTransactionResponse(expense: TransactionWithRelations): Transa
           name: expense.category.name,
           color: expense.category.color,
           icon: expense.category.icon,
+        }
+      : null,
+    bill: expense.billPayment
+      ? {
+          id: expense.billPayment.bill.id,
+          name: expense.billPayment.bill.name,
+          period: expense.billPayment.period,
         }
       : null,
     receipts: (expense.receipts ?? []).filter((r) => r.deletedAt === null).map(toReceiptResponse),

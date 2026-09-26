@@ -119,6 +119,8 @@ export interface Transaction {
   transferGroupId: string | null;
   counterpartWalletId: number | null;
   category: Pick<Category, 'id' | 'name' | 'color' | 'icon'> | null;
+  /** Set when this transaction paid a bill; only on the single-transaction read. */
+  bill?: { id: number; name: string; period: string } | null;
   receipts: Receipt[];
   createdAt: string;
   updatedAt: string;
@@ -410,4 +412,76 @@ export interface Transfer {
   transferGroupId: string;
   out: Transaction;
   in: Transaction;
+}
+
+// ------------------------------------------------------------------ bills
+
+export type BillKind = 'INSTALLMENT' | 'RECURRING' | 'ONE_TIME';
+export type BillCategory =
+  | 'CICILAN'
+  | 'LANGGANAN'
+  | 'UTILITAS'
+  | 'ASURANSI'
+  | 'PENDIDIKAN'
+  | 'LAINNYA';
+export type BillStatus = 'OVERDUE' | 'DUE_SOON' | 'PAID' | 'UPCOMING' | 'DONE';
+
+export interface BillSchedule {
+  status: BillStatus;
+  nextPeriod: string | null;
+  nextDueDate: string | null;
+  /** Negative when overdue. */
+  daysUntilDue: number | null;
+  unpaidDueCount: number;
+  overdueCount: number;
+  totalCount: number | null;
+  paidCount: number;
+  remainingCount: number | null;
+}
+
+export interface BillPayment {
+  id: number;
+  period: string;
+  transactionId: number;
+  walletId: number;
+  walletName: string;
+  walletColor: string;
+  amount: number;
+  occurredOn: string;
+}
+
+export interface Bill {
+  id: number;
+  name: string;
+  platform: string | null;
+  amount: number;
+  kind: BillKind;
+  category: BillCategory;
+  dueDay: number;
+  startPeriod: string;
+  endPeriod: string | null;
+  note: string | null;
+  isArchived: boolean;
+  schedule: BillSchedule;
+  payments: BillPayment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BillsSummary {
+  unpaidDueTotal: number;
+  unpaidDueCount: number;
+  overdueCount: number;
+  paidThisMonthTotal: number;
+}
+
+export interface BillList {
+  items: Bill[];
+  summary: BillsSummary;
+}
+
+export interface BillPayResult {
+  bill: Bill;
+  transaction: Transaction;
+  period: string;
 }

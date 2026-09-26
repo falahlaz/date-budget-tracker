@@ -36,6 +36,10 @@ export const queryKeys = {
   advances: (walletId: number | undefined) => ['reports', 'advances', walletId] as const,
   savingsMonthReport: (walletId: number | undefined, period: string) =>
     ['reports', 'savings', walletId, period] as const,
+
+  // Bills belong to the user, not a wallet, so neither key carries a wallet id.
+  bills: (includeArchived = false) => ['bills', includeArchived] as const,
+  bill: (id: number) => ['bill', id] as const,
 };
 
 export function createQueryClient(): QueryClient {
@@ -69,5 +73,8 @@ export async function invalidateReports(client: QueryClient): Promise<void> {
     client.invalidateQueries({ queryKey: ['budgets'] }),
     client.invalidateQueries({ queryKey: ['merchants'] }),
     client.invalidateQueries({ queryKey: ['wallets'] }),
+    // Deleting the transaction that paid a bill un-pays that month.
+    client.invalidateQueries({ queryKey: ['bills'] }),
+    client.invalidateQueries({ queryKey: ['bill'] }),
   ]);
 }

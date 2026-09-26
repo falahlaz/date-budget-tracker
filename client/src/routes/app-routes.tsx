@@ -2,6 +2,8 @@ import { Suspense, lazy } from 'react';
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import { AppShell } from '@/components/app-shell';
 import { LoginPage } from '@/features/auth/login-page';
+import { BillDetailPage } from '@/features/bills/bill-detail-page';
+import { BillsPage } from '@/features/bills/bills-page';
 import { BudgetPage } from '@/features/budget/budget-page';
 import { SettingsPage } from '@/features/categories/settings-page';
 import { ExpenseDetailPage } from '@/features/expenses/expense-detail-page';
@@ -73,6 +75,10 @@ function ShellRoutes() {
         <Route path="/expenses/:id" element={<ExpenseDetailPage />} />
         <Route path="/savings/deposit" element={savings ? <SavingsHomePage /> : <Navigate to="/" replace />} />
         <Route path="/savings/withdraw" element={savings ? <SavingsHomePage /> : <Navigate to="/" replace />} />
+
+        {/* Bills belong to the user, not a wallet, so both wallet types answer these. */}
+        <Route path="/bills" element={<BillsPage />} />
+        <Route path="/bills/:id" element={<BillDetailPage />} />
 
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
