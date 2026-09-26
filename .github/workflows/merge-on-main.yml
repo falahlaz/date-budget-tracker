@@ -1,0 +1,30 @@
+name: Merge on Main Pipeline
+
+on:
+  pull_request:
+    branches: [ main ]
+
+env:
+  DATABASE_URL: ${{ secrets.DATABASE_URL }}
+  JWT_SECRET: ${{ vars.JWT_SECRET }}
+
+jobs:
+  build-and-test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '${{ vars.NODE_VERSION }}'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Test Suite
+        run: npm test
