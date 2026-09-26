@@ -9,7 +9,7 @@ env:
   JWT_SECRET: ${{ vars.JWT_SECRET }}
 
 jobs:
-  build-and-test:
+  unit-test:
     name: Run Tests
     runs-on: ubuntu-latest
 
