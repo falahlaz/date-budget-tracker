@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { queryKeys } from '@/lib/query';
+import { invalidateReports, queryKeys } from '@/lib/query';
 import type { Wallet, WalletType } from '@/types/api';
 
 /**
@@ -55,5 +55,20 @@ export function useArchiveWallet() {
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/wallets/${id}`),
     onSuccess: () => client.invalidateQueries({ queryKey: ['wallets'] }),
+  });
+}
+
+/**
+ * Removes a transfer by its group, taking both sides with it (v2 8.9).
+ *
+ * The only way to delete either half: `DELETE /api/transactions/:id` answers 409 for a
+ * transfer row, because one side gone alone leaves the two wallets disagreeing.
+ */
+export function useDeleteTransfer() {
+  const client = useQueryClient();
+
+  return useMutation({
+    mutationFn: (groupId: string) => api.delete<void>(`/transfers/${groupId}`),
+    onSuccess: () => invalidateReports(client),
   });
 }

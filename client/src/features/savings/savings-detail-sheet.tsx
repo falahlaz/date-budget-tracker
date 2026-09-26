@@ -5,6 +5,7 @@ import { Chip, ChipWrap } from '@/components/ui/chip';
 import { Field, Input, Textarea } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { CategoryPicker } from '@/features/categories/category-picker';
+import { useDeleteTransfer } from '@/features/wallets/hooks';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { formatAmountInput, formatRupiah, parseAmountInput } from '@/lib/format';
@@ -32,6 +33,7 @@ export function SavingsDetailSheet({
 }) {
   const update = useUpdateSavingsTransaction();
   const remove = useDeleteSavingsTransaction();
+  const removeTransfer = useDeleteTransfer();
 
   const [amountText, setAmountText] = useState('');
   const [occurredOn, setOccurredOn] = useState(todayInJakarta());
@@ -92,7 +94,12 @@ export function SavingsDetailSheet({
     if (!transaction) return;
 
     try {
-      await remove.mutateAsync(transaction.id);
+      // A transfer side goes through its group so both wallets change together (8.9).
+      if (transaction.transferGroupId !== null) {
+        await removeTransfer.mutateAsync(transaction.transferGroupId);
+      } else {
+        await remove.mutateAsync(transaction.id);
+      }
       toast.success('Terhapus');
       onClose();
     } catch (error) {
@@ -111,10 +118,44 @@ export function SavingsDetailSheet({
     >
       {!transaction ? null : isTransfer ? (
         // Both sides move together or the two wallets disagree about how much moved (8.9).
-        <p className="text-[13px] text-ink-2">
-          Ini salah satu sisi transfer antar dompet. Buat ngubahnya, hapus transfernya lalu
-          catat ulang — biar dua sisinya tetap sejalan.
-        </p>
+        <div className="flex flex-col gap-4">
+          <p className="text-[13px] text-ink-2">
+            Ini salah satu sisi transfer antar dompet. Buat ngubahnya, hapus transfernya lalu
+            catat ulang — biar dua sisinya tetap sejalan.
+          </p>
+
+          {confirmingDelete ? (
+            <div className="rounded-md border border-neg/30 bg-neg-soft px-3.5 py-3">
+              <p className="text-[13px] text-ink">
+                Hapus transfer {formatRupiah(transaction.amount)}?
+              </p>
+              <p className="mt-1 text-[11.5px] text-ink-2">
+                Dua sisinya (dompet asal &amp; tujuan) bakal dihapus bareng.
+              </p>
+              <ChipWrap>
+                <div className="mt-3 flex gap-2">
+                  <Chip onClick={() => setConfirmingDelete(false)}>Batal</Chip>
+                  <Button
+                    size="md"
+                    variant="secondary"
+                    onClick={() => void destroy()}
+                    disabled={removeTransfer.isPending}
+                  >
+                    {removeTransfer.isPending ? 'Menghapus…' : 'Hapus'}
+                  </Button>
+                </div>
+              </ChipWrap>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(true)}
+              className="min-h-11 text-[13px] font-medium text-neg hover:underline"
+            >
+              Hapus transfer
+            </button>
+          )}
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
           <div

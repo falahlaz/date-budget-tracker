@@ -11,6 +11,8 @@ import { Field, Input, Textarea } from '@/components/ui/input';
 import { SectionHead } from '@/components/ui/section';
 import { Sheet } from '@/components/ui/sheet';
 import { CategoryPicker } from '@/features/categories/category-picker';
+import { useDeleteTransfer } from '@/features/wallets/hooks';
+import { ApiError } from '@/lib/api';
 import {
   formatAmountInput,
   formatDateLong,
@@ -30,6 +32,7 @@ export function ExpenseDetailPage() {
 
   const { data: expense, isLoading, error, refetch } = useExpense(expenseId);
   const deleteExpense = useDeleteExpense();
+  const deleteTransfer = useDeleteTransfer();
   const deleteReceipt = useDeleteReceipt();
   const [editing, setEditing] = useState(false);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -38,10 +41,25 @@ export function ExpenseDetailPage() {
   if (error) return <ErrorState message={(error as Error).message} onRetry={() => refetch()} />;
   if (!expense) return null;
 
+  // One side of a transfer goes out through the transfer's own door, taking the other side
+  // with it -- deleting this row alone answers 409 (v2 8.9).
+  const transferGroupId = expense.transferGroupId;
+  const isTransfer = transferGroupId !== null;
+  const deleting = deleteExpense.isPending || deleteTransfer.isPending;
+
   const remove = async () => {
-    await deleteExpense.mutateAsync(expense.id);
-    toast.success('Pengeluaran dihapus');
-    navigate('/expenses', { replace: true });
+    try {
+      if (transferGroupId !== null) {
+        await deleteTransfer.mutateAsync(transferGroupId);
+        toast.success('Pindah uang dihapus');
+      } else {
+        await deleteExpense.mutateAsync(expense.id);
+        toast.success('Pengeluaran dihapus');
+      }
+      navigate('/expenses', { replace: true });
+    } catch (error) {
+      toast.error(error instanceof ApiError ? error.message : 'Gagal menghapus');
+    }
   };
 
   return (
@@ -85,10 +103,21 @@ export function ExpenseDetailPage() {
           </Link>
         ) : null}
 
+        {isTransfer ? (
+          <p className="mt-4 text-[13px] text-ink-2">
+            Ini salah satu sisi pindah uang antar dompet. Kalau salah, hapus lalu catat ulang —
+            dua sisinya bakal kehapus bareng.
+          </p>
+        ) : null}
+
         <div className="mt-5 flex gap-2">
-          <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
-            Edit
-          </Button>
+          {isTransfer ? (
+            <span className="flex-1" />
+          ) : (
+            <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
+              Edit
+            </Button>
+          )}
           <Button
             variant="danger"
             size="icon"
@@ -132,9 +161,15 @@ export function ExpenseDetailPage() {
         <EditSheet expenseId={expense.id} onClose={() => setEditing(false)} initial={expense} />
       ) : null}
 
-      <Sheet open={confirmingDelete} onOpenChange={setConfirmingDelete} title="Hapus pengeluaran?">
+      <Sheet
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
+        title={isTransfer ? 'Hapus pindah uang?' : 'Hapus pengeluaran?'}
+      >
         <p className="text-sm text-ink-2">
-          Angka minggu dan bulan ini bakal dihitung ulang otomatis.
+          {isTransfer
+            ? 'Dua sisinya (dompet asal & tujuan) bakal dihapus bareng, saldo keduanya balik lagi.'
+            : 'Angka minggu dan bulan ini bakal dihitung ulang otomatis.'}
         </p>
         <div className="mt-4 flex gap-2">
           <Button variant="secondary" className="flex-1" onClick={() => setConfirmingDelete(false)}>
@@ -144,7 +179,7 @@ export function ExpenseDetailPage() {
             variant="danger"
             className="flex-1"
             onClick={remove}
-            disabled={deleteExpense.isPending}
+            disabled={deleting}
           >
             Hapus
           </Button>
