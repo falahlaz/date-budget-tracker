@@ -6,7 +6,7 @@ on:
 
 env:
   DATABASE_URL: ${{ secrets.DATABASE_URL }}
-  JWT_SECRET: ${{ vars.JWT_SECRET }}
+  JWT_SECRET: ${{ secrets.JWT_SECRET }}
 
 jobs:
   unit-test:
@@ -44,7 +44,7 @@ jobs:
         uses: docker/metadata-action@v6
         with:
           images: |
-            ${{ vars.DOCKERHUB_USERNAME }}/budget-tracker
+            ${{ vars.DOCKERHUB_USERNAME }}/${{ vars.APP_NAME }}
           tags: |
             type=ref,event=branch
 
@@ -53,9 +53,6 @@ jobs:
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -66,4 +63,50 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+  deploy:
+    name: Deploy
+    needs: image-build
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Ensure target directory exists
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: mkdir -p /home/${{ secrets.SSH_USER }}/${{ vars.APP_NAME }}
+
+      - name: Copy docker-compose.yml
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "docker-compose.yml"
+          target: "/home/${{ secrets.SSH_USER }}/${{ vars.APP_NAME }}"
+
+      - name: Deploy
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/${{ secrets.SSH_USER }}/${{ vars.APP_NAME }}
+
+            cat << 'EOF' > .env
+            NODE_ENV=production
+            JWT_SECRET=${{ secrets.JWT_SECRET }}
+            EOF
+
+            docker compose pull app
+            docker compose up -d app
+            docker image prune -f
+      
         
