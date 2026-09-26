@@ -5,7 +5,6 @@ on:                                  # 2. Trigger / Event
     branches: [ main ]
   pull_request:
     branches: [ main ]
-  workflow_dispatch:                 # Memungkinkan trigger manual dari UI GitHub
 
 env:                                 # 3. Environment variables global
   NODE_ENV: production
@@ -31,11 +30,11 @@ jobs:                                # 4. Daftar Jobs
       - name: Run Test Suite
         run: npm test
 
-  # deploy:
-  #   name: Deploy to Server
-  #   needs: build-and-test            # Menunggu job 'build-and-test' sukses dulu
-  #   runs-on: ubuntu-latest
-  #   if: github.ref == 'refs/heads/main' # Hanya jalan jika di branch main
-  #   steps:
-  #     - name: Run Deploy Command
-  #       run: echo "Deploying using secret: ${{ secrets.DEPLOY_TOKEN }}"
+  deploy:
+    name: Deploy to Server
+    needs: build-and-test            # Menunggu job 'build-and-test' sukses dulu
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' # Hanya jalan jika di branch main
+    steps:
+      - name: Run Deploy Command
+        run: echo "Deploying using secret: ${{ secrets.DEPLOY_TOKEN }}"
