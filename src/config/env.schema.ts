@@ -33,8 +33,6 @@ export const envSchema = z.object({
 
   STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_ROOT: z.string().min(1).default('./storage'),
-  MAX_UPLOAD_MB: z.coerce.number().int().min(1).default(10),
-  MAX_RECEIPTS_PER_EXPENSE: z.coerce.number().int().min(1).default(5),
 
   // Optional bootstrap user; only applied when the users table is empty.
   SEED_USER_EMAIL: z.string().email().or(z.literal('')).optional(),

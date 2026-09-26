@@ -2,13 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, queryString } from '@/lib/api';
 import { invalidateReports, queryKeys } from '@/lib/query';
 import { useActiveWalletId } from '@/features/wallets/wallet-context';
-import type {
-  MerchantSuggestion,
-  PaymentMethod,
-  Receipt,
-  Transaction,
-  TransactionList,
-} from '@/types/api';
+import type { MerchantSuggestion, PaymentMethod, Transaction, TransactionList } from '@/types/api';
 
 export type ExpenseFilters = {
   period?: string;
@@ -119,28 +113,6 @@ export function useDeleteExpense() {
   return useMutation({
     mutationFn: (id: number) => api.delete<void>(`/transactions/${id}`),
     onSuccess: () => invalidateReports(client),
-  });
-}
-
-/**
- * Uploads receipts for an already-saved transaction.
- *
- * Kept separate from the create mutation on purpose: the transaction must survive a failed
- * upload (PRD 6.11), so the two can never share a failure path.
- */
-export function useUploadReceipts() {
-  const client = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ expenseId, files }: { expenseId: number; files: File[] }) => {
-      const form = new FormData();
-      files.forEach((file) => form.append('files', file));
-      return api.upload<{ items: Receipt[] }>(`/transactions/${expenseId}/receipts`, form);
-    },
-    onSuccess: async (_data, variables) => {
-      await client.invalidateQueries({ queryKey: queryKeys.transaction(variables.expenseId) });
-      await client.invalidateQueries({ queryKey: ['transactions'] });
-    },
   });
 }
 

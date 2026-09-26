@@ -24,7 +24,6 @@ disagreement between the code and those sections, the PRD wins.
 | Styling | Tailwind CSS v4, mobile-first · "Periwinkle & Butter" (`requirements/budget-tracker-theme.css`) |
 | Type | Fraunces (money) · Public Sans (UI) · IBM Plex Mono (receipts, micro labels) |
 | Charts | Recharts (lazy-loaded) |
-| Uploads | multer (memory) + sharp |
 | Auth | JWT HS256 + rotating refresh cookie + argon2id |
 | Dates | date-fns / date-fns-tz, everything in Asia/Jakarta |
 | Tests | Jest + supertest (server) · Vitest (client) |
@@ -148,7 +147,7 @@ src/
     savings/         goal, deposits, withdrawals, advances, friction preview
     transfers/       two-sided moves between wallets
       engine/        compute-savings.ts · allocate-fifo.ts · delay.ts  ← the savings half
-    receipts/        upload, sharp normalisation, storage abstraction
+    receipts/        view/delete existing receipts, storage abstraction
     reports/
       engine/        calendar.ts · compute-month.ts · aggregate.ts  ← the heart
   cli/               user:create
@@ -396,8 +395,8 @@ was then confirmed to still fail on a one-rupiah change and on a fabricated tran
 - Refresh tokens are stored only as SHA-256 digests, rotated on every use, and revoked
   wholesale when the password changes. The cookie is httpOnly and scoped to `/api/auth`.
 - The access token lives in memory on the client only — never in `localStorage`.
-- Uploads are validated by **magic bytes**, not the `Content-Type` header, then re-encoded
-  to WebP with EXIF (including GPS) stripped. The original filename is never used as a path.
+- Receipt photo uploads are **disabled**, so no one can fill the server's disk. Receipts
+  uploaded before that can still be viewed and deleted from the expense detail page.
 - Receipt images are streamed through an authenticated, ownership-checked endpoint. They are
   never exposed via static middleware.
 - Login is rate limited to 5 attempts per 15 minutes per IP.

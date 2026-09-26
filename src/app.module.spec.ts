@@ -57,7 +57,6 @@ const EXPECTED_ROUTES = [
   'PATCH /api/transactions/:id',
   'DELETE /api/transactions/:id',
   'GET /api/transactions/merchants',
-  'POST /api/transactions/:id/receipts',
 
   // Savings (v2 10.3)
   'POST /api/wallets/:walletId/goal',

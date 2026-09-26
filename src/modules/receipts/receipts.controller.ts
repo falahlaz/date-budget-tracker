@@ -6,58 +6,22 @@ import {
   HttpStatus,
   Param,
   ParseIntPipe,
-  Post,
   Query,
   Res,
-  UploadedFiles,
-  UseInterceptors,
 } from '@nestjs/common';
-import { FilesInterceptor } from '@nestjs/platform-express';
-import { ApiBody, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
-import { memoryStorage } from 'multer';
 import { CurrentUser } from '@/common/decorators/current-user.decorator';
-import { ReceiptResponse, toReceiptResponse } from '@/modules/transactions/transaction.mapper';
-import { ReceiptsService, UploadedFile } from './receipts.service';
+import { ReceiptsService } from './receipts.service';
 
 /**
- * Upload limits (PRD 8.5, 10.5).
- *
- * Read straight from process.env because a decorator is evaluated when the class is
- * imported, before Nest can inject ConfigService. The values are still validated at boot
- * by the env schema, and ReceiptsService re-checks the per-expense cap against config.
+ * Receipts are read-only now: uploading was removed so nobody can fill the server's disk.
+ * Existing receipts can still be viewed and deleted, which is how old files get cleaned up.
  */
-const MAX_FILES_PER_REQUEST = Number(process.env.MAX_RECEIPTS_PER_EXPENSE ?? 5) || 5;
-const MAX_UPLOAD_BYTES = (Number(process.env.MAX_UPLOAD_MB ?? 10) || 10) * 1024 * 1024;
-
 @ApiTags('receipts')
 @Controller()
 export class ReceiptsController {
   constructor(private readonly receipts: ReceiptsService) {}
-
-  @Post('transactions/:id/receipts')
-  @UseInterceptors(
-    FilesInterceptor('files', MAX_FILES_PER_REQUEST, {
-      storage: memoryStorage(),
-      limits: { fileSize: MAX_UPLOAD_BYTES },
-    }),
-  )
-  @ApiConsumes('multipart/form-data')
-  @ApiBody({
-    schema: {
-      type: 'object',
-      properties: { files: { type: 'array', items: { type: 'string', format: 'binary' } } },
-    },
-  })
-  @ApiOperation({ summary: 'Attach receipt photos to an expense' })
-  async upload(
-    @CurrentUser('id') userId: number,
-    @Param('id', ParseIntPipe) expenseId: number,
-    @UploadedFiles() files: UploadedFile[] = [],
-  ): Promise<{ items: ReceiptResponse[] }> {
-    const stored = await this.receipts.attach(userId, expenseId, files);
-    return { items: stored.map(toReceiptResponse) };
-  }
 
   /**
    * Receipts are streamed through an authenticated endpoint, never static middleware, so

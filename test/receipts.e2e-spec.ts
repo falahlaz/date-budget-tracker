@@ -1,14 +1,10 @@
-import sharp from 'sharp';
+import { randomUUID } from 'node:crypto';
 import { createHarness, Harness, yesterdayWib } from './app-harness';
 import { UsersService } from '@/modules/users/users.service';
+import { STORAGE_SERVICE, StorageService } from '@/modules/receipts/storage/storage.service';
 
-async function pngFixture(size = 64): Promise<Buffer> {
-  return sharp({
-    create: { width: size, height: size, channels: 3, background: { r: 220, g: 40, b: 40 } },
-  })
-    .png()
-    .toBuffer();
-}
+// Any bytes will do: the server no longer decodes images, it only streams what is stored.
+const WEBP_BYTES = Buffer.concat([Buffer.from('RIFF\0\0\0\0WEBPVP8 '), Buffer.alloc(32)]);
 
 describe('Receipts (PRD 8.5)', () => {
   let harness: Harness;
@@ -36,83 +32,78 @@ describe('Receipts (PRD 8.5)', () => {
     expenseId = created.body.id;
   });
 
-  const upload = () =>
-    harness
+  /**
+   * Uploading was removed, so receipts that predate that change are seeded straight into
+   * the database and storage, the same shape the old upload endpoint wrote.
+   */
+  const seedReceipt = async (): Promise<number> => {
+    const storage = harness.app.get<StorageService>(STORAGE_SERVICE);
+    const id = randomUUID();
+    const storageKey = `receipts/2026/09/${id}.webp`;
+    const thumbKey = `receipts/2026/09/${id}_thumb.webp`;
+
+    await storage.save(storageKey, WEBP_BYTES, 'image/webp');
+    await storage.save(thumbKey, WEBP_BYTES, 'image/webp');
+
+    const receipt = await harness.prisma.receipt.create({
+      data: {
+        transactionId: expenseId,
+        userId: harness.userId,
+        storageKey,
+        thumbKey,
+        mimeType: 'image/webp',
+        sizeBytes: WEBP_BYTES.byteLength,
+      },
+    });
+
+    return receipt.id;
+  };
+
+  it('no longer accepts uploads', async () => {
+    await harness
       .http()
       .post(`/api/transactions/${expenseId}/receipts`)
-      .set('Authorization', harness.auth);
+      .set('Authorization', harness.auth)
+      .attach('files', WEBP_BYTES, 'struk.webp')
+      .expect(404);
 
-  // E3
-  it('stores a PNG upload as WebP with a thumbnail', async () => {
-    const response = await upload()
-      .attach('files', await pngFixture(), 'struk.png')
-      .expect(201);
+    expect(await harness.prisma.receipt.count()).toBe(0);
+  });
 
-    expect(response.body.items).toHaveLength(1);
-    expect(response.body.items[0]).toMatchObject({ mimeType: 'image/webp' });
-    expect(response.body.items[0].url).toBe(`/api/receipts/${response.body.items[0].id}/file`);
-    expect(response.body.items[0].thumbUrl).toContain('variant=thumb');
+  it('still streams an existing receipt and its thumbnail', async () => {
+    const receiptId = await seedReceipt();
 
-    const row = await harness.prisma.receipt.findUnique({
-      where: { id: response.body.items[0].id },
-    });
-    expect(row?.storageKey).toMatch(/^receipts\/\d{4}\/\d{2}\/[0-9a-f-]+\.webp$/);
-    expect(row?.thumbKey).toContain('_thumb.webp');
-    // The original filename is never used as a path component.
-    expect(row?.storageKey).not.toContain('struk');
-
-    const file = await harness
+    const expense = await harness
       .http()
-      .get(`/api/receipts/${response.body.items[0].id}/file`)
+      .get(`/api/transactions/${expenseId}`)
       .set('Authorization', harness.auth)
       .expect(200);
-    expect(file.headers['content-type']).toContain('image/webp');
-  });
+    expect(expense.body.receipts).toHaveLength(1);
+    expect(expense.body.receipts[0].url).toBe(`/api/receipts/${receiptId}/file`);
 
-  // E4
-  it('rejects a PDF with 415 even when it claims to be an image', async () => {
-    const pdf = Buffer.concat([Buffer.from('%PDF-1.7\n'), Buffer.alloc(64)]);
-
-    const response = await upload()
-      .attach('files', pdf, { filename: 'struk.pdf', contentType: 'image/jpeg' })
-      .expect(415);
-
-    expect(response.body).toMatchObject({ statusCode: 415, error: 'UNSUPPORTED_MEDIA_TYPE' });
-  });
-
-  // E5
-  it('rejects a file over the size limit with 413', async () => {
-    const oversized = Buffer.alloc(12 * 1024 * 1024, 1);
-    // Give it a real PNG header so the rejection can only come from the size limit.
-    (await pngFixture()).copy(oversized, 0, 0, 8);
-
-    const response = await upload().attach('files', oversized, 'huge.png').expect(413);
-    expect(response.body).toMatchObject({ statusCode: 413, error: 'PAYLOAD_TOO_LARGE' });
-  });
-
-  // E6
-  it('rejects the sixth receipt on one expense with 409', async () => {
-    const png = await pngFixture();
-
-    for (let index = 0; index < 5; index += 1) {
-      await upload().attach('files', png, `struk-${index}.png`).expect(201);
+    for (const suffix of ['', '?variant=thumb']) {
+      const file = await harness
+        .http()
+        .get(`/api/receipts/${receiptId}/file${suffix}`)
+        .set('Authorization', harness.auth)
+        .expect(200);
+      expect(file.headers['content-type']).toContain('image/webp');
     }
-
-    const response = await upload().attach('files', png, 'struk-6.png').expect(409);
-    expect(response.body).toMatchObject({ statusCode: 409, error: 'CONFLICT' });
   });
 
   it('deletes a receipt and removes its files', async () => {
-    const created = await upload()
-      .attach('files', await pngFixture(), 'struk.png')
-      .expect(201);
-    const receiptId = created.body.items[0].id;
+    const receiptId = await seedReceipt();
 
     await harness
       .http()
       .delete(`/api/receipts/${receiptId}`)
       .set('Authorization', harness.auth)
       .expect(204);
+
+    const row = await harness.prisma.receipt.findUniqueOrThrow({ where: { id: receiptId } });
+    const storage = harness.app.get<StorageService>(STORAGE_SERVICE);
+    expect(await storage.exists(row.storageKey)).toBe(false);
+    expect(await storage.exists(row.thumbKey!)).toBe(false);
 
     await harness
       .http()
@@ -123,10 +114,7 @@ describe('Receipts (PRD 8.5)', () => {
 
   // E7
   it("never streams another user's receipt", async () => {
-    const created = await upload()
-      .attach('files', await pngFixture(), 'struk.png')
-      .expect(201);
-    const receiptId = created.body.items[0].id;
+    const receiptId = await seedReceipt();
 
     const users = harness.app.get(UsersService);
     await users.createUser({
@@ -156,10 +144,8 @@ describe('Receipts (PRD 8.5)', () => {
   });
 
   it('requires authentication to stream a file (never static middleware)', async () => {
-    const created = await upload()
-      .attach('files', await pngFixture(), 'struk.png')
-      .expect(201);
+    const receiptId = await seedReceipt();
 
-    await harness.http().get(`/api/receipts/${created.body.items[0].id}/file`).expect(401);
+    await harness.http().get(`/api/receipts/${receiptId}/file`).expect(401);
   });
 });
