@@ -1,5 +1,4 @@
-import { Camera, X } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Chip, ChipRow } from '@/components/ui/chip';
@@ -12,9 +11,7 @@ import { ApiError } from '@/lib/api';
 import { formatAmountInput, formatRupiah, parseAmountInput } from '@/lib/format';
 import { shiftDate, todayInJakarta } from '@/lib/today';
 import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/types/api';
-import { useCreateExpense, useMerchantSuggestions, useUploadReceipts } from './hooks';
-
-const MAX_RECEIPTS = 5;
+import { useCreateExpense, useMerchantSuggestions } from './hooks';
 
 /**
  * S6 Quick Add (PRD 9.6).
@@ -27,7 +24,6 @@ const MAX_RECEIPTS = 5;
 export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const week = useCurrentWeekReport();
   const createExpense = useCreateExpense();
-  const uploadReceipts = useUploadReceipts();
 
   const [amountText, setAmountText] = useState('');
   const [merchant, setMerchant] = useState('');
@@ -36,9 +32,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
   const [spentOn, setSpentOn] = useState(todayInJakarta());
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
-  const [files, setFiles] = useState<File[]>([]);
   const [confirmingOverspend, setConfirmingOverspend] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
 
   const amount = parseAmountInput(amountText);
   const today = todayInJakarta();
@@ -59,7 +53,6 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
     setSpentOn(todayInJakarta());
     setPaymentMethod('CASH');
     setNote('');
-    setFiles([]);
     setConfirmingOverspend(false);
   };
 
@@ -88,9 +81,7 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
     }
 
     try {
-      // The expense is saved first and photos are uploaded afterwards, so a flaky upload
-      // can never cost the user the record itself (PRD 6.11, 9.6).
-      const expense = await createExpense.mutateAsync({
+      await createExpense.mutateAsync({
         occurredOn: spentOn,
         amount,
         categoryId,
@@ -98,23 +89,6 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
         paymentMethod,
         note: note.trim() === '' ? null : note.trim(),
       });
-
-      if (files.length > 0) {
-        try {
-          await uploadReceipts.mutateAsync({ expenseId: expense.id, files });
-        } catch {
-          const pending = files;
-          toast.error('Foto gagal diupload', {
-            description: 'Pengeluarannya udah tersimpan kok.',
-            action: {
-              label: 'Coba lagi',
-              onClick: () => {
-                void uploadReceipts.mutateAsync({ expenseId: expense.id, files: pending });
-              },
-            },
-          });
-        }
-      }
 
       toast.success(`${formatRupiah(amount)} tercatat`, {
         description:
@@ -242,55 +216,6 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
             placeholder="makan malam"
             onChange={(event) => setNote(event.target.value)}
           />
-        </Field>
-
-        <Field label="Foto struk" hint={`maks ${MAX_RECEIPTS}`}>
-          <input
-            ref={fileInput}
-            type="file"
-            accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
-            multiple
-            capture="environment"
-            className="hidden"
-            onChange={(event) => {
-              const picked = Array.from(event.target.files ?? []);
-              setFiles((current) => [...current, ...picked].slice(0, MAX_RECEIPTS));
-              event.target.value = '';
-            }}
-          />
-
-          <div className="flex flex-wrap items-center gap-2">
-            {files.map((file, index) => (
-              <span key={`${file.name}-${index}`} className="relative">
-                <img
-                  src={URL.createObjectURL(file)}
-                  alt={file.name}
-                  className="h-16 w-16 rounded-md border border-line object-cover"
-                />
-                <button
-                  type="button"
-                  aria-label={`Hapus ${file.name}`}
-                  onClick={() => setFiles((current) => current.filter((_, i) => i !== index))}
-                  className="absolute -top-2 -right-2 grid h-6 w-6 min-h-0 place-items-center rounded-full bg-ink text-bg"
-                >
-                  <X className="h-3.5 w-3.5" />
-                </button>
-              </span>
-            ))}
-
-            {files.length < MAX_RECEIPTS ? (
-              <Button
-                type="button"
-                variant="secondary"
-                size="icon"
-                className="h-16 w-16"
-                onClick={() => fileInput.current?.click()}
-                aria-label="Tambah foto struk"
-              >
-                <Camera className="h-5 w-5" />
-              </Button>
-            ) : null}
-          </div>
         </Field>
 
         {confirmingOverspend && overspendWarning !== null ? (
