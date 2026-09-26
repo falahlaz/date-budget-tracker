@@ -1,3 +1,7 @@
+process.env.DATABASE_URL =
+  process.env.DATABASE_URL || 'mysql://datebud:datebud@localhost:3306/datebud';
+process.env.JWT_SECRET = process.env.JWT_SECRET || 'a'.repeat(64);
+
 import { Test } from '@nestjs/testing';
 import { AppModule } from './app.module';
 import { PrismaService } from './prisma/prisma.service';
@@ -112,7 +116,7 @@ describe('AppModule wiring', () => {
   }, 30_000);
 
   afterAll(async () => {
-    await close();
+    await close?.();
   });
 
   it.each(EXPECTED_ROUTES)('registers %s', (route) => {

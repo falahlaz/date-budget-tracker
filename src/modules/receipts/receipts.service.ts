@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Receipt } from '@prisma/client';
-import sharp from 'sharp';
+import sharp, { OutputInfo } from 'sharp';
 import { Readable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import { AppException } from '@/common/errors';
@@ -142,7 +142,7 @@ export class ReceiptsService {
       );
     }
 
-    let full: { data: Buffer; info: sharp.OutputInfo };
+    let full: { data: Buffer; info: OutputInfo };
     let thumb: Buffer;
 
     try {
