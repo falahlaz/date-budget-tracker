@@ -6,6 +6,10 @@ on:                                  # 2. Trigger / Event
   pull_request:
     branches: [ main ]
 
+env:
+  DATABASE_URL: mysql://datebud:datebud@localhost:3306/datebud
+  JWT_SECRET: required
+
 jobs:                                # 4. Daftar Jobs
   build-and-test:                    # Job ID
     name: Build and Run Tests
