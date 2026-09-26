@@ -76,8 +76,8 @@ jobs:
 
       - name: Ensure target directory exists
         uses: appleboy/ssh-action@v1.2.0
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
         with:
+          passphrase: ${{ secrets.SSH_PASSPHRASE }}
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
