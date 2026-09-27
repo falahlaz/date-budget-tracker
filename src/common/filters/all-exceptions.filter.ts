@@ -7,6 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
+import { MulterError } from 'multer';
 import {
   AppException,
   ErrorCode,
@@ -67,6 +68,12 @@ export class AllExceptionsFilter implements ExceptionFilter {
       };
     }
 
+    // Multer rejects oversized or excess uploads before any handler runs, so its errors
+    // have to be translated here to reach the client as 413/422.
+    if (exception instanceof MulterError) {
+      return this.describeMulter(exception);
+    }
+
     if (exception instanceof HttpException) {
       const status = exception.getStatus();
       const payload = exception.getResponse();
@@ -82,6 +89,31 @@ export class AllExceptionsFilter implements ExceptionFilter {
       status: HttpStatus.INTERNAL_SERVER_ERROR,
       code: 'INTERNAL_ERROR',
       message: 'Internal server error',
+    };
+  }
+
+  private describeMulter(exception: MulterError): {
+    status: number;
+    code: ErrorCode;
+    message: string;
+    details?: ErrorDetail[];
+  } {
+    const field = exception.field ?? 'file';
+
+    if (exception.code === 'LIMIT_FILE_SIZE') {
+      return {
+        status: HttpStatus.PAYLOAD_TOO_LARGE,
+        code: 'PAYLOAD_TOO_LARGE',
+        message: 'the uploaded file is larger than the allowed maximum',
+        details: [{ field, constraint: 'maxSize' }],
+      };
+    }
+
+    return {
+      status: HttpStatus.UNPROCESSABLE_ENTITY,
+      code: 'VALIDATION_ERROR',
+      message: `upload rejected: ${exception.message}`,
+      details: [{ field, constraint: exception.code }],
     };
   }
 
