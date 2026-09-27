@@ -8,8 +8,6 @@ services:
       MYSQL_USER: ${MYSQL_USER:-datebud}
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-datebud}
     command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
-    ports:
-      - '${MYSQL_PORT:-3306}:3306'
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
