@@ -10,8 +10,17 @@ import { useCurrentWeekReport } from '@/features/reports/hooks';
 import { ApiError } from '@/lib/api';
 import { formatAmountInput, formatRupiah, parseAmountInput } from '@/lib/format';
 import { shiftDate, todayInJakarta } from '@/lib/today';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, type PaymentMethod } from '@/types/api';
+import {
+  PAYMENT_METHODS,
+  PAYMENT_METHOD_LABELS,
+  SCAN_PROVIDER_LABELS,
+  type PaymentMethod,
+  type ScanProvider,
+  type ScanResult,
+} from '@/types/api';
 import { useCreateExpense, useMerchantSuggestions } from './hooks';
+import { prefillFromScan } from './receipt-scan';
+import { ReceiptScanPanel } from './receipt-scan-panel';
 
 /**
  * S6 Quick Add (PRD 9.6).
@@ -33,6 +42,11 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('CASH');
   const [note, setNote] = useState('');
   const [confirmingOverspend, setConfirmingOverspend] = useState(false);
+  // Set while the form holds values read off a receipt that the user has not yet confirmed.
+  const [pendingScan, setPendingScan] = useState<{
+    provider: ScanProvider;
+    filled: string[];
+  } | null>(null);
 
   const amount = parseAmountInput(amountText);
   const today = todayInJakarta();
@@ -54,6 +68,23 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
     setPaymentMethod('CASH');
     setNote('');
     setConfirmingOverspend(false);
+    setPendingScan(null);
+  };
+
+  const applyScan = (result: ScanResult) => {
+    const prefill = prefillFromScan(result, { today, note });
+
+    if (prefill.amountText !== undefined) setAmountText(prefill.amountText);
+    if (prefill.merchant !== undefined) {
+      setMerchant(prefill.merchant);
+      setMerchantQuery(prefill.merchant);
+    }
+    if (prefill.spentOn !== undefined) setSpentOn(prefill.spentOn);
+    if (prefill.paymentMethod !== undefined) setPaymentMethod(prefill.paymentMethod);
+    if (prefill.note !== undefined) setNote(prefill.note);
+
+    setConfirmingOverspend(false);
+    setPendingScan({ provider: result.provider, filled: prefill.filled });
   };
 
   /**
@@ -72,7 +103,8 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
     return after < 0 && before >= 0 ? Math.abs(after) : null;
   }, [week.data, amount, spentOn]);
 
-  const canSave = amount >= 1 && !createExpense.isPending;
+  // OCR misreads happen, so scanned values are never saved until the user has looked at them.
+  const canSave = amount >= 1 && !createExpense.isPending && pendingScan === null;
 
   const submit = async () => {
     if (overspendWarning !== null && !confirmingOverspend) {
@@ -118,6 +150,8 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
       title="Catat pengeluaran"
     >
       <div className="flex flex-col gap-4">
+        <ReceiptScanPanel onScanned={applyScan} />
+
         {/*
           inputMode="numeric" hands entry to the keyboard the device already has: the OS
           numeric pad on a phone, the real keyboard on a PC. A custom grid of keys was
@@ -226,6 +260,27 @@ export function QuickAddSheet({ open, onClose }: { open: boolean; onClose: () =>
             Ini bikin weekend minggu ini minus {formatRupiah(overspendWarning)}. Tap Simpan lagi
             buat lanjut.
           </p>
+        ) : null}
+
+        {pendingScan !== null ? (
+          <div
+            className="flex flex-col gap-3 rounded-md border border-accent/40 bg-accent-soft px-3.5 py-3 text-sm text-accent-ink"
+            role="status"
+          >
+            <p>
+              Ini hasil baca bukti {SCAN_PROVIDER_LABELS[pendingScan.provider]}
+              {pendingScan.filled.length > 0 ? ` (${pendingScan.filled.join(', ')})` : ''}. Cek
+              lagi datanya ya, udah sesuai?
+            </p>
+            <div className="flex gap-2">
+              <Button className="flex-1" variant="secondary" onClick={() => setPendingScan(null)}>
+                Sudah sesuai
+              </Button>
+              <Button variant="ghost" onClick={reset}>
+                Kosongkan
+              </Button>
+            </div>
+          </div>
         ) : null}
 
         <Button size="lg" onClick={submit} disabled={!canSave}>

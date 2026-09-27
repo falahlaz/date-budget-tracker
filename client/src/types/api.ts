@@ -35,6 +35,28 @@ export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
   OTHER: 'Lainnya',
 };
 
+/** Apps whose receipt screenshots the scanner can read; the user picks one explicitly. */
+export type ScanProvider = 'GOPAY' | 'BCA' | 'JAGO';
+
+export const SCAN_PROVIDERS: ScanProvider[] = ['GOPAY', 'BCA', 'JAGO'];
+
+export const SCAN_PROVIDER_LABELS: Record<ScanProvider, string> = {
+  GOPAY: 'GoPay',
+  BCA: 'BCA',
+  JAGO: 'Jago',
+};
+
+/** Fields read off a receipt. Suggestions only: nothing is saved until the user confirms. */
+export interface ScanResult {
+  provider: ScanProvider;
+  amount: number | null;
+  occurredOn: string | null;
+  merchant: string | null;
+  paymentMethod: PaymentMethod | null;
+  reference: string | null;
+  rawText: string;
+}
+
 export interface AuthUser {
   id: number;
   email: string;

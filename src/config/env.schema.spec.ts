@@ -14,6 +14,7 @@ describe('validateEnv', () => {
     expect(env.APP_TZ).toBe('Asia/Jakarta');
     expect(env.JWT_ACCESS_TTL).toBe('15m');
     expect(env.REFRESH_TTL_DAYS).toBe(30);
+    expect(env.SCAN_MAX_UPLOAD_MB).toBe(5);
   });
 
   it('coerces numeric vars that arrive as strings', () => {

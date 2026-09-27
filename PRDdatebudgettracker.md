@@ -47,7 +47,7 @@ Berikut **TIDAK** dikerjakan di v1 dan JANGAN diimplementasikan tanpa diminta:
 - Multi-user / sharing budget dengan pasangan. Aplikasi ini **single-user**.
 - Registrasi publik / signup flow / reset password lewat email.
 - Kalender hari libur nasional. Tanggal merah diperlakukan sebagai weekday biasa.
-- Integrasi bank, e-wallet, OCR struk, atau import mutasi rekening.
+- Integrasi bank, e-wallet, atau import mutasi rekening. (OCR bukti bayar GoPay/BCA/Jago sudah ditambahkan setelah v1 — lihat backlog #7.)
 - Budget untuk kategori non-date (belanja bulanan, tagihan, dll).
 - Multi-currency. Hanya IDR.
 - Notifikasi push / reminder harian.
@@ -1040,7 +1040,7 @@ Dicatat supaya arsitektur v1 tidak menutup jalan, tapi **JANGAN** dikerjakan sek
 4. **Shared budget dengan pasangan** — butuh entitas `household`, kolom `paid_by` di expense.
 5. **Reminder harian** (web push atau bot Telegram) untuk input pengeluaran.
 6. **Budget cap per kategori** (contoh: makan max 60% dari budget bulanan).
-7. **OCR struk** untuk auto-isi nominal dan nama tempat.
+7. ~~**OCR struk** untuk auto-isi nominal dan nama tempat.~~ **Sudah ada** untuk bukti bayar GoPay, BCA (m-Transfer), dan Jago: `POST /api/transactions/scan`. User memilih provider secara eksplisit, gambar hanya diproses di memory (tidak disimpan), dan hasilnya wajib dikonfirmasi user sebelum disimpan lewat Quick Add.
 8. **Export CSV/PDF** laporan bulanan.
 9. **Offline-first write** dengan antrean IndexedDB + sinkronisasi.
 

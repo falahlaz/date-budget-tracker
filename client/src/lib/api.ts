@@ -95,6 +95,8 @@ interface RequestOptions {
   method?: string;
   body?: unknown;
   signal?: AbortSignal;
+  /** Set for multipart uploads, where the browser must choose the Content-Type itself. */
+  raw?: boolean;
 }
 
 /**
@@ -110,8 +112,12 @@ export async function request<T>(path: string, options: RequestOptions = {}): Pr
 
     let body: BodyInit | undefined;
     if (options.body !== undefined) {
-      headers['Content-Type'] = 'application/json';
-      body = JSON.stringify(options.body);
+      if (options.raw) {
+        body = options.body as BodyInit;
+      } else {
+        headers['Content-Type'] = 'application/json';
+        body = JSON.stringify(options.body);
+      }
     }
 
     return fetch(`${BASE}${path}`, {
@@ -146,6 +152,7 @@ export const api = {
   put: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PUT', body }),
   patch: <T>(path: string, body?: unknown) => request<T>(path, { method: 'PATCH', body }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
+  upload: <T>(path: string, form: FormData) => request<T>(path, { method: 'POST', body: form, raw: true }),
   refreshSession,
 };
 
