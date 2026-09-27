@@ -57,6 +57,8 @@ const EXPECTED_ROUTES = [
   'PATCH /api/transactions/:id',
   'DELETE /api/transactions/:id',
   'GET /api/transactions/merchants',
+  // Receipt OCR: suggests fields only, stores nothing.
+  'POST /api/transactions/scan',
 
   // Savings (v2 10.3)
   'POST /api/wallets/:walletId/goal',

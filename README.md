@@ -148,6 +148,7 @@ src/
     transfers/       two-sided moves between wallets
       engine/        compute-savings.ts · allocate-fifo.ts · delay.ts  ← the savings half
     receipts/        view/delete existing receipts, storage abstraction
+    scan/            receipt OCR (GoPay, BCA, Jago) that prefills quick add; stores nothing
     reports/
       engine/        calendar.ts · compute-month.ts · aggregate.ts  ← the heart
   cli/               user:create
@@ -397,6 +398,11 @@ was then confirmed to still fail on a one-rupiah change and on a fabricated tran
 - The access token lives in memory on the client only — never in `localStorage`.
 - Receipt photo uploads are **disabled**, so no one can fill the server's disk. Receipts
   uploaded before that can still be viewed and deleted from the expense detail page.
+- Receipt **scanning** (`POST /api/transactions/scan`) reads a screenshot in memory with a
+  local Tesseract model and returns suggested fields only. The image is never written to
+  disk or the database, nothing is sent to a third party, uploads are capped by
+  `SCAN_MAX_UPLOAD_MB` (default 5), and nothing is recorded until the user confirms the
+  prefilled form and presses Simpan.
 - Receipt images are streamed through an authenticated, ownership-checked endpoint. They are
   never exposed via static middleware.
 - Login is rate limited to 5 attempts per 15 minutes per IP.
@@ -406,7 +412,7 @@ was then confirmed to still fail on a one-rupiah change and on a fabricated tran
 ## Not in v1
 
 Multi-user or shared budgets, public sign-up, national holiday handling (red dates are
-ordinary weekdays), bank/e-wallet integration, receipt OCR, non-date budget categories,
+ordinary weekdays), bank/e-wallet integration, non-date budget categories,
 multi-currency, push reminders, and PDF/Excel export. Offline **reads** work; offline
 writes are deliberately out of scope — a queued expense replayed later would corrupt the
 carry-over chain invisibly.

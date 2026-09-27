@@ -10,6 +10,7 @@ import { BudgetsModule } from './modules/budgets/budgets.module';
 import { CategoriesModule } from './modules/categories/categories.module';
 import { TransactionsModule } from './modules/transactions/transactions.module';
 import { ReceiptsModule } from './modules/receipts/receipts.module';
+import { ScanModule } from './modules/scan/scan.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { HealthModule } from './modules/health/health.module';
 import { UsersModule } from './modules/users/users.module';
@@ -52,6 +53,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
     TransactionsModule,
     TransfersModule,
     ReceiptsModule,
+    ScanModule,
     BillsModule,
     ReportsModule,
     HealthModule,

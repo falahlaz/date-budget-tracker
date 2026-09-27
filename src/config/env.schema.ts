@@ -34,6 +34,9 @@ export const envSchema = z.object({
   STORAGE_DRIVER: z.enum(['local']).default('local'),
   STORAGE_ROOT: z.string().min(1).default('./storage'),
 
+  /** Largest receipt screenshot accepted for OCR. It is read in memory and never stored. */
+  SCAN_MAX_UPLOAD_MB: z.coerce.number().int().min(1).max(20).default(5),
+
   // Optional bootstrap user; only applied when the users table is empty.
   SEED_USER_EMAIL: z.string().email().or(z.literal('')).optional(),
   SEED_USER_PASSWORD: z.string().optional(),

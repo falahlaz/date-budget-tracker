@@ -2,7 +2,14 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { api, queryString } from '@/lib/api';
 import { invalidateReports, queryKeys } from '@/lib/query';
 import { useActiveWalletId } from '@/features/wallets/wallet-context';
-import type { MerchantSuggestion, PaymentMethod, Transaction, TransactionList } from '@/types/api';
+import type {
+  MerchantSuggestion,
+  PaymentMethod,
+  ScanProvider,
+  ScanResult,
+  Transaction,
+  TransactionList,
+} from '@/types/api';
 
 export type ExpenseFilters = {
   period?: string;
@@ -91,6 +98,23 @@ export function useCreateExpense() {
   return useMutation({
     mutationFn: (input: ExpenseInput) => api.post<Transaction>('/transactions', { ...input, walletId }),
     onSuccess: () => invalidateReports(client),
+  });
+}
+
+/**
+ * Reads a receipt screenshot into suggested form fields.
+ *
+ * The server keeps nothing -- not the image, not a transaction -- so this has no cache to
+ * invalidate. Saving still goes through useCreateExpense once the user has confirmed.
+ */
+export function useScanReceipt() {
+  return useMutation({
+    mutationFn: ({ provider, file }: { provider: ScanProvider; file: File }) => {
+      const form = new FormData();
+      form.append('provider', provider);
+      form.append('file', file);
+      return api.upload<ScanResult>('/transactions/scan', form);
+    },
   });
 }
 
