@@ -9,6 +9,8 @@ import { SettingsPage } from '@/features/categories/settings-page';
 import { ExpenseDetailPage } from '@/features/expenses/expense-detail-page';
 import { ExpenseListPage } from '@/features/expenses/expense-list-page';
 import { QuickAddSheet } from '@/features/expenses/quick-add-sheet';
+import { LoanDetailPage } from '@/features/loans/loan-detail-page';
+import { LoansPage } from '@/features/loans/loans-page';
 import { HomePage } from '@/features/reports/home-page';
 import { WeeklyPage } from '@/features/reports/weekly-page';
 import { DepositSheet } from '@/features/savings/deposit-sheet';
@@ -79,6 +81,10 @@ function ShellRoutes() {
         {/* Bills belong to the user, not a wallet, so both wallet types answer these. */}
         <Route path="/bills" element={<BillsPage />} />
         <Route path="/bills/:id" element={<BillDetailPage />} />
+
+        {/* Loans belong to the user too; the money they move lives in wallets. */}
+        <Route path="/loans" element={<LoansPage />} />
+        <Route path="/loans/:id" element={<LoanDetailPage />} />
 
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

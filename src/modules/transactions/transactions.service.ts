@@ -222,13 +222,28 @@ export class TransactionsService {
     const [items, total, sum] = await Promise.all([
       this.prisma.transaction.findMany({
         where,
-        include: { category: true, receipts: { where: { deletedAt: null } } },
+        include: {
+          category: true,
+          receipts: { where: { deletedAt: null } },
+          // A loan row in the history has to lead back to its loan, not to an edit sheet
+          // that would refuse it. Both are one-to-one, so this is a join, not a fan-out.
+          loanLent: { select: { id: true, borrowerName: true } },
+          loanRepayment: { include: { loan: { select: { id: true, borrowerName: true } } } },
+        },
         orderBy: this.buildOrderBy(query.sort),
         take,
         skip,
       }),
       this.prisma.transaction.count({ where }),
-      this.prisma.transaction.aggregate({ where, _sum: { amount: true } }),
+      // Lending money out and getting it back is not spending, so neither side counts
+      // towards the total the history header shows -- a repaid loan would otherwise read
+      // as twice its amount spent.
+      this.prisma.transaction.aggregate({
+        where: {
+          AND: [where, { kind: { notIn: [TransactionKind.LOAN_OUT, TransactionKind.LOAN_IN] } }],
+        },
+        _sum: { amount: true },
+      }),
     ]);
 
     return { items, total, sumAmount: sum._sum.amount ?? 0 };

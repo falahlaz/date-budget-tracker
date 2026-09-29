@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card';
 import { EmptyState, ErrorState, LoadingBlock, Meter, Skeleton } from '@/components/ui/feedback';
 import { MoneyHero } from '@/components/ui/money';
 import { BillsHomeCard } from '@/features/bills/bills-home-card';
+import { LoansHomeCard } from '@/features/loans/loans-home-card';
 import { SectionHead } from '@/components/ui/section';
 import { useExpenses } from '@/features/expenses/hooks';
 import { formatPeriodLong, formatRupiah } from '@/lib/format';
@@ -43,6 +44,7 @@ export function SavingsHomePage() {
           action={<Button onClick={() => setEditing(true)}>Pasang target</Button>}
         />
         <BillsHomeCard />
+        <LoansHomeCard />
         <RecentActivity />
         <GoalSheet open={editing} onClose={() => setEditing(false)} goal={null} />
       </>
@@ -73,6 +75,7 @@ export function SavingsHomePage() {
       ) : null}
       <ProjectionCard goal={goal} />
       <BillsHomeCard />
+      <LoansHomeCard />
       <RecentActivity />
 
       <GoalSheet open={editing} onClose={() => setEditing(false)} goal={goal} />

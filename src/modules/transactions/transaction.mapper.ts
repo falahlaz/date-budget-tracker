@@ -64,7 +64,7 @@ export interface TransactionResponse {
   category: { id: number; name: string; color: string; icon: string | null } | null;
   /** Set when this transaction paid a bill; only loaded on the single-transaction read. */
   bill: { id: number; name: string; period: string } | null;
-  /** Set when this transaction lent money out or paid a loan back; single read only. */
+  /** Set when this transaction lent money out or paid a loan back. */
   loan: { id: number; borrowerName: string; role: 'LENT' | 'REPAYMENT' } | null;
   receipts: ReceiptResponse[];
   createdAt: string;

@@ -287,6 +287,25 @@ describe('Loans API', () => {
       await authed('get', `/api/transactions/${fresh.body.transactionId}`).expect(404);
     });
 
+    it('lists loan rows in the wallet history without counting them as spending', async () => {
+      const loan = await lend().expect(201);
+      await repay(loan.body.id, { amount: 100_000 }).expect(201);
+      await authed('post', '/api/transactions')
+        .send({ amount: 25_000, occurredOn: '2026-09-03' })
+        .expect(201);
+
+      const list = await authed(
+        'get',
+        `/api/transactions?walletId=${dateWalletId}&period=2026-09`,
+      ).expect(200);
+
+      expect(list.body.total).toBe(3);
+      expect(list.body.sumAmount).toBe(25_000);
+      expect(
+        list.body.items.find((item: { kind: string }) => item.kind === 'LOAN_OUT').loan,
+      ).toMatchObject({ id: loan.body.id, borrowerName: 'Budi', role: 'LENT' });
+    });
+
     it('keeps the generic endpoints away from loan rows', async () => {
       const loan = await lend().expect(201);
       const id = loan.body.transactionId;
