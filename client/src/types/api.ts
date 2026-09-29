@@ -70,7 +70,14 @@ export interface LoginResponse {
 }
 
 export type WalletType = 'DATE_BUDGET' | 'SAVINGS';
-export type TransactionKind = 'SPEND' | 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER_IN' | 'TRANSFER_OUT';
+export type TransactionKind =
+  | 'SPEND'
+  | 'DEPOSIT'
+  | 'WITHDRAW'
+  | 'TRANSFER_IN'
+  | 'TRANSFER_OUT'
+  | 'LOAN_OUT'
+  | 'LOAN_IN';
 export type Direction = 'IN' | 'OUT';
 
 /** Shown in the switcher for a date-budget wallet (PRD v2 10.2). */
@@ -143,6 +150,8 @@ export interface Transaction {
   category: Pick<Category, 'id' | 'name' | 'color' | 'icon'> | null;
   /** Set when this transaction paid a bill; only on the single-transaction read. */
   bill?: { id: number; name: string; period: string } | null;
+  /** Set when this transaction lent money out or paid a loan back. */
+  loan?: { id: number; borrowerName: string; role: 'LENT' | 'REPAYMENT' } | null;
   receipts: Receipt[];
   createdAt: string;
   updatedAt: string;
@@ -422,6 +431,9 @@ export interface SavingsMonthReport {
   /** Memos: already counted inside depositTotal / withdrawTotal (v2 10.5). */
   transferInTotal: number;
   transferOutTotal: number;
+  /** Memos in the same way: lent out, and paid back, this month. */
+  loanOutTotal: number;
+  loanInTotal: number;
   planPerMonth: number | null;
   /** `freshContribution − planPerMonth`, never the gross deposit (v2 5.3). */
   vsPlan: number | null;
@@ -506,4 +518,61 @@ export interface BillPayResult {
   bill: Bill;
   transaction: Transaction;
   period: string;
+}
+
+// ---------------------------------------------------------------- loans (piutang)
+
+export type LoanStatus = 'ACTIVE' | 'OVERDUE' | 'SETTLED';
+
+export interface LoanRepayment {
+  id: number;
+  transactionId: number;
+  amount: number;
+  occurredOn: string;
+  walletId: number;
+  walletName: string;
+  walletColor: string;
+  note: string | null;
+}
+
+export interface Loan {
+  id: number;
+  borrowerName: string;
+  amount: number;
+  lentOn: string;
+  dueDate: string | null;
+  note: string | null;
+  /** The wallet the money left, and where repayments go back to by default. */
+  walletId: number;
+  walletName: string;
+  walletColor: string;
+  transactionId: number;
+  repaidAmount: number;
+  remaining: number;
+  status: LoanStatus;
+  daysOverdue: number;
+  settledAt: string | null;
+  /** Oldest first. */
+  repayments: LoanRepayment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LoansSummary {
+  outstandingTotal: number;
+  outstandingCount: number;
+  overdueCount: number;
+  /** Who still owes what, biggest first. */
+  borrowers: { name: string; outstanding: number; loanCount: number }[];
+}
+
+export interface LoanList {
+  items: Loan[];
+  summary: LoansSummary;
+}
+
+export interface LoanRepayResult {
+  loan: Loan;
+  transactionId: number;
+  amount: number;
 }

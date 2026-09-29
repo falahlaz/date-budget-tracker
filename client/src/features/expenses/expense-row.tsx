@@ -1,5 +1,6 @@
-import { ImageIcon } from 'lucide-react';
+import { HandCoins, ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { cn } from '@/lib/cn';
 import { formatDayShort, formatRupiah } from '@/lib/format';
 import { PAYMENT_METHOD_LABELS, type Transaction } from '@/types/api';
 
@@ -10,6 +11,8 @@ import { PAYMENT_METHOD_LABELS, type Transaction } from '@/types/api';
  * spend; when there is none, the category takes its place rather than leaving a blank.
  */
 export function ExpenseRow({ expense, showDate = true }: { expense: Transaction; showDate?: boolean }) {
+  if (expense.loan) return <LoanLine expense={expense} showDate={showDate} />;
+
   const title = expense.merchant ?? expense.category?.name ?? 'Tanpa kategori';
 
   return (
@@ -45,6 +48,46 @@ export function ExpenseRow({ expense, showDate = true }: { expense: Transaction;
         </span>
 
         <span className="tabular shrink-0 font-mono text-[13px] font-medium text-ink">
+          {formatRupiah(expense.amount)}
+        </span>
+      </Link>
+    </li>
+  );
+}
+
+/**
+ * Money lent out, or coming back. It opens the loan rather than the expense detail: the
+ * loan is where it can be changed, and where it makes sense.
+ */
+function LoanLine({ expense, showDate }: { expense: Transaction; showDate: boolean }) {
+  const loan = expense.loan!;
+  const incoming = expense.kind === 'LOAN_IN';
+
+  return (
+    <li>
+      <Link
+        to={`/loans/${loan.id}`}
+        data-tap
+        className="-mx-2 flex items-center gap-3 rounded-sm px-2 py-3 transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2"
+      >
+        <HandCoins aria-hidden className="h-3.5 w-3.5 shrink-0 text-ink-3" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium text-ink">
+            {incoming ? `Dibalikin ${loan.borrowerName}` : `Dipinjemin ke ${loan.borrowerName}`}
+          </span>
+          <span className="mt-0.5 flex items-center gap-1.5 text-[11.5px] text-ink-3">
+            {showDate ? <span>{formatDayShort(expense.occurredOn)}</span> : null}
+            {showDate ? <span aria-hidden>·</span> : null}
+            <span>Pinjaman</span>
+          </span>
+        </span>
+        <span
+          className={cn(
+            'tabular shrink-0 font-mono text-[13px] font-medium',
+            incoming ? 'text-pos' : 'text-ink',
+          )}
+        >
+          {incoming ? '+' : ''}
           {formatRupiah(expense.amount)}
         </span>
       </Link>

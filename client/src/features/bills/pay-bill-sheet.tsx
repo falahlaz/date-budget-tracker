@@ -196,7 +196,7 @@ export function PayBillSheet({ bill, onClose }: { bill: Bill | null; onClose: ()
   );
 }
 
-function WalletOption({
+export function WalletOption({
   wallet,
   selected,
   onSelect,
@@ -254,7 +254,7 @@ function walletFigure(wallet: Wallet): string {
  * A savings balance cannot go below zero, so that is a block (the server refuses it too).
  * A date budget can -- a budget is a plan, not an account -- so there it is only a warning.
  */
-function impactOf(
+export function impactOf(
   wallet: Wallet,
   amount: number,
 ): { text: string; blocked: boolean; warn: boolean } | null {

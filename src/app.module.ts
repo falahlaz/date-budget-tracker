@@ -13,6 +13,7 @@ import { ReceiptsModule } from './modules/receipts/receipts.module';
 import { ScanModule } from './modules/scan/scan.module';
 import { ReportsModule } from './modules/reports/reports.module';
 import { HealthModule } from './modules/health/health.module';
+import { LoansModule } from './modules/loans/loans.module';
 import { UsersModule } from './modules/users/users.module';
 import { SavingsModule } from './modules/savings/savings.module';
 import { TransfersModule } from './modules/transfers/transfers.module';
@@ -55,6 +56,7 @@ import { WalletsModule } from './modules/wallets/wallets.module';
     ReceiptsModule,
     ScanModule,
     BillsModule,
+    LoansModule,
     ReportsModule,
     HealthModule,
   ],

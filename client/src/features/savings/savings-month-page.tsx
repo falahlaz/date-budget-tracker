@@ -81,6 +81,13 @@ function MonthReceipt({ report }: { report: SavingsMonthReport }) {
             tone="neutral"
           />
         ) : null}
+        {report.loanInTotal > 0 ? (
+          <ReceiptLine
+            label="— termasuk pinjaman yang dibalikin"
+            amount={report.loanInTotal}
+            tone="neutral"
+          />
+        ) : null}
         <ReceiptLine label="Dipakai nutup utang" amount={report.repaymentTotal} tone="neg" signed="minus" />
 
         <ReceiptRule />
@@ -103,6 +110,13 @@ function MonthReceipt({ report }: { report: SavingsMonthReport }) {
           <ReceiptLine
             label="— termasuk pindah ke dompet lain"
             amount={report.transferOutTotal}
+            tone="neutral"
+          />
+        ) : null}
+        {report.loanOutTotal > 0 ? (
+          <ReceiptLine
+            label="— termasuk dipinjemin ke orang"
+            amount={report.loanOutTotal}
             tone="neutral"
           />
         ) : null}

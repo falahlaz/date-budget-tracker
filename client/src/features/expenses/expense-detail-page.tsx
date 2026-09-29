@@ -103,6 +103,20 @@ export function ExpenseDetailPage() {
           </Link>
         ) : null}
 
+        {expense.loan ? (
+          <Link
+            to={`/loans/${expense.loan.id}`}
+            className="mt-4 flex items-center justify-between gap-3 rounded-md bg-accent-soft px-3.5 py-2.5 text-[13px] text-accent-ink"
+          >
+            <span className="truncate">
+              {expense.loan.role === 'LENT' ? 'Dipinjemin ke' : 'Pinjaman dibalikin'}{' '}
+              <b className="font-semibold">{expense.loan.borrowerName}</b> · ubah atau hapus dari
+              pinjamannya
+            </span>
+            <span aria-hidden>→</span>
+          </Link>
+        ) : null}
+
         {isTransfer ? (
           <p className="mt-4 text-[13px] text-ink-2">
             Ini salah satu sisi pindah uang antar dompet. Kalau salah, hapus lalu catat ulang —
@@ -110,23 +124,25 @@ export function ExpenseDetailPage() {
           </p>
         ) : null}
 
-        <div className="mt-5 flex gap-2">
-          {isTransfer ? (
-            <span className="flex-1" />
-          ) : (
-            <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
-              Edit
+        {expense.loan ? null : (
+          <div className="mt-5 flex gap-2">
+            {isTransfer ? (
+              <span className="flex-1" />
+            ) : (
+              <Button variant="secondary" className="flex-1" onClick={() => setEditing(true)}>
+                Edit
+              </Button>
+            )}
+            <Button
+              variant="danger"
+              size="icon"
+              onClick={() => setConfirmingDelete(true)}
+              aria-label="Hapus"
+            >
+              <Trash2 className="h-4 w-4" />
             </Button>
-          )}
-          <Button
-            variant="danger"
-            size="icon"
-            onClick={() => setConfirmingDelete(true)}
-            aria-label="Hapus"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
-        </div>
+          </div>
+        )}
       </Card>
 
       {expense.receipts.length > 0 ? (

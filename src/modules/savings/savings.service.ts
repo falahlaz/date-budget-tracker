@@ -280,6 +280,8 @@ export class SavingsService {
       );
     }
 
+    assertNotLoan(existing, 'edit');
+
     const data: Prisma.TransactionUpdateInput = {};
 
     if (dto.occurredOn !== undefined) {
@@ -417,6 +419,8 @@ export class SavingsService {
           `DELETE /api/transfers/${existing.transferGroupId} so both sides go together`,
       );
     }
+
+    assertNotLoan(existing, 'delete');
 
     if (existing.kind === TransactionKind.WITHDRAW && existing.returnedAmount > 0) {
       throw AppException.conflict(
@@ -618,5 +622,17 @@ export class SavingsService {
         [{ field: 'categoryId', constraint: 'exists' }],
       );
     }
+  }
+}
+
+/**
+ * A loan's rows belong to the loan: editing or deleting one here would leave the loan
+ * reporting a debt, or a repayment, that the wallet no longer agrees with.
+ */
+function assertNotLoan(existing: Transaction, verb: 'edit' | 'delete'): void {
+  if (existing.kind === TransactionKind.LOAN_OUT || existing.kind === TransactionKind.LOAN_IN) {
+    throw AppException.conflict(
+      `transaction ${existing.id} belongs to a loan; ${verb} it from the loan in /api/loans`,
+    );
   }
 }

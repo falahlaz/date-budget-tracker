@@ -64,6 +64,8 @@ export interface TransactionResponse {
   category: { id: number; name: string; color: string; icon: string | null } | null;
   /** Set when this transaction paid a bill; only loaded on the single-transaction read. */
   bill: { id: number; name: string; period: string } | null;
+  /** Set when this transaction lent money out or paid a loan back. */
+  loan: { id: number; borrowerName: string; role: 'LENT' | 'REPAYMENT' } | null;
   receipts: ReceiptResponse[];
   createdAt: string;
   updatedAt: string;
@@ -73,6 +75,8 @@ export type TransactionWithRelations = Transaction & {
   category?: Category | null;
   receipts?: Receipt[];
   billPayment?: (BillPayment & { bill: { id: number; name: string } }) | null;
+  loanLent?: { id: number; borrowerName: string } | null;
+  loanRepayment?: { loan: { id: number; borrowerName: string } } | null;
 };
 
 export function toReceiptResponse(receipt: Receipt): ReceiptResponse {
@@ -134,8 +138,20 @@ export function toTransactionResponse(expense: TransactionWithRelations): Transa
           period: expense.billPayment.period,
         }
       : null,
+    loan: loanLinkOf(expense),
     receipts: (expense.receipts ?? []).filter((r) => r.deletedAt === null).map(toReceiptResponse),
     createdAt: expense.createdAt.toISOString(),
     updatedAt: expense.updatedAt.toISOString(),
   };
+}
+
+function loanLinkOf(expense: TransactionWithRelations): TransactionResponse['loan'] {
+  if (expense.loanLent) {
+    return { id: expense.loanLent.id, borrowerName: expense.loanLent.borrowerName, role: 'LENT' };
+  }
+  if (expense.loanRepayment) {
+    const { loan } = expense.loanRepayment;
+    return { id: loan.id, borrowerName: loan.borrowerName, role: 'REPAYMENT' };
+  }
+  return null;
 }

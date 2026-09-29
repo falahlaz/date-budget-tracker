@@ -1,10 +1,11 @@
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react';
+import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight, HandCoins } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { cn } from '@/lib/cn';
 import { formatDayShort } from '@/lib/format';
 import { Money } from '@/components/ui/money';
 import type { Transaction, TransactionKind } from '@/types/api';
 
-const INCOMING: TransactionKind[] = ['DEPOSIT', 'TRANSFER_IN'];
+const INCOMING: TransactionKind[] = ['DEPOSIT', 'TRANSFER_IN', 'LOAN_IN'];
 
 /**
  * One line of savings history.
@@ -25,8 +26,14 @@ export function SavingsActivityRow({
   const incoming = INCOMING.includes(transaction.kind);
   const isTransfer = transaction.transferGroupId !== null;
 
-  const Icon = isTransfer ? ArrowLeftRight : incoming ? ArrowDownLeft : ArrowUpRight;
-  const headline = isTransfer
+  const loan = transaction.loan ?? null;
+
+  const Icon = loan ? HandCoins : isTransfer ? ArrowLeftRight : incoming ? ArrowDownLeft : ArrowUpRight;
+  const headline = loan
+    ? incoming
+      ? `Dibalikin ${loan.borrowerName}`
+      : `Dipinjemin ke ${loan.borrowerName}`
+    : isTransfer
     ? incoming
       ? 'Masuk dari dompet lain'
       : 'Dipindah ke dompet lain'
@@ -71,6 +78,21 @@ export function SavingsActivityRow({
       />
     </>
   );
+
+  // A loan's rows are changed from the loan, never from the savings edit sheet.
+  if (loan) {
+    return (
+      <li>
+        <Link
+          to={`/loans/${loan.id}`}
+          data-tap
+          className="-mx-2 flex w-full items-center gap-3 rounded-sm px-2 py-3 text-left transition-colors duration-[var(--t-fast)] ease-out active:bg-surface-2"
+        >
+          {body}
+        </Link>
+      </li>
+    );
+  }
 
   if (!onSelect) {
     return <li className="flex items-center gap-3 py-3">{body}</li>;

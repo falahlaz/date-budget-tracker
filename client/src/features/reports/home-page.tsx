@@ -6,6 +6,7 @@ import { ButterCard, Card } from '@/components/ui/card';
 import { EmptyState, ErrorState, LoadingBlock, Meter, Skeleton } from '@/components/ui/feedback';
 import { Money, MoneyHero, TONE_FILL, toneFor } from '@/components/ui/money';
 import { BillsHomeCard } from '@/features/bills/bills-home-card';
+import { LoansHomeCard } from '@/features/loans/loans-home-card';
 import { SectionHead, SectionLink } from '@/components/ui/section';
 import { useExpenses } from '@/features/expenses/hooks';
 import { ExpenseRow } from '@/features/expenses/expense-row';
@@ -53,6 +54,7 @@ export function HomePage() {
       <WeekendProjection today={today.data} week={week.data} />
       <WeekStrip days={week.data.days} weekIndex={week.data.weekIndex} />
       <BillsHomeCard />
+      <LoansHomeCard />
       <RecentExpenses />
     </>
   );

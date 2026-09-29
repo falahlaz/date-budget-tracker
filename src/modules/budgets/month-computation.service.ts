@@ -52,16 +52,25 @@ export class MonthComputationService {
   }
 
   /**
-   * Transfers to and from other wallets in this period (PRD v2 6.2).
+   * Transfers to and from other wallets in this period (PRD v2 6.2), and loans.
    *
    * Loaded apart from the spending because they behave differently: a transfer has no
    * weekday or weekend character, it just makes the week it lands in poorer or richer.
+   * Money lent out and paid back is the same thing with a person on the other end instead
+   * of a wallet, so it rides along here.
    */
   async loadTransferInputs(walletId: number, period: string): Promise<TransferInput[]> {
     const rows = await this.prisma.transaction.findMany({
       where: {
         walletId,
-        kind: { in: [TransactionKind.TRANSFER_IN, TransactionKind.TRANSFER_OUT] },
+        kind: {
+          in: [
+            TransactionKind.TRANSFER_IN,
+            TransactionKind.TRANSFER_OUT,
+            TransactionKind.LOAN_OUT,
+            TransactionKind.LOAN_IN,
+          ],
+        },
         deletedAt: null,
         occurredOn: {
           gte: toDateOnly(firstDayOfPeriod(period)),
