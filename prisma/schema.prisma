@@ -44,6 +44,10 @@ enum TransactionKind {
   WITHDRAW
   TRANSFER_IN
   TRANSFER_OUT
+  /// Money lent to someone out of this wallet. Written only by the loans service.
+  LOAN_OUT
+  /// Some or all of a loan coming back into this wallet. Written only by the loans service.
+  LOAN_IN
 }
 
 /// Which way the money moved. A deterministic function of `kind` (v2 section 9.2), stored
@@ -97,6 +101,8 @@ model User {
   repaymentAllocations RepaymentAllocation[]
   bills                Bill[]
   billPayments         BillPayment[]
+  loans                Loan[]
+  loanRepayments       LoanRepayment[]
 
   @@unique([email], map: "uq_users_email")
   @@map("users")
@@ -140,6 +146,7 @@ model Wallet {
   transactions   Transaction[]
   monthlyBudgets MonthlyBudget[]
   savingsGoals   SavingsGoal[]
+  loans          Loan[]
 
   @@unique([userId, name], map: "uq_wallet_user_name")
   @@index([userId, isArchived], map: "idx_wallet_user")
@@ -244,6 +251,8 @@ model Transaction {
   depositAllocations    RepaymentAllocation[] @relation("AllocationDeposit")
   withdrawalAllocations RepaymentAllocation[] @relation("AllocationWithdrawal")
   billPayment           BillPayment?
+  loanLent              Loan?
+  loanRepayment         LoanRepayment?
 
   @@index([walletId, occurredOn, deletedAt], map: "idx_txn_wallet_date")
   @@index([walletId, kind, deletedAt], map: "idx_txn_kind")
@@ -363,6 +372,56 @@ model BillPayment {
   @@unique([transactionId], map: "uq_billpay_txn")
   @@index([userId], map: "idx_billpay_user")
   @@map("bill_payments")
+}
+
+/// Money lent to someone (piutang). The money itself is the LOAN_OUT transaction in the
+/// wallet it left; every repayment is a LOAN_IN transaction linked through `LoanRepayment`.
+/// How much is still owed is always recomputed from those rows, never stored.
+model Loan {
+  id            Int       @id @default(autoincrement()) @db.UnsignedInt
+  userId        Int       @map("user_id") @db.UnsignedInt
+  /// Who borrowed it, as the user typed it
+  borrowerName  String    @map("borrower_name") @db.VarChar(80)
+  /// The wallet the money left, and where repayments go back to by default
+  walletId      Int       @map("wallet_id") @db.UnsignedInt
+  /// The LOAN_OUT row. Its amount and date are the loan's amount and date.
+  transactionId Int       @map("transaction_id") @db.UnsignedInt
+  /// When the borrower promised to pay it back. Optional; past it the loan reads as overdue.
+  dueDate       DateTime? @map("due_date") @db.Date
+  note          String?   @db.VarChar(255)
+  /// Set the moment the last rupiah is back; cleared again if a repayment is removed.
+  settledAt     DateTime? @map("settled_at") @db.DateTime(0)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.DateTime(0)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.DateTime(0)
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_loan_user")
+  wallet      Wallet          @relation(fields: [walletId], references: [id], onDelete: Cascade, map: "fk_loan_wallet")
+  transaction Transaction     @relation(fields: [transactionId], references: [id], onDelete: Cascade, map: "fk_loan_txn")
+  repayments  LoanRepayment[]
+
+  @@unique([transactionId], map: "uq_loan_txn")
+  @@index([userId, settledAt], map: "idx_loan_user")
+  @@index([walletId], map: "idx_loan_wallet")
+  @@map("loans")
+}
+
+/// One repayment of a loan. The money is the LOAN_IN transaction, in whichever wallet it
+/// went back to; this row only says which loan it paid down.
+model LoanRepayment {
+  id            Int      @id @default(autoincrement()) @db.UnsignedInt
+  userId        Int      @map("user_id") @db.UnsignedInt
+  loanId        Int      @map("loan_id") @db.UnsignedInt
+  transactionId Int      @map("transaction_id") @db.UnsignedInt
+  createdAt     DateTime @default(now()) @map("created_at") @db.DateTime(0)
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade, map: "fk_loanpay_user")
+  loan        Loan        @relation(fields: [loanId], references: [id], onDelete: Cascade, map: "fk_loanpay_loan")
+  transaction Transaction @relation(fields: [transactionId], references: [id], onDelete: Cascade, map: "fk_loanpay_txn")
+
+  @@unique([transactionId], map: "uq_loanpay_txn")
+  @@index([loanId], map: "idx_loanpay_loan")
+  @@index([userId], map: "idx_loanpay_user")
+  @@map("loan_repayments")
 }
 
 model Receipt {

@@ -16,12 +16,20 @@ import { addMonthsTo, elapsedMonths, monthSpan, precedingPeriods } from './month
  * source of truth -- every number is recomputed from the goal plus its transactions.
  */
 
-export type SavingsKind = 'DEPOSIT' | 'WITHDRAW' | 'TRANSFER_IN' | 'TRANSFER_OUT';
+export type SavingsKind =
+  'DEPOSIT' | 'WITHDRAW' | 'TRANSFER_IN' | 'TRANSFER_OUT' | 'LOAN_OUT' | 'LOAN_IN';
 
-/** Money coming in. Transfers from another wallet count as deposits (section 5.2). */
-const IN_KINDS: ReadonlySet<SavingsKind> = new Set(['DEPOSIT', 'TRANSFER_IN']);
-/** Money going out. */
-const OUT_KINDS: ReadonlySet<SavingsKind> = new Set(['WITHDRAW', 'TRANSFER_OUT']);
+/**
+ * Money coming in. Transfers from another wallet count as deposits (section 5.2), and so
+ * does a loan being paid back -- both are money arriving that was not there before.
+ */
+export const IN_KINDS: ReadonlySet<SavingsKind> = new Set(['DEPOSIT', 'TRANSFER_IN', 'LOAN_IN']);
+/** Money going out, including money lent to someone. */
+export const OUT_KINDS: ReadonlySet<SavingsKind> = new Set([
+  'WITHDRAW',
+  'TRANSFER_OUT',
+  'LOAN_OUT',
+]);
 
 /** How many complete months of history the rate is averaged over (section 5.2). */
 const RATE_WINDOW_MONTHS = 3;
@@ -76,9 +84,9 @@ export interface ComputeSavingsInput {
 
 export interface SavingsMonthRow {
   period: string;
-  /** DEPOSIT + TRANSFER_IN. */
+  /** DEPOSIT + TRANSFER_IN + LOAN_IN. */
   depositTotal: number;
-  /** WITHDRAW + TRANSFER_OUT. */
+  /** WITHDRAW + TRANSFER_OUT + LOAN_OUT. */
   withdrawTotal: number;
   /** The part of `depositTotal` that only patched an earlier withdrawal. */
   repaymentTotal: number;

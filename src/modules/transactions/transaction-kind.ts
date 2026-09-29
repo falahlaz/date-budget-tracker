@@ -15,20 +15,26 @@ const DIRECTION_OF: Record<TransactionKind, Direction> = {
   [TransactionKind.WITHDRAW]: Direction.OUT,
   [TransactionKind.TRANSFER_IN]: Direction.IN,
   [TransactionKind.TRANSFER_OUT]: Direction.OUT,
+  [TransactionKind.LOAN_OUT]: Direction.OUT,
+  [TransactionKind.LOAN_IN]: Direction.IN,
 };
 
-/** Transfers are the only kinds at home in either wallet type. */
+/** Transfers and loans are the only kinds at home in either wallet type. */
 const KINDS_BY_WALLET: Record<WalletType, ReadonlySet<TransactionKind>> = {
   [WalletType.DATE_BUDGET]: new Set([
     TransactionKind.SPEND,
     TransactionKind.TRANSFER_IN,
     TransactionKind.TRANSFER_OUT,
+    TransactionKind.LOAN_OUT,
+    TransactionKind.LOAN_IN,
   ]),
   [WalletType.SAVINGS]: new Set([
     TransactionKind.DEPOSIT,
     TransactionKind.WITHDRAW,
     TransactionKind.TRANSFER_IN,
     TransactionKind.TRANSFER_OUT,
+    TransactionKind.LOAN_OUT,
+    TransactionKind.LOAN_IN,
   ]),
 };
 
@@ -73,6 +79,8 @@ const OWN_ENDPOINT: Partial<Record<TransactionKind, string>> = {
   [TransactionKind.WITHDRAW]: 'POST /api/wallets/:walletId/withdrawals',
   [TransactionKind.TRANSFER_IN]: 'POST /api/transfers',
   [TransactionKind.TRANSFER_OUT]: 'POST /api/transfers',
+  [TransactionKind.LOAN_OUT]: 'POST /api/loans',
+  [TransactionKind.LOAN_IN]: 'POST /api/loans/:id/repay',
 };
 
 /**
@@ -101,6 +109,8 @@ export function assertCreatableHere(kind: TransactionKind): TransactionKind {
 const OWN_EDIT_ENDPOINT: Partial<Record<TransactionKind, string>> = {
   [TransactionKind.DEPOSIT]: '/api/wallets/:walletId/transactions/:id',
   [TransactionKind.WITHDRAW]: '/api/wallets/:walletId/transactions/:id',
+  [TransactionKind.LOAN_OUT]: '/api/loans/:id',
+  [TransactionKind.LOAN_IN]: '/api/loans/:id/repayments/:repaymentId',
 };
 
 /**

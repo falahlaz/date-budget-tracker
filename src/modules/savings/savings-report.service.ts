@@ -27,11 +27,11 @@ export interface SavingsMonthReportResponse {
   period: string;
   openingBalance: number;
   closingBalance: number;
-  /** DEPOSIT + TRANSFER_IN. */
+  /** DEPOSIT + TRANSFER_IN + LOAN_IN. */
   depositTotal: number;
   repaymentTotal: number;
   freshContribution: number;
-  /** WITHDRAW + TRANSFER_OUT. */
+  /** WITHDRAW + TRANSFER_OUT + LOAN_OUT. */
   withdrawTotal: number;
   net: number;
   /**
@@ -41,6 +41,9 @@ export interface SavingsMonthReportResponse {
    */
   transferInTotal: number;
   transferOutTotal: number;
+  /** Memos in the same way: lent out, and paid back, this month. */
+  loanOutTotal: number;
+  loanInTotal: number;
   /** Null when the wallet has no goal -- a wallet can hold money before it has a target. */
   planPerMonth: number | null;
   vsPlan: number | null;
@@ -92,6 +95,8 @@ export class SavingsReportService {
       net: row.net,
       transferInTotal: totalOf(TransactionKind.TRANSFER_IN),
       transferOutTotal: totalOf(TransactionKind.TRANSFER_OUT),
+      loanOutTotal: totalOf(TransactionKind.LOAN_OUT),
+      loanInTotal: totalOf(TransactionKind.LOAN_IN),
       planPerMonth: goal?.planPerMonth ?? null,
       // Against `freshContribution`, NEVER `depositTotal` (section 5.3, goal G6). A
       // 2.000.000 deposit that only patched 600.000 of earlier withdrawals is 1.400.000 of

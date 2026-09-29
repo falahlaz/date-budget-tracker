@@ -5,6 +5,7 @@ import { fromDateOnly } from '@/common/utils/date-only';
 import { PrismaService } from '@/prisma/prisma.service';
 import {
   AllocationInput,
+  IN_KINDS,
   SavingsReport,
   SavingsTxnInput,
   computeSavings,
@@ -86,8 +87,7 @@ export class SavingsComputationService {
     const opening = goal?.openingBalance ?? 0;
 
     return txns.reduce(
-      (total, txn) =>
-        total + (txn.kind === 'DEPOSIT' || txn.kind === 'TRANSFER_IN' ? txn.amount : -txn.amount),
+      (total, txn) => total + (IN_KINDS.has(txn.kind) ? txn.amount : -txn.amount),
       opening,
     );
   }

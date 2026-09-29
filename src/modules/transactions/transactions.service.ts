@@ -103,6 +103,8 @@ export class TransactionsService {
         category: true,
         receipts: { where: { deletedAt: null } },
         billPayment: { include: { bill: { select: { id: true, name: true } } } },
+        loanLent: { select: { id: true, borrowerName: true } },
+        loanRepayment: { include: { loan: { select: { id: true, borrowerName: true } } } },
       },
     });
 
