@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { PageHeader } from '@/components/app-shell';
 import { Button, StepButton } from '@/components/ui/button';
@@ -20,9 +21,15 @@ import { cn } from '@/lib/cn';
 import { currentPeriod, shiftPeriod } from '@/lib/today';
 import { useBudget, useBudgetHistory, useUpsertBudget } from './hooks';
 
+/** `?period=YYYY-MM` opens the form on that month; anything else falls back to this month. */
+function validPeriod(value: string | null): string | null {
+  return value && /^\d{4}-(0[1-9]|1[0-2])$/.test(value) ? value : null;
+}
+
 /** S8 Budget Setup (PRD 9.7). */
 export function BudgetPage() {
-  const [period, setPeriod] = useState(currentPeriod());
+  const [params] = useSearchParams();
+  const [period, setPeriod] = useState(() => validPeriod(params.get('period')) ?? currentPeriod());
   const budget = useBudget(period);
   const report = useMonthReport(period);
   const history = useBudgetHistory();
