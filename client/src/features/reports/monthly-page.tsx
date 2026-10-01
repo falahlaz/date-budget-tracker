@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Pencil } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   Bar,
@@ -64,7 +65,7 @@ export function MonthlyPage() {
         <ErrorState message={(error as Error).message} onRetry={() => refetch()} />
       ) : !data ? null : (
         <>
-          <SummaryCard report={data} />
+          <SummaryCard report={data} period={period} />
           <WeeklyTable report={data} />
           <CategoryDonut report={data} period={period} />
           <WeekdayWeekendBar report={data} />
@@ -77,7 +78,7 @@ export function MonthlyPage() {
   );
 }
 
-function SummaryCard({ report }: { report: MonthReport }) {
+function SummaryCard({ report, period }: { report: MonthReport; period: string }) {
   if (!report.hasBudget) {
     return (
       <Card className="mb-7 border-accent-line bg-accent-soft">
@@ -87,7 +88,7 @@ function SummaryCard({ report }: { report: MonthReport }) {
           muncul.
         </p>
         <Button asChild size="md" className="mt-4">
-          <Link to="/budget">Set budget</Link>
+          <Link to={`/budget?period=${period}`}>Set budget</Link>
         </Button>
       </Card>
     );
@@ -140,12 +141,18 @@ function SummaryCard({ report }: { report: MonthReport }) {
       </div>
 
       <dl className="mt-4 flex items-baseline justify-between gap-3 border-t border-line pt-3.5 text-[11.5px] text-ink-3">
-        <div className="flex items-baseline gap-1.5">
+        {/* The only way back to the budget form once a month has one (PRD 6.7). */}
+        <Link
+          to={`/budget?period=${period}`}
+          aria-label={`Ubah budget ${formatPeriodLong(period)}`}
+          className="-mx-1 flex items-baseline gap-1.5 rounded px-1 hover:text-ink active:bg-surface-2"
+        >
           <dt>Budget</dt>
           <dd className="tabular font-semibold text-ink">
             {formatCompactRupiah(report.monthlyBudget)}
           </dd>
-        </div>
+          <Pencil aria-hidden className="size-3 self-center text-ink-3" />
+        </Link>
         <div className="flex items-baseline gap-1.5">
           <dt>Carry-in</dt>
           <dd
