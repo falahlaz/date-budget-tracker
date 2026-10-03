@@ -507,6 +507,10 @@ export interface BillsSummary {
   unpaidDueCount: number;
   overdueCount: number;
   paidThisMonthTotal: number;
+  /** Every live bill owing this month, paid or not. */
+  monthlyTotal: number;
+  monthlyCount: number;
+  monthlyByCategory: { category: BillCategory; total: number; count: number }[];
 }
 
 export interface BillList {

@@ -62,6 +62,15 @@ export function lastPeriodOf(input: Pick<BillScheduleInput, 'kind' | 'startPerio
   return input.endPeriod;
 }
 
+/** Whether a bill owes a payment in `period`, paid or not. */
+export function owesIn(
+  input: Pick<BillScheduleInput, 'kind' | 'startPeriod' | 'endPeriod'>,
+  period: string,
+): boolean {
+  const last = lastPeriodOf(input);
+  return period >= input.startPeriod && (last === null || period <= last);
+}
+
 /** The due date in a period, with the day clamped to the month (31 -> 28 Feb). */
 export function dueDateIn(period: string, dueDay: number): string {
   const day = Math.min(dueDay, daysInPeriod(period));

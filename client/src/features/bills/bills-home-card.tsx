@@ -69,6 +69,12 @@ export function BillsHomeCard() {
       />
 
       <Card className="px-4 py-3">
+        {summary.monthlyCount > 0 ? (
+          <p className="mb-1.5 text-[12px] text-ink-3">
+            Total tagihan bulan ini{' '}
+            <span className="tabular font-medium text-ink-2">{formatRupiah(summary.monthlyTotal)}</span>
+          </p>
+        ) : null}
         {summary.unpaidDueCount > 0 ? (
           <p className="border-b border-line pb-3 text-[13px] text-ink-2">
             Belum dibayar{' '}

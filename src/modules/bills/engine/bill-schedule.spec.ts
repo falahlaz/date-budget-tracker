@@ -1,5 +1,5 @@
 import { BillKind } from '@prisma/client';
-import { BillScheduleInput, computeBillSchedule, dueDateIn } from './bill-schedule';
+import { BillScheduleInput, computeBillSchedule, dueDateIn, owesIn } from './bill-schedule';
 
 const base: BillScheduleInput = {
   kind: BillKind.RECURRING,
@@ -19,6 +19,29 @@ describe('dueDateIn', () => {
     expect(dueDateIn('2028-02', 31)).toBe('2028-02-29');
     expect(dueDateIn('2026-09', 31)).toBe('2026-09-30');
     expect(dueDateIn('2026-10', 5)).toBe('2026-10-05');
+  });
+});
+
+describe('owesIn', () => {
+  it('covers an installment from its first month through its last', () => {
+    const bill = { kind: BillKind.INSTALLMENT, startPeriod: '2026-09', endPeriod: '2026-11' };
+    expect(owesIn(bill, '2026-08')).toBe(false);
+    expect(owesIn(bill, '2026-09')).toBe(true);
+    expect(owesIn(bill, '2026-11')).toBe(true);
+    expect(owesIn(bill, '2026-12')).toBe(false);
+  });
+
+  it('pins a one-time bill to its own month', () => {
+    const bill = { kind: BillKind.ONE_TIME, startPeriod: '2026-10', endPeriod: '2026-10' };
+    expect(owesIn(bill, '2026-09')).toBe(false);
+    expect(owesIn(bill, '2026-10')).toBe(true);
+    expect(owesIn(bill, '2026-11')).toBe(false);
+  });
+
+  it('never ends a recurring bill, but does not start it early', () => {
+    const bill = { kind: BillKind.RECURRING, startPeriod: '2026-10', endPeriod: null };
+    expect(owesIn(bill, '2026-09')).toBe(false);
+    expect(owesIn(bill, '2030-01')).toBe(true);
   });
 });
 

@@ -2,12 +2,14 @@ import { Plus, ReceiptText } from 'lucide-react';
 import { useState } from 'react';
 import { PageHeader } from '@/components/app-shell';
 import { Button } from '@/components/ui/button';
-import { EmptyState, ErrorState, LoadingBlock } from '@/components/ui/feedback';
+import { Card } from '@/components/ui/card';
+import { EmptyState, ErrorState, LoadingBlock, Meter } from '@/components/ui/feedback';
 import { MoneyHero } from '@/components/ui/money';
 import { SectionHead } from '@/components/ui/section';
 import { currentPeriod } from '@/lib/today';
 import { formatPeriodLong, formatRupiah } from '@/lib/format';
-import type { Bill } from '@/types/api';
+import type { Bill, BillsSummary } from '@/types/api';
+import { BILL_CATEGORY_LABELS } from './bill-labels';
 import { BillRow } from './bill-row';
 import { BillSheet } from './bill-sheet';
 import { useBills } from './hooks';
@@ -92,6 +94,8 @@ export function BillsPage() {
             </p>
           </section>
 
+          <MonthlyTotalCard summary={data.summary} />
+
           {groups.map((group) =>
             group.bills.length > 0 ? (
               <section key={group.title} className="mb-6">
@@ -119,5 +123,49 @@ export function BillsPage() {
       <PayBillSheet bill={paying} onClose={() => setPaying(null)} />
       <BillSheet open={creating} onClose={() => setCreating(false)} bill={null} />
     </>
+  );
+}
+
+/**
+ * What a month of bills costs: every bill owing this month, paid or not, so the number is
+ * the same on the 1st as on the 30th. Arrears from earlier months stay in the hero above.
+ */
+function MonthlyTotalCard({ summary }: { summary: BillsSummary }) {
+  if (summary.monthlyCount === 0) return null;
+
+  return (
+    <section className="mb-7">
+      <SectionHead title="Total tagihan bulan ini" />
+      <Card className="px-4 py-4">
+        <p className="amount-display text-[26px] text-ink">{formatRupiah(summary.monthlyTotal)}</p>
+        <p className="mt-1 text-[12px] text-ink-3">{summary.monthlyCount} tagihan</p>
+
+        <Meter
+          value={summary.paidThisMonthTotal}
+          max={summary.monthlyTotal}
+          fillClassName="bg-pos"
+          size="sm"
+          className="mt-4"
+        />
+        <p className="mt-1.5 text-[11.5px] text-ink-3">
+          Udah dibayar {formatRupiah(summary.paidThisMonthTotal)} dari{' '}
+          {formatRupiah(summary.monthlyTotal)}
+        </p>
+
+        {summary.monthlyByCategory.length > 1 ? (
+          <ul className="mt-4 space-y-2 border-t border-line pt-3">
+            {summary.monthlyByCategory.map((slot) => (
+              <li key={slot.category} className="flex items-baseline justify-between text-[13px]">
+                <span className="text-ink-2">
+                  {BILL_CATEGORY_LABELS[slot.category]}
+                  <span className="text-ink-3"> · {slot.count}</span>
+                </span>
+                <span className="tabular font-medium text-ink">{formatRupiah(slot.total)}</span>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </Card>
+    </section>
   );
 }

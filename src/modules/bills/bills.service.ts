@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import {
   Bill,
+  BillCategory,
   BillKind,
   PaymentMethod,
   Prisma,
@@ -18,7 +19,7 @@ import { WalletsService } from '@/modules/wallets/wallets.service';
 import { CreateBillDto } from './dto/create-bill.dto';
 import { PayBillDto } from './dto/pay-bill.dto';
 import { UpdateBillDto } from './dto/update-bill.dto';
-import { BillSchedule, computeBillSchedule, lastPeriodOf } from './engine/bill-schedule';
+import { BillSchedule, computeBillSchedule, lastPeriodOf, owesIn } from './engine/bill-schedule';
 
 /** The category every bill payment is filed under, in whichever wallet paid it. */
 export const BILL_CATEGORY = { name: 'Tagihan', color: '#329DB8', icon: 'receipt' } as const;
@@ -47,6 +48,11 @@ export interface BillsSummary {
   overdueCount: number;
   /** Paid this month, by occurredOn. */
   paidThisMonthTotal: number;
+  /** What this month's schedule asks for: every live bill owing this period, paid or not. */
+  monthlyTotal: number;
+  monthlyCount: number;
+  /** `monthlyTotal` split by category, largest first. */
+  monthlyByCategory: { category: BillCategory; total: number; count: number }[];
 }
 
 /** Most urgent first: overdue, due soon, then upcoming by date, then paid, then done. */
@@ -103,7 +109,11 @@ export class BillsService {
       unpaidDueCount: 0,
       overdueCount: 0,
       paidThisMonthTotal: 0,
+      monthlyTotal: 0,
+      monthlyCount: 0,
+      monthlyByCategory: [],
     };
+    const byCategory = new Map<BillCategory, { total: number; count: number }>();
 
     for (const bill of items) {
       for (const payment of livePayments(bill)) {
@@ -115,7 +125,19 @@ export class BillsService {
       summary.unpaidDueTotal += bill.amount * bill.schedule.unpaidDueCount;
       summary.unpaidDueCount += bill.schedule.unpaidDueCount;
       summary.overdueCount += bill.schedule.overdueCount;
+
+      if (!owesIn(bill, period)) continue;
+      summary.monthlyTotal += bill.amount;
+      summary.monthlyCount += 1;
+      const slot = byCategory.get(bill.category) ?? { total: 0, count: 0 };
+      slot.total += bill.amount;
+      slot.count += 1;
+      byCategory.set(bill.category, slot);
     }
+
+    summary.monthlyByCategory = [...byCategory]
+      .map(([category, slot]) => ({ category, ...slot }))
+      .sort((a, b) => b.total - a.total);
 
     return { items, summary };
   }
