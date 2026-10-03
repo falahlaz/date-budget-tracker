@@ -199,16 +199,30 @@ describe('Bills API', () => {
 
   describe('listing', () => {
     it('sorts the most urgent first and sums what is still owed', async () => {
-      await createBill({ name: 'Netflix', kind: 'RECURRING', amount: 65_000, dueDay: 28 });
+      await createBill({
+        name: 'Netflix',
+        kind: 'RECURRING',
+        category: 'LANGGANAN',
+        amount: 65_000,
+        dueDay: 28,
+      });
       await createBill({ name: 'Cicilan HP' });
-      const paid = await createBill({ name: 'Internet', kind: 'RECURRING', amount: 300_000 });
+      const paid = await createBill({
+        name: 'Internet',
+        kind: 'RECURRING',
+        category: 'UTILITAS',
+        amount: 300_000,
+      });
       await pay(paid.body.id, { walletId: dateWalletId }).expect(201);
+      // Starts next month, so it is not part of this month's total.
+      await createBill({ name: 'Pajak motor', kind: 'ONE_TIME', startPeriod: '2026-10' });
 
       const response = await authed('get', '/api/bills').expect(200);
 
       expect(response.body.items.map((bill: { name: string }) => bill.name)).toEqual([
         'Cicilan HP', // overdue since the 25th
         'Netflix', // due in two days
+        'Pajak motor', // next month
         'Internet', // paid this month
       ]);
       expect(response.body.summary).toEqual({
@@ -216,6 +230,13 @@ describe('Bills API', () => {
         unpaidDueCount: 2,
         overdueCount: 1,
         paidThisMonthTotal: 300_000,
+        monthlyTotal: 815_000,
+        monthlyCount: 3,
+        monthlyByCategory: [
+          { category: 'CICILAN', total: 450_000, count: 1 },
+          { category: 'UTILITAS', total: 300_000, count: 1 },
+          { category: 'LANGGANAN', total: 65_000, count: 1 },
+        ],
       });
     });
   });
