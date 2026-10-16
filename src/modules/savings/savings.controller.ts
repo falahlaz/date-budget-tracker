@@ -126,7 +126,7 @@ export class SavingsController {
   }
 
   @Post('withdrawals')
-  @ApiOperation({ summary: 'Take money out. A reason is required (8.13).' })
+  @ApiOperation({ summary: 'Take money out. A category is required (8.13).' })
   async createWithdrawal(
     @CurrentUser('id') userId: number,
     @Param('walletId', ParseIntPipe) walletId: number,

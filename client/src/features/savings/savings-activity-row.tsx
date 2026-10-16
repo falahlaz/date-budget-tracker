@@ -10,8 +10,8 @@ const INCOMING: TransactionKind[] = ['DEPOSIT', 'TRANSFER_IN', 'LOAN_IN'];
 /**
  * One line of savings history.
  *
- * A withdrawal leads with its reason, a deposit with its note or the plain word. That is
- * not a styling choice: the reason is the only thing that makes a past withdrawal
+ * Both a withdrawal and a deposit lead with their note, or the plain word without one.
+ * That is not a styling choice: the note is the only thing that makes a past withdrawal
  * reviewable, and burying it under a category name is how a savings account quietly
  * becomes a list of unexplained holes (goal G2).
  */
@@ -39,7 +39,7 @@ export function SavingsActivityRow({
       : 'Dipindah ke dompet lain'
     : incoming
       ? (transaction.note ?? 'Setoran')
-      : (transaction.reason ?? 'Penarikan');
+      : (transaction.note ?? 'Penarikan');
 
   const detail = [
     formatDayShort(transaction.occurredOn),

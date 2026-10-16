@@ -179,7 +179,7 @@ export function DepositSheet({
                     <li key={advance.id} className="flex items-center gap-3">
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[12.5px] text-ink">
-                          {advance.reason ?? 'Penarikan'}
+                          {advance.note ?? 'Penarikan'}
                         </span>
                         <span className="block text-[10.5px] text-ink-3">
                           {formatDateLong(advance.occurredOn)} · sisa{' '}
@@ -188,7 +188,7 @@ export function DepositSheet({
                       </span>
                       <Input
                         inputMode="numeric"
-                        aria-label={`Alokasi buat ${advance.reason ?? 'penarikan'}`}
+                        aria-label={`Alokasi buat ${advance.note ?? 'penarikan'}`}
                         value={formatAmountInput(String(row?.amount ?? 0))}
                         onChange={(event) => {
                           const next = Math.min(

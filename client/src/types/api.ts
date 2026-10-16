@@ -139,8 +139,7 @@ export interface Transaction {
   merchantKey: string | null;
   paymentMethod: PaymentMethod;
   note: string | null;
-  /** Savings fields (v2 5.1): null / false / 0 for the kinds they mean nothing to. */
-  reason: string | null;
+  /** Savings fields (v2 5.1): false / 0 for the kinds they mean nothing to. */
   expectedReturn: boolean;
   returnedAmount: number;
   settled: boolean;
@@ -369,7 +368,7 @@ export interface Advance {
   amount: number;
   returnedAmount: number;
   outstanding: number;
-  reason: string | null;
+  note: string | null;
   categoryId: number | null;
   settled: boolean;
 }
@@ -409,7 +408,6 @@ export interface SavingsWithdrawalRow {
   id: number;
   occurredOn: string;
   amount: number;
-  reason: string | null;
   categoryId: number | null;
   categoryName: string | null;
   categoryColor: string | null;

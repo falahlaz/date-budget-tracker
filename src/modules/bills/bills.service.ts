@@ -71,7 +71,7 @@ const STATUS_ORDER: Record<BillSchedule['status'], number> = {
  * one is the only thing here that touches money, and it does so through the doors that
  * already exist -- a SPEND through `TransactionsService.create`, a WITHDRAW through
  * `SavingsService.createWithdrawal` -- so the budget cache, the balance floor and the
- * mandatory withdrawal reason all apply exactly as they do anywhere else.
+ * mandatory withdrawal category all apply exactly as they do anywhere else.
  */
 @Injectable()
 export class BillsService {
@@ -301,7 +301,6 @@ export class BillsService {
       return this.savings.createWithdrawal(userId, wallet.id, {
         amount,
         occurredOn,
-        reason: `Bayar tagihan ${label}`.slice(0, 200),
         categoryId,
         expectedReturn: false,
         note,

@@ -143,7 +143,7 @@ function MonthReceipt({ report }: { report: SavingsMonthReport }) {
 /**
  * The list this screen exists for (PRD v2 11.5, goal G2).
  *
- * One row per withdrawal with the reason as the headline, before the category breakdown
+ * One row per withdrawal with its note as the headline, before the category breakdown
  * and not a donut. What Falah is looking for when he opens this screen is a sentence, not
  * a percentage -- the aggregate can only ever tell him which bucket, never which decision.
  */
@@ -176,8 +176,8 @@ function WithdrawalRow({ withdrawal }: { withdrawal: SavingsWithdrawalRow }) {
   return (
     <li className="flex items-start gap-3 py-3">
       <span className="min-w-0 flex-1">
-        <span className="block text-[13.5px] font-medium text-ink">
-          {withdrawal.reason ?? 'Tanpa alasan'}
+        <span className="block line-clamp-2 text-[13.5px] font-medium text-ink">
+          {withdrawal.note ?? 'Penarikan'}
         </span>
         <span className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11px] text-ink-3">
           <span>{formatDayShort(withdrawal.occurredOn)}</span>
