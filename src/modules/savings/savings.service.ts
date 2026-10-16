@@ -205,9 +205,9 @@ export class SavingsService {
   /**
    * Records a withdrawal (PRD v2 8.1, 8.13).
    *
-   * `reason` is enforced by the DTO. What this adds is the balance floor: unlike the date
-   * budget, which may go negative because a budget is a plan, a savings balance is a fact
-   * about an account, and an account cannot hold less than nothing (5.5).
+   * The category is enforced by the DTO. What this adds is the balance floor: unlike the
+   * date budget, which may go negative because a budget is a plan, a savings balance is a
+   * fact about an account, and an account cannot hold less than nothing (5.5).
    */
   async createWithdrawal(
     userId: number,
@@ -235,7 +235,6 @@ export class SavingsService {
         direction: Direction.OUT,
         occurredOn: toDateOnly(occurredOn),
         amount: dto.amount,
-        reason: dto.reason,
         categoryId: dto.categoryId,
         expectedReturn: dto.expectedReturn ?? false,
         note: dto.note ?? null,
@@ -296,7 +295,6 @@ export class SavingsService {
     if (dto.note !== undefined) data.note = dto.note;
 
     if (existing.kind === TransactionKind.WITHDRAW) {
-      if (dto.reason !== undefined) data.reason = dto.reason;
       if (dto.expectedReturn !== undefined) {
         // Un-marking an advance that has already been partly repaid would orphan the
         // allocations pointing at it -- they would credit a withdrawal that no longer

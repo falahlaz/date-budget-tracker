@@ -48,7 +48,7 @@ export interface AdvanceResponse {
   amount: number;
   returnedAmount: number;
   outstanding: number;
-  reason: string | null;
+  note: string | null;
   categoryId: number | null;
   settled: boolean;
 }
@@ -116,7 +116,7 @@ export function toAdvanceResponse(advance: Transaction): AdvanceResponse {
     amount: advance.amount,
     returnedAmount: advance.returnedAmount,
     outstanding: advance.amount - advance.returnedAmount,
-    reason: advance.reason,
+    note: advance.note,
     categoryId: advance.categoryId,
     settled: advance.settledAt !== null,
   };

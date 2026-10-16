@@ -222,7 +222,7 @@ function ProjectionCard({ goal }: { goal: GoalWithReport }) {
 /**
  * The last five movements (PRD v2 11.2, item 6).
  *
- * A withdrawal shows its reason as the headline; a deposit shows its amount. That
+ * A withdrawal shows its note as the headline; a deposit shows its amount. That
  * asymmetry is the point -- the sentence is what makes a withdrawal reviewable at all.
  */
 function RecentActivity() {

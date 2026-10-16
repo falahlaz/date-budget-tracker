@@ -108,7 +108,6 @@ export function useCreateDeposit() {
 export interface WithdrawalInput {
   amount: number;
   occurredOn: string;
-  reason: string;
   categoryId: number;
   expectedReturn?: boolean;
   note?: string | null;
@@ -196,7 +195,6 @@ export function planFifo(
 export interface SavingsTransactionUpdate {
   amount?: number;
   occurredOn?: string;
-  reason?: string;
   categoryId?: number;
   expectedReturn?: boolean;
   note?: string | null;

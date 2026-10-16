@@ -22,7 +22,7 @@ export class SavingsReportsController {
   ) {}
 
   @Get(':period')
-  @ApiOperation({ summary: 'One month of a savings wallet, with every withdrawal and its reason' })
+  @ApiOperation({ summary: 'One month of a savings wallet, with every withdrawal and its note' })
   async month(
     @CurrentUser('id') userId: number,
     @Param('walletId', ParseIntPipe) walletId: number,

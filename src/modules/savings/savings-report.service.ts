@@ -8,12 +8,11 @@ import { SavingsMonthRow, monthlyRows } from './engine/compute-savings';
 import { balancesFor, outstandingAdvanceAsOf } from './engine/month-report';
 import { SavingsComputationService } from './savings-computation.service';
 
-/** One withdrawal, with the sentence that explains it (PRD v2 10.5, goal G2). */
+/** One withdrawal, with the note that explains it (PRD v2 10.5, goal G2). */
 export interface SavingsWithdrawalRow {
   id: number;
   occurredOn: string;
   amount: number;
-  reason: string | null;
   categoryId: number | null;
   categoryName: string | null;
   categoryColor: string | null;
@@ -117,8 +116,8 @@ export class SavingsReportService {
    * WITHDRAW rows only, deliberately.
    *
    * `withdrawTotal` also counts TRANSFER_OUT, because the balance does. But a transfer has
-   * no reason and no category -- it is money moved, not money spent -- and listing it here
-   * among the reasons would dilute exactly the thing this list exists to show. The
+   * no category -- it is money moved, not money spent -- and listing it here among the
+   * withdrawals would dilute exactly the thing this list exists to show. The
    * transfer's own total is reported separately above.
    */
   private async loadWithdrawals(walletId: number, period: string): Promise<SavingsWithdrawalRow[]> {
@@ -140,7 +139,6 @@ export class SavingsReportService {
       id: row.id,
       occurredOn: fromDateOnly(row.occurredOn),
       amount: row.amount,
-      reason: row.reason,
       categoryId: row.category?.id ?? null,
       categoryName: row.category?.name ?? null,
       categoryColor: row.category?.color ?? null,

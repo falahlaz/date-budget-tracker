@@ -58,7 +58,7 @@ describe('Savings API (PRD v2 10.3)', () => {
 
   const withdraw = (body: Record<string, unknown>) =>
     authed('post', `/api/wallets/${walletId}/withdrawals`).send({
-      reason: 'Kado nikahan sepupu',
+      note: 'Kado nikahan sepupu',
       categoryId,
       ...body,
     });
@@ -154,7 +154,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       const withdrawal = await withdraw({
         amount: 600_000,
         occurredOn: '2026-06-18',
-        reason: 'Pinjam dulu',
+        note: 'Pinjam dulu',
         expectedReturn: true,
       }).expect(201);
 
@@ -228,35 +228,40 @@ describe('Savings API (PRD v2 10.3)', () => {
       expect(goal.body.balance).toBe(2_000_000);
     });
 
-    it('edits a withdrawal reason and category', async () => {
+    it('edits a withdrawal note and category', async () => {
       await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
       const created = await withdraw({
         amount: 500_000,
         occurredOn: '2026-06-18',
-        reason: 'lupa alasannya',
+        note: 'lupa alasannya',
       }).expect(201);
 
       const fixed = await authed(
         'patch',
         `/api/wallets/${walletId}/transactions/${created.body.id}`,
       )
-        .send({ reason: 'Beli headphone', categoryId: impulsifId })
+        .send({ note: 'Beli headphone', categoryId: impulsifId })
         .expect(200);
 
       expect(fixed.body).toMatchObject({
-        reason: 'Beli headphone',
+        note: 'Beli headphone',
         category: { id: impulsifId },
       });
     });
 
-    /** Section 8.13 is about the reason existing; an edit may not blank it. */
-    it('refuses to blank a withdrawal reason', async () => {
+    /** The note is optional on a withdrawal, so an edit may clear it. */
+    it('clears a withdrawal note', async () => {
       await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
       const created = await withdraw({ amount: 500_000, occurredOn: '2026-06-18' }).expect(201);
 
-      await authed('patch', `/api/wallets/${walletId}/transactions/${created.body.id}`)
-        .send({ reason: '   ' })
-        .expect(422);
+      const fixed = await authed(
+        'patch',
+        `/api/wallets/${walletId}/transactions/${created.body.id}`,
+      )
+        .send({ note: null })
+        .expect(200);
+
+      expect(fixed.body.note).toBeNull();
     });
 
     /**
@@ -268,7 +273,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       await withdraw({
         amount: 600_000,
         occurredOn: '2026-06-18',
-        reason: 'Pinjam dulu',
+        note: 'Pinjam dulu',
         expectedReturn: true,
       }).expect(201);
 
@@ -310,7 +315,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       const advance = await withdraw({
         amount: 600_000,
         occurredOn: '2026-06-18',
-        reason: 'Pinjam dulu',
+        note: 'Pinjam dulu',
         expectedReturn: true,
       }).expect(201);
 
@@ -342,7 +347,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       await withdraw({
         amount: 600_000,
         occurredOn: '2026-06-18',
-        reason: 'Pinjam dulu',
+        note: 'Pinjam dulu',
         expectedReturn: true,
       }).expect(201);
 
@@ -355,13 +360,13 @@ describe('Savings API (PRD v2 10.3)', () => {
       await withdraw({
         amount: 700_000,
         occurredOn: '2026-08-09',
-        reason: 'Kado nikahan sepupu',
+        note: 'Kado nikahan sepupu',
         expectedReturn: true,
       }).expect(201);
       await withdraw({
         amount: 500_000,
         occurredOn: '2026-08-22',
-        reason: 'Beli headphone',
+        note: 'Beli headphone',
         categoryId: impulsifId,
       }).expect(201);
 
@@ -394,7 +399,7 @@ describe('Savings API (PRD v2 10.3)', () => {
         amount: 700_000,
         returnedAmount: 0,
         outstanding: 700_000,
-        reason: 'Kado nikahan sepupu',
+        note: 'Kado nikahan sepupu',
       });
       expect(advances.body.outstanding).toBe(700_000);
     });
@@ -459,14 +464,14 @@ describe('Savings API (PRD v2 10.3)', () => {
        * The deliverable for G2: one row per withdrawal, with the sentence that explains it,
        * in date order. Not a donut, not a percentage.
        */
-      it('lists both August withdrawals with their reasons (11.5)', async () => {
+      it('lists both August withdrawals with their notes (11.5)', async () => {
         const august = await report('2026-08').expect(200);
 
         expect(august.body.withdrawals).toMatchObject([
           {
             occurredOn: '2026-08-09',
             amount: 700_000,
-            reason: 'Kado nikahan sepupu',
+            note: 'Kado nikahan sepupu',
             categoryName: 'Keluarga',
             expectedReturn: true,
             returnedAmount: 0,
@@ -475,7 +480,7 @@ describe('Savings API (PRD v2 10.3)', () => {
           {
             occurredOn: '2026-08-22',
             amount: 500_000,
-            reason: 'Beli headphone',
+            note: 'Beli headphone',
             categoryName: 'Impulsif',
             expectedReturn: false,
             returnedAmount: 0,
@@ -581,20 +586,18 @@ describe('Savings API (PRD v2 10.3)', () => {
       await deposit({ amount: 2_000_000, occurredOn: '2026-06-10' }).expect(201);
     });
 
-    // E20 -- the rule that IS goal G2.
-    it('refuses a withdrawal with no reason (8.13)', async () => {
-      await authed('post', `/api/wallets/${walletId}/withdrawals`)
+    // E20 -- the "why" is the optional note now; only the category is required.
+    it('accepts a withdrawal with no note', async () => {
+      const created = await authed('post', `/api/wallets/${walletId}/withdrawals`)
         .send({ amount: 100_000, occurredOn: '2026-09-01', categoryId })
-        .expect(422);
+        .expect(201);
 
-      await authed('post', `/api/wallets/${walletId}/withdrawals`)
-        .send({ amount: 100_000, occurredOn: '2026-09-01', categoryId, reason: '   ' })
-        .expect(422);
+      expect(created.body.note).toBeNull();
     });
 
     it('refuses a withdrawal with no category (8.13)', async () => {
       await authed('post', `/api/wallets/${walletId}/withdrawals`)
-        .send({ amount: 100_000, occurredOn: '2026-09-01', reason: 'lupa kategori' })
+        .send({ amount: 100_000, occurredOn: '2026-09-01', note: 'lupa kategori' })
         .expect(422);
     });
 
@@ -622,11 +625,11 @@ describe('Savings API (PRD v2 10.3)', () => {
       expect(goal.body.balance).toBe(0);
     });
 
-    it('stores the reason and the flag verbatim (G2, G5)', async () => {
+    it('stores the note and the flag verbatim (G2, G5)', async () => {
       const created = await withdraw({
         amount: 100_000,
         occurredOn: '2026-09-01',
-        reason: 'Servis motor mendadak',
+        note: 'Servis motor mendadak',
         expectedReturn: true,
       }).expect(201);
 
@@ -634,7 +637,7 @@ describe('Savings API (PRD v2 10.3)', () => {
         where: { id: created.body.id },
       });
 
-      expect(row.reason).toBe('Servis motor mendadak');
+      expect(row.note).toBe('Servis motor mendadak');
       expect(row.expectedReturn).toBe(true);
       expect(row.kind).toBe('WITHDRAW');
       expect(row.direction).toBe('OUT');
@@ -654,7 +657,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       const first = await withdraw({
         amount: 400_000,
         occurredOn: '2026-06-01',
-        reason: 'lebih dulu',
+        note: 'lebih dulu',
         expectedReturn: true,
       }).expect(201);
       firstAdvance = first.body.id;
@@ -662,7 +665,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       const second = await withdraw({
         amount: 300_000,
         occurredOn: '2026-07-01',
-        reason: 'lebih baru',
+        note: 'lebih baru',
         expectedReturn: true,
       }).expect(201);
       secondAdvance = second.body.id;
@@ -749,7 +752,7 @@ describe('Savings API (PRD v2 10.3)', () => {
       const plain = await withdraw({
         amount: 50_000,
         occurredOn: '2026-07-15',
-        reason: 'bukan utang',
+        note: 'bukan utang',
       }).expect(201);
 
       await deposit({

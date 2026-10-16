@@ -87,10 +87,10 @@ const OWN_ENDPOINT: Partial<Record<TransactionKind, string>> = {
  * Only a SPEND is a plain row (PRD v2 8.13, 10.3).
  *
  * Every other kind carries side effects that only its own endpoint performs: a withdrawal
- * needs a reason and a balance floor, a deposit may settle advances, a transfer is two
+ * needs a category and a balance floor, a deposit may settle advances, a transfer is two
  * rows at once. Letting this endpoint create them too would mean a second copy of each of
- * those rules -- and section 8.13's "a withdrawal cannot be saved without a reason" would
- * be one forgotten copy away from being false. One door per concept instead.
+ * those rules -- and section 8.13's "a withdrawal cannot be saved without a category"
+ * would be one forgotten copy away from being false. One door per concept instead.
  */
 export function assertCreatableHere(kind: TransactionKind): TransactionKind {
   const elsewhere = OWN_ENDPOINT[kind];

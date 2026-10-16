@@ -17,8 +17,8 @@ import { useDeleteSavingsTransaction, useUpdateSavingsTransaction } from './hook
  * Correcting one savings row.
  *
  * It exists because without it a mistyped deposit is permanent: the savings screens are
- * read-only, and the generic `/expenses/:id` form is spend-shaped — it has no reason
- * field, offers the wrong category vocabulary, and deletes through an endpoint that skips
+ * read-only, and the generic `/expenses/:id` form is spend-shaped — it has no "bakal gw
+ * balikin" flag, offers the wrong category vocabulary, and deletes through an endpoint that skips
  * the allocation unwinding (v2 8.7).
  *
  * Both actions here go through `/api/wallets/:walletId/transactions/:id`, which is the
@@ -37,7 +37,6 @@ export function SavingsDetailSheet({
 
   const [amountText, setAmountText] = useState('');
   const [occurredOn, setOccurredOn] = useState(todayInJakarta());
-  const [reason, setReason] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [expectedReturn, setExpectedReturn] = useState(false);
   const [note, setNote] = useState('');
@@ -51,7 +50,6 @@ export function SavingsDetailSheet({
 
     setAmountText(formatAmountInput(String(transaction.amount)));
     setOccurredOn(transaction.occurredOn);
-    setReason(transaction.reason ?? '');
     setCategoryId(transaction.category?.id ?? null);
     setExpectedReturn(transaction.expectedReturn);
     setNote(transaction.note ?? '');
@@ -59,11 +57,7 @@ export function SavingsDetailSheet({
   }, [transaction]);
 
   const amount = parseAmountInput(amountText);
-  const canSave =
-    transaction !== null &&
-    amount >= 1 &&
-    (!isWithdrawal || reason.trim() !== '') &&
-    !update.isPending;
+  const canSave = transaction !== null && amount >= 1 && !update.isPending;
 
   const submit = async () => {
     if (!transaction || !canSave) return;
@@ -76,7 +70,6 @@ export function SavingsDetailSheet({
         note: note.trim() === '' ? null : note.trim(),
         ...(isWithdrawal
           ? {
-              reason: reason.trim(),
               expectedReturn,
               ...(categoryId !== null ? { categoryId } : {}),
             }
@@ -175,23 +168,12 @@ export function SavingsDetailSheet({
           </div>
 
           {isWithdrawal ? (
-            <>
-              <Field label="Alasan" required>
-                <Input
-                  value={reason}
-                  maxLength={200}
-                  placeholder="Kado nikahan sepupu"
-                  onChange={(event) => setReason(event.target.value)}
-                />
-              </Field>
-
-              <CategoryPicker
-                value={categoryId}
-                onChange={setCategoryId}
-                hint="wajib"
-                walletType="SAVINGS"
-              />
-            </>
+            <CategoryPicker
+              value={categoryId}
+              onChange={setCategoryId}
+              hint="wajib"
+              walletType="SAVINGS"
+            />
           ) : null}
 
           <Field label="Tanggal" required>

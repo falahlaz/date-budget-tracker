@@ -25,7 +25,7 @@ import { useInfiniteExpenses, type ExpenseFilters } from './hooks';
 export function ExpenseListPage() {
   const [params, setParams] = useSearchParams();
   // The same list serves both wallet types (v2 11.1); only the row and the category
-  // vocabulary differ, because a withdrawal's headline is its reason and a spend's is the
+  // vocabulary differ, because a withdrawal's headline is its note and a spend's is the
   // place, and the two types keep separate category lists (v2 9.4).
   const savings = useActiveWalletType() === 'SAVINGS';
   // A savings row has no detail *page* -- `/expenses/:id` is spend-shaped -- so it opens a

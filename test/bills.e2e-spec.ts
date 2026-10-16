@@ -125,7 +125,7 @@ describe('Bills API', () => {
       expect(detail.body.bill).toEqual({ id: bill.body.id, name: 'Cicilan HP', period: '2026-09' });
     });
 
-    it('writes a WITHDRAW with a reason in a savings wallet, and respects its balance', async () => {
+    it('writes a WITHDRAW in a savings wallet, and respects its balance', async () => {
       const bill = await createBill().expect(201);
 
       const short = await pay(bill.body.id, { walletId: savingsWalletId }).expect(422);
@@ -147,7 +147,7 @@ describe('Bills API', () => {
         walletId: savingsWalletId,
         kind: 'WITHDRAW',
         amount: 400_000,
-        reason: 'Bayar tagihan Cicilan HP (2026-09)',
+        note: 'Tagihan Cicilan HP (2026-09)',
       });
     });
 

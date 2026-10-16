@@ -220,6 +220,8 @@ model Transaction {
   /// normalizeMerchant(merchant); the ONLY column allowed for grouping/dedupe/matching
   merchantKey   String?         @map("merchant_key") @db.VarChar(120)
   paymentMethod PaymentMethod   @default(CASH) @map("payment_method")
+  /// Free text. On a WITHDRAW this is where the "why" goes -- it replaced the separate
+  /// `reason` column, whose contents were merged in here.
   note          String?         @db.VarChar(500)
 
   /// Both sides of one transfer share this uuid v4 and are always written, edited and
@@ -227,9 +229,6 @@ model Transaction {
   transferGroupId     String? @map("transfer_group_id") @db.Char(36)
   counterpartWalletId Int?    @map("counterpart_wallet_id") @db.UnsignedInt
 
-  /// Why the money left the savings wallet. Mandatory on WITHDRAW -- this is goal G2 and
-  /// is not to be relaxed into an optional field (v2 section 8.13).
-  reason         String?   @db.VarChar(200)
   /// "bakal gw balikin": marks a withdrawal as a debt to yourself (v2 section 5.1).
   expectedReturn Boolean   @default(false) @map("expected_return")
   returnedAmount Int       @default(0) @map("returned_amount")

@@ -158,7 +158,9 @@ describe('Wallets (PRD v2 4, 10.2)', () => {
   it('refuses a rename onto a name another wallet already has', async () => {
     const created = await createSavingsWallet('Tabungan').expect(201);
 
-    await authed('patch', `/api/wallets/${created.body.id}`).send({ name: 'Pengeluaran' }).expect(409);
+    await authed('patch', `/api/wallets/${created.body.id}`)
+      .send({ name: 'Pengeluaran' })
+      .expect(409);
   });
 
   it('refuses a rename to nothing, spaces included', async () => {
@@ -262,7 +264,7 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
       .send({
         amount,
         occurredOn: '2026-09-14',
-        reason: 'test',
+        note: 'test',
         categoryId: savingsCategoryId,
       });
 
@@ -300,7 +302,7 @@ describe('Transaction scoping (PRD v2 4.1, 9.2)', () => {
 
   /**
    * One door per concept (8.13, 10.3). A deposit may settle advances and a withdrawal
-   * needs a reason and a balance floor, so neither is a plain row this endpoint writes --
+   * needs a category and a balance floor, so neither is a plain row this endpoint writes --
    * and the error has to say where to go instead.
    */
   it('refuses savings kinds here and names the endpoint that takes them', async () => {

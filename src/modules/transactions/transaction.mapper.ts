@@ -45,11 +45,9 @@ export interface TransactionResponse {
    * The savings fields (PRD v2 5.1, 10.5).
    *
    * On the response for every kind, null and false for the ones they mean nothing to. The
-   * history screen reads one list for the whole wallet, and a withdrawal has to show its
-   * reason as its headline there -- a second endpoint shaped per kind would buy nothing
-   * and would let the two drift.
+   * history screen reads one list for the whole wallet -- a second endpoint shaped per
+   * kind would buy nothing and would let the two drift.
    */
-  reason: string | null;
   expectedReturn: boolean;
   returnedAmount: number;
   settled: boolean;
@@ -117,7 +115,6 @@ export function toTransactionResponse(expense: TransactionWithRelations): Transa
     merchantKey: expense.merchantKey,
     paymentMethod: expense.paymentMethod,
     note: expense.note,
-    reason: expense.reason,
     expectedReturn: expense.expectedReturn,
     returnedAmount: expense.returnedAmount,
     settled: expense.settledAt !== null,

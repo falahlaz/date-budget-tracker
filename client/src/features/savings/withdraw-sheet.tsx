@@ -2,11 +2,10 @@ import * as Dialog from '@radix-ui/react-dialog';
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { Chip, ChipRow, ChipWrap } from '@/components/ui/chip';
+import { Chip, ChipWrap } from '@/components/ui/chip';
 import { Field, Input, Textarea } from '@/components/ui/input';
 import { Sheet } from '@/components/ui/sheet';
 import { CategoryPicker } from '@/features/categories/category-picker';
-import { useExpenses } from '@/features/expenses/hooks';
 import { ApiError } from '@/lib/api';
 import { cn } from '@/lib/cn';
 import { formatAmountInput, formatRupiah, parseAmountInput } from '@/lib/format';
@@ -14,23 +13,19 @@ import { shiftDate, todayInJakarta } from '@/lib/today';
 import type { WithdrawalPreview } from '@/types/api';
 import { useCreateWithdrawal, usePreviewWithdrawal } from './hooks';
 
-const MAX_REASON = 200;
+const MAX_NOTE = 500;
 
 /**
  * S-Tarik (PRD v2 11.4).
  *
- * The field order is the feature. Reason comes first and autofocused, before the amount,
- * because asking for it afterwards makes it a formality typed out once the decision is
- * already made -- and an honest sentence here is the whole of goal G2.
+ * The amount comes first and autofocused, like every other money sheet. The "why" lives in
+ * the optional note -- a separate mandatory reason field in front of the amount slowed
+ * every withdrawal down and duplicated what the note is already for.
  */
 export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const createWithdrawal = useCreateWithdrawal();
   const preview = usePreviewWithdrawal();
-  // Reasons already used, as chips: most withdrawals repeat themselves, and a tap is both
-  // faster and more honest than retyping a vaguer version of the same sentence.
-  const recent = useExpenses({ limit: 30 });
 
-  const [reason, setReason] = useState('');
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [amountText, setAmountText] = useState('');
   const [occurredOn, setOccurredOn] = useState(todayInJakarta());
@@ -44,7 +39,6 @@ export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () =>
   useEffect(() => {
     if (open) return;
 
-    setReason('');
     setCategoryId(null);
     setAmountText('');
     setOccurredOn(todayInJakarta());
@@ -53,15 +47,7 @@ export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () =>
     setFriction(null);
   }, [open]);
 
-  const usedReasons = [
-    ...new Set(
-      (recent.data?.items ?? [])
-        .filter((txn) => txn.kind === 'WITHDRAW' && txn.reason !== null)
-        .map((txn) => txn.reason as string),
-    ),
-  ].slice(0, 6);
-
-  const canContinue = reason.trim() !== '' && categoryId !== null && amount >= 1;
+  const canContinue = categoryId !== null && amount >= 1;
 
   /**
    * Asks the server what this costs, then shows the dialog.
@@ -88,13 +74,15 @@ export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () =>
       await createWithdrawal.mutateAsync({
         amount,
         occurredOn,
-        reason: reason.trim(),
         categoryId: categoryId as number,
         expectedReturn,
         ...(note.trim() === '' ? {} : { note: note.trim() }),
       });
 
-      toast.success(`${formatRupiah(amount)} ditarik`, { description: reason.trim() });
+      toast.success(
+        `${formatRupiah(amount)} ditarik`,
+        note.trim() === '' ? undefined : { description: note.trim() },
+      );
       setFriction(null);
       onClose();
     } catch (error) {
@@ -112,42 +100,11 @@ export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () =>
         title="Tarik"
       >
         <div className="flex flex-col gap-4">
-          <Field label="Alasan" required hint={`${reason.length}/${MAX_REASON}`}>
-            <Input
-              autoFocus
-              value={reason}
-              maxLength={MAX_REASON}
-              placeholder="Kado nikahan sepupu"
-              onChange={(event) => setReason(event.target.value)}
-            />
-            {usedReasons.length > 0 ? (
-              <div className="mt-2">
-                <ChipRow>
-                  {usedReasons.map((used) => (
-                    <Chip
-                      key={used}
-                      selected={reason.trim() === used}
-                      onClick={() => setReason(used)}
-                    >
-                      {used}
-                    </Chip>
-                  ))}
-                </ChipRow>
-              </div>
-            ) : null}
-          </Field>
-
-          <CategoryPicker
-            value={categoryId}
-            onChange={setCategoryId}
-            hint="wajib"
-            walletType="SAVINGS"
-          />
-
           <Field label="Nominal" required>
             <div className="flex items-baseline gap-2 border-b-2 border-neg pb-3">
               <span className="font-mono text-[13px] font-medium text-ink-3">Rp</span>
               <Input
+                autoFocus
                 inputMode="numeric"
                 placeholder="0"
                 aria-label="Nominal penarikan"
@@ -160,6 +117,13 @@ export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () =>
               />
             </div>
           </Field>
+
+          <CategoryPicker
+            value={categoryId}
+            onChange={setCategoryId}
+            hint="wajib"
+            walletType="SAVINGS"
+          />
 
           <Field label="Tanggal" required>
             <ChipWrap>
@@ -195,8 +159,8 @@ export function WithdrawSheet({ open, onClose }: { open: boolean; onClose: () =>
           <Field label="Catatan" hint="opsional">
             <Textarea
               value={note}
-              maxLength={500}
-              placeholder="transfer ke rekening utama"
+              maxLength={MAX_NOTE}
+              placeholder="Kado nikahan sepupu"
               onChange={(event) => setNote(event.target.value)}
             />
           </Field>
