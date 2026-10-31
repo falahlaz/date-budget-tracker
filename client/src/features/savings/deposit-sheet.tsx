@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { Chip, ChipWrap } from '@/components/ui/chip';
@@ -17,7 +17,9 @@ import { planFifo, useAdvances, useCreateDeposit } from './hooks';
  * Plain until there is an unpaid advance, and then it grows a block that says so. The
  * allocation rows are editable because FIFO is a sensible default and not a rule about
  * the user's intentions -- paying back the newest advance first is a legitimate choice,
- * and the server accepts a manual split for exactly that reason.
+ * and the server accepts a manual split for exactly that reason. Each advance also has its
+ * own checkbox, so a deposit can settle only some of them; FIFO then runs over the ticked
+ * ones only.
  */
 export function DepositSheet({
   open,
@@ -35,9 +37,16 @@ export function DepositSheet({
   const [amountText, setAmountText] = useState('');
   const [occurredOn, setOccurredOn] = useState(todayInJakarta());
   const [note, setNote] = useState('');
-  const [applyToAdvances, setApplyToAdvances] = useState(true);
+  /** Ids of the advances this deposit may settle. */
+  const [selected, setSelected] = useState<Set<number>>(new Set());
   /** Null until the user edits a row; then it overrides FIFO entirely. */
   const [manual, setManual] = useState<Record<number, number> | null>(null);
+  /**
+   * True while the amount was filled in by us (or is still empty), so ticking advances may
+   * keep it in step with their total. Typing an amount by hand turns this off.
+   */
+  const autoAmount = useRef(true);
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const today = todayInJakarta();
   const amount = parseAmountInput(amountText);
@@ -50,16 +59,41 @@ export function DepositSheet({
     setAmountText(settleFirst && outstanding > 0 ? formatAmountInput(String(outstanding)) : '');
     setOccurredOn(todayInJakarta());
     setNote('');
-    setApplyToAdvances(true);
+    setSelected(new Set((advances.data?.items ?? []).map((advance) => advance.id)));
     setManual(null);
+    autoAmount.current = true;
   }, [open, settleFirst, outstanding]);
 
-  const fifo = planFifo(amount, open_advances);
+  const chosen = open_advances.filter((advance) => selected.has(advance.id));
+  const applyToAdvances = chosen.length > 0;
+  const allSelected = open_advances.length > 0 && chosen.length === open_advances.length;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = applyToAdvances && !allSelected;
+    }
+  }, [applyToAdvances, allSelected]);
+
+  const fifo = planFifo(amount, chosen);
   const plan = manual
     ? Object.entries(manual)
         .map(([id, value]) => ({ transactionId: Number(id), amount: value }))
-        .filter((row) => row.amount > 0)
+        .filter((row) => row.amount > 0 && selected.has(row.transactionId))
     : fifo;
+
+  /** Changes which advances are ticked, re-deriving the split (and the amount, if ours). */
+  const changeSelection = (next: Set<number>) => {
+    setSelected(next);
+    setManual(null);
+
+    if (autoAmount.current || amountText === '') {
+      autoAmount.current = true;
+      const total = open_advances
+        .filter((advance) => next.has(advance.id))
+        .reduce((sum, advance) => sum + advance.outstanding, 0);
+      setAmountText(total > 0 ? formatAmountInput(String(total)) : '');
+    }
+  };
 
   const allocated = plan.reduce((total, row) => total + row.amount, 0);
   const fresh = amount - allocated;
@@ -74,12 +108,10 @@ export function DepositSheet({
         amount,
         occurredOn,
         ...(note.trim() === '' ? {} : { note: note.trim() }),
-        // A manual split is sent verbatim; otherwise the server runs the same FIFO shown
-        // above, so what was previewed is what happens.
+        // The split is always sent verbatim: the server's own FIFO knows nothing about
+        // which advances were ticked, so what was previewed is what happens.
         ...(applyToAdvances && plan.length > 0
-          ? manual
-            ? { allocations: plan }
-            : { applyToAdvances: true }
+          ? { allocations: plan }
           : { applyToAdvances: false }),
       });
 
@@ -110,6 +142,7 @@ export function DepositSheet({
             value={amountText}
             onChange={(event) => {
               setAmountText(formatAmountInput(event.target.value));
+              autoAmount.current = false;
               // A changed amount invalidates a hand-made split; re-deriving from FIFO is
               // less surprising than leaving rows that no longer add up.
               setManual(null);
@@ -159,25 +192,42 @@ export function DepositSheet({
 
             <label className="mt-3 flex items-center gap-2.5 text-[12.5px] text-ink-2">
               <input
+                ref={selectAllRef}
                 type="checkbox"
-                checked={applyToAdvances}
+                checked={allSelected}
                 onChange={(event) => {
-                  setApplyToAdvances(event.target.checked);
-                  setManual(null);
+                  changeSelection(
+                    event.target.checked
+                      ? new Set(open_advances.map((advance) => advance.id))
+                      : new Set(),
+                  );
                 }}
                 className="h-4 w-4 accent-[var(--pos)]"
               />
               Pakai setoran ini buat nutup dulu
             </label>
 
-            {applyToAdvances && amount >= 1 ? (
-              <ul className="mt-3 flex flex-col gap-2">
-                {open_advances.map((advance) => {
-                  const row = plan.find((entry) => entry.transactionId === advance.id);
+            <ul className="mt-3 flex flex-col gap-2">
+              {open_advances.map((advance) => {
+                const checked = selected.has(advance.id);
+                const row = plan.find((entry) => entry.transactionId === advance.id);
 
-                  return (
-                    <li key={advance.id} className="flex items-center gap-3">
-                      <span className="min-w-0 flex-1">
+                return (
+                  <li key={advance.id} className="flex items-center gap-3">
+                    <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-2.5">
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        aria-label={`Balikin ${advance.note ?? 'penarikan'}`}
+                        onChange={(event) => {
+                          const next = new Set(selected);
+                          if (event.target.checked) next.add(advance.id);
+                          else next.delete(advance.id);
+                          changeSelection(next);
+                        }}
+                        className="h-4 w-4 shrink-0 accent-[var(--pos)]"
+                      />
+                      <span className={cn('min-w-0 flex-1', !checked && 'opacity-50')}>
                         <span className="block truncate text-[12.5px] text-ink">
                           {advance.note ?? 'Penarikan'}
                         </span>
@@ -186,28 +236,31 @@ export function DepositSheet({
                           {formatRupiah(advance.outstanding)}
                         </span>
                       </span>
-                      <Input
-                        inputMode="numeric"
-                        aria-label={`Alokasi buat ${advance.note ?? 'penarikan'}`}
-                        value={formatAmountInput(String(row?.amount ?? 0))}
-                        onChange={(event) => {
-                          const next = Math.min(
-                            parseAmountInput(event.target.value),
-                            advance.outstanding,
-                          );
-                          setManual({
-                            ...(manual ??
-                              Object.fromEntries(fifo.map((entry) => [entry.transactionId, entry.amount]))),
-                            [advance.id]: next,
-                          });
-                        }}
-                        className="tabular w-32 shrink-0 text-right text-[13px]"
-                      />
-                    </li>
-                  );
-                })}
-              </ul>
-            ) : null}
+                    </label>
+                    <Input
+                      inputMode="numeric"
+                      aria-label={`Alokasi buat ${advance.note ?? 'penarikan'}`}
+                      value={formatAmountInput(String(checked ? (row?.amount ?? 0) : 0))}
+                      disabled={!checked || amount < 1}
+                      onChange={(event) => {
+                        const next = Math.min(
+                          parseAmountInput(event.target.value),
+                          advance.outstanding,
+                        );
+                        setManual({
+                          ...(manual ??
+                            Object.fromEntries(
+                              fifo.map((entry) => [entry.transactionId, entry.amount]),
+                            )),
+                          [advance.id]: next,
+                        });
+                      }}
+                      className="tabular w-32 shrink-0 text-right text-[13px]"
+                    />
+                  </li>
+                );
+              })}
+            </ul>
 
             {applyToAdvances && amount >= 1 ? (
               <p
